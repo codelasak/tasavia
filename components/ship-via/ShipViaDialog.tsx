@@ -21,6 +21,8 @@ const shipViaSchema = z.object({
   ship_model: z.string().optional(),
 })
 
+type ShipViaFormValues = z.infer<typeof shipViaSchema>
+
 interface ShipViaDialogProps {
   open: boolean
   onClose: () => void
@@ -28,7 +30,7 @@ interface ShipViaDialogProps {
 }
 
 export function ShipViaDialog({ open, onClose, shipVia }: ShipViaDialogProps) {
-  const form = useForm({
+  const form = useForm<ShipViaFormValues>({
     resolver: zodResolver(shipViaSchema),
     defaultValues: {
       ship_company_name: '',
@@ -56,7 +58,7 @@ export function ShipViaDialog({ open, onClose, shipVia }: ShipViaDialogProps) {
     }
   }, [shipVia, form])
 
-  const onSubmit = async (data: z.infer<typeof shipViaSchema>) => {
+  const onSubmit = async (data: ShipViaFormValues) => {
     try {
       const submitData = {
         ...data,

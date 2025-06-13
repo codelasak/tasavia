@@ -105,7 +105,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
     } catch (error) {
       console.error('Error fetching purchase order:', error)
       toast.error('Failed to fetch purchase order')
-      router.push('/purchase-orders')
+      router.push('/portal/purchase-orders')
     } finally {
       setLoading(false)
     }
@@ -154,13 +154,13 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
           </div>
         </div>
         <div className="flex space-x-2">
-          <Link href={`/purchase-orders/${purchaseOrder.po_id}/edit`}>
+          <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/edit`}>
             <Button variant="outline">
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>
           </Link>
-          <Link href={`/purchase-orders/${purchaseOrder.po_id}/pdf`}>
+          <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/pdf`}>
             <Button>
               <FileText className="h-4 w-4 mr-2" />
               View PDF

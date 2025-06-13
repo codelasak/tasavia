@@ -21,6 +21,8 @@ const partNumberSchema = z.object({
   remarks: z.string().optional(),
 })
 
+type PartNumberFormValues = z.infer<typeof partNumberSchema>
+
 interface PartNumberDialogProps {
   open: boolean
   onClose: () => void
@@ -28,7 +30,7 @@ interface PartNumberDialogProps {
 }
 
 export function PartNumberDialog({ open, onClose, partNumber }: PartNumberDialogProps) {
-  const form = useForm({
+  const form = useForm<PartNumberFormValues>({
     resolver: zodResolver(partNumberSchema),
     defaultValues: {
       pn: '',
@@ -53,7 +55,7 @@ export function PartNumberDialog({ open, onClose, partNumber }: PartNumberDialog
     }
   }, [partNumber, form])
 
-  const onSubmit = async (data: z.infer<typeof partNumberSchema>) => {
+  const onSubmit = async (data: PartNumberFormValues) => {
     try {
       const submitData = {
         ...data,

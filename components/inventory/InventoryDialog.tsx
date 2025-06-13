@@ -44,6 +44,8 @@ const inventorySchema = z.object({
   notes: z.string().optional(),
 })
 
+type InventoryFormValues = z.infer<typeof inventorySchema>
+
 interface InventoryDialogProps {
   open: boolean
   onClose: () => void
@@ -55,7 +57,7 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredParts, setFilteredParts] = useState<PartNumber[]>([])
 
-  const form = useForm({
+  const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventorySchema),
     defaultValues: {
       pn_id: '',
@@ -121,7 +123,7 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
     }
   }
 
-  const onSubmit = async (data: z.infer<typeof inventorySchema>) => {
+  const onSubmit = async (data: InventoryFormValues) => {
     try {
       const submitData = {
         ...data,

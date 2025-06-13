@@ -50,7 +50,8 @@ interface ShipVia {
 }
 
 const poItemSchema = z.object({
-  pn_id: z.string().optional(),
+  po_item_id: z.string().optional(),
+  pn_id: z.string().min(1, 'Part number is required'),
   description: z.string().min(1, 'Description is required'),
   sn: z.string().optional(),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
@@ -75,10 +76,17 @@ const purchaseOrderSchema = z.object({
   freight_charge: z.number().min(0).default(0),
   misc_charge: z.number().min(0).default(0),
   vat_percentage: z.number().min(0).max(100).default(0),
+  status: z.string(),
   items: z.array(poItemSchema).min(1, 'At least one item is required'),
 })
 
-export default function NewPurchaseOrderPage() {
+type PurchaseOrderFormValues = z.infer<typeof purchaseOrderSchema>
+
+interface PurchaseOrderEditClientPageProps {
+  poId: string
+}
+
+export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditClientPageProps) {
   const router = useRouter()
   const [myCompanies, setMyCompanies] = useState<MyCompany[]>([])
   const [externalCompanies, setExternalCompanies] = useState<ExternalCompany[]>([])
@@ -86,7 +94,7 @@ export default function NewPurchaseOrderPage() {
   const [shipViaList, setShipViaList] = useState<ShipVia[]>([])
   const [loading, setLoading] = useState(true)
 
-  const form = useForm({
+  const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
       my_company_id: '',
@@ -105,16 +113,8 @@ export default function NewPurchaseOrderPage() {
       freight_charge: 0,
       misc_charge: 0,
       vat_percentage: 0,
-      items: [
-        {
-          pn_id: '',
-          description: '',
-          sn: '',
-          quantity: 1,
-          unit_price: 0,
-          condition: '',
-        }
-      ],
+      status: 'Draft',
+      items: [],
     }
   })
 
@@ -124,8 +124,11 @@ export default function NewPurchaseOrderPage() {
   })
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (poId) {
+      fetchData()
+      fetchPurchaseOrder(poId)
+    }
+  }, [poId])
 
   const fetchData = async () => {
     try {
@@ -148,6 +151,60 @@ export default function NewPurchaseOrderPage() {
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load form data')
+    }
+  }
+
+  const fetchPurchaseOrder = async (id: string) => {
+    try {
+      const { data: poData, error: poError } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .eq('po_id', id)
+        .single()
+
+      if (poError) throw poError
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('po_items')
+        .select('*')
+        .eq('po_id', id)
+        .order('line_number')
+
+      if (itemsError) throw itemsError
+
+      // Populate form with existing data
+      form.reset({
+        my_company_id: poData.my_company_id,
+        vendor_company_id: poData.vendor_company_id,
+        po_date: new Date(poData.po_date),
+        ship_to_company_name: poData.ship_to_company_name || '',
+        ship_to_address_details: poData.ship_to_address_details || '',
+        ship_to_contact_name: poData.ship_to_contact_name || '',
+        ship_to_contact_phone: poData.ship_to_contact_phone || '',
+        ship_to_contact_email: poData.ship_to_contact_email || '',
+        prepared_by_name: poData.prepared_by_name || 'System User',
+        currency: poData.currency,
+        ship_via_id: poData.ship_via_id || '',
+        payment_term: poData.payment_term || '',
+        remarks_1: poData.remarks_1 || '',
+        freight_charge: poData.freight_charge || 0,
+        misc_charge: poData.misc_charge || 0,
+        vat_percentage: poData.vat_percentage || 0,
+        status: poData.status,
+        items: itemsData.map(item => ({
+          po_item_id: item.po_item_id,
+          pn_id: item.pn_id || '',
+          description: item.description || '',
+          sn: item.sn || '',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          condition: item.condition || '',
+        }))
+      })
+    } catch (error) {
+      console.error('Error fetching purchase order:', error)
+      toast.error('Failed to fetch purchase order')
+      router.push('/portal/purchase-orders')
     } finally {
       setLoading(false)
     }
@@ -166,44 +223,50 @@ export default function NewPurchaseOrderPage() {
     return subtotal + freight + misc + vatAmount
   }
 
-  const onSubmit = async (data: z.infer<typeof purchaseOrderSchema>) => {
+  const onSubmit = async (data: PurchaseOrderFormValues) => {
     try {
       const subtotal = calculateSubtotal()
       const total = calculateTotal()
 
-      // Create the purchase order - completely omit po_number to let database generate it
-      const insertData = {
-        my_company_id: data.my_company_id,
-        vendor_company_id: data.vendor_company_id,
-        po_date: format(data.po_date, 'yyyy-MM-dd'),
-        ship_to_company_name: data.ship_to_company_name || null,
-        ship_to_address_details: data.ship_to_address_details || null,
-        ship_to_contact_name: data.ship_to_contact_name || null,
-        ship_to_contact_phone: data.ship_to_contact_phone || null,
-        ship_to_contact_email: data.ship_to_contact_email || null,
-        prepared_by_name: data.prepared_by_name,
-        currency: data.currency,
-        ship_via_id: data.ship_via_id || null,
-        payment_term: data.payment_term || null,
-        remarks_1: data.remarks_1 || null,
-        freight_charge: data.freight_charge,
-        misc_charge: data.misc_charge,
-        vat_percentage: data.vat_percentage,
-        subtotal,
-        total_amount: total,
-      }
-
-      const { data: poData, error: poError } = await supabase
+      // Update the purchase order
+      const { error: poError } = await supabase
         .from('purchase_orders')
-        .insert(insertData)
-        .select()
-        .single()
+        .update({
+          my_company_id: data.my_company_id,
+          vendor_company_id: data.vendor_company_id,
+          po_date: format(data.po_date, 'yyyy-MM-dd'),
+          ship_to_company_name: data.ship_to_company_name || null,
+          ship_to_address_details: data.ship_to_address_details || null,
+          ship_to_contact_name: data.ship_to_contact_name || null,
+          ship_to_contact_phone: data.ship_to_contact_phone || null,
+          ship_to_contact_email: data.ship_to_contact_email || null,
+          prepared_by_name: data.prepared_by_name,
+          currency: data.currency,
+          ship_via_id: data.ship_via_id || null,
+          payment_term: data.payment_term || null,
+          remarks_1: data.remarks_1 || null,
+          freight_charge: data.freight_charge,
+          misc_charge: data.misc_charge,
+          vat_percentage: data.vat_percentage,
+          status: data.status,
+          subtotal,
+          total_amount: total,
+        })
+        .eq('po_id', poId)
 
       if (poError) throw poError
 
-      // Create the line items
+      // Delete existing line items
+      const { error: deleteError } = await supabase
+        .from('po_items')
+        .delete()
+        .eq('po_id', poId)
+
+      if (deleteError) throw deleteError
+
+      // Create new line items
       const lineItems = data.items.map((item, index) => ({
-        po_id: poData.po_id,
+        po_id: poId,
         line_number: index + 1,
         pn_id: item.pn_id || null,
         description: item.description,
@@ -219,11 +282,11 @@ export default function NewPurchaseOrderPage() {
 
       if (itemsError) throw itemsError
 
-      toast.success('Purchase order created successfully')
-      router.push('/purchase-orders')
+      toast.success('Purchase order updated successfully')
+      router.push(`/portal/purchase-orders/${poId}`)
     } catch (error: any) {
-      console.error('Error creating purchase order:', error)
-      toast.error(error.message || 'Failed to create purchase order')
+      console.error('Error updating purchase order:', error)
+      toast.error(error.message || 'Failed to update purchase order')
     }
   }
 
@@ -233,7 +296,7 @@ export default function NewPurchaseOrderPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-slate-500">Loading form data...</div>
+        <div className="text-slate-500">Loading purchase order...</div>
       </div>
     )
   }
@@ -246,8 +309,8 @@ export default function NewPurchaseOrderPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Create Purchase Order</h1>
-          <p className="text-slate-600">Generate a new purchase order</p>
+          <h1 className="text-3xl font-bold text-slate-900">Edit Purchase Order</h1>
+          <p className="text-slate-600">Update purchase order details</p>
         </div>
       </div>
 
@@ -259,7 +322,7 @@ export default function NewPurchaseOrderPage() {
             <CardDescription>Basic information for the purchase order</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="my_company_id">My Company</Label>
                 <Select
@@ -277,11 +340,6 @@ export default function NewPurchaseOrderPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {form.formState.errors.my_company_id && (
-                  <div className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.my_company_id.message}
-                  </div>
-                )}
               </div>
 
               <div>
@@ -301,11 +359,25 @@ export default function NewPurchaseOrderPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {form.formState.errors.vendor_company_id && (
-                  <div className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.vendor_company_id.message}
-                  </div>
-                )}
+              </div>
+
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={form.watch('status')}
+                  onValueChange={(value) => form.setValue('status', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="Sent">Sent</SelectItem>
+                    <SelectItem value="Acknowledged">Acknowledged</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -343,11 +415,6 @@ export default function NewPurchaseOrderPage() {
                   {...form.register('prepared_by_name')}
                   className={form.formState.errors.prepared_by_name ? 'border-red-500' : ''}
                 />
-                {form.formState.errors.prepared_by_name && (
-                  <div className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.prepared_by_name.message}
-                  </div>
-                )}
               </div>
             </div>
           </CardContent>
@@ -534,7 +601,7 @@ export default function NewPurchaseOrderPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Line Items</CardTitle>
-                <CardDescription>Add items to this purchase order</CardDescription>
+                <CardDescription>Update items in this purchase order</CardDescription>
               </div>
               <Button
                 type="button"
@@ -584,7 +651,7 @@ export default function NewPurchaseOrderPage() {
                           }
                         }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className={form.formState.errors.items?.[index]?.pn_id ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Select part number" />
                         </SelectTrigger>
                         <SelectContent>
@@ -600,6 +667,11 @@ export default function NewPurchaseOrderPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {form.formState.errors.items?.[index]?.pn_id && (
+                        <div className="text-red-500 text-sm mt-1">
+                          {form.formState.errors.items[index]?.pn_id?.message}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -761,7 +833,7 @@ export default function NewPurchaseOrderPage() {
             Cancel
           </Button>
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? 'Creating...' : 'Create Purchase Order'}
+            {form.formState.isSubmitting ? 'Updating...' : 'Update Purchase Order'}
           </Button>
         </div>
       </form>

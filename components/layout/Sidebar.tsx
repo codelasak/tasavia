@@ -10,17 +10,19 @@ import {
   ShoppingCart,
   Truck,
   BarChart3,
-  Home
+  Home,
+  ArrowLeft
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'My Companies', href: '/my-companies', icon: Building2 },
-  { name: 'External Companies', href: '/companies', icon: Building2 },
-  { name: 'Part Numbers', href: '/part-numbers', icon: Package },
-  { name: 'Inventory', href: '/inventory', icon: BarChart3 },
-  { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
-  { name: 'Ship Via', href: '/ship-via', icon: Truck },
+  { name: 'Dashboard', href: '/portal/dashboard', icon: Home },
+  { name: 'My Companies', href: '/portal/my-companies', icon: Building2 },
+  { name: 'External Companies', href: '/portal/companies', icon: Building2 },
+  { name: 'Part Numbers', href: '/portal/part-numbers', icon: Package },
+  { name: 'Inventory', href: '/portal/inventory', icon: BarChart3 },
+  { name: 'Purchase Orders', href: '/portal/purchase-orders', icon: ShoppingCart },
+  { name: 'Ship Via', href: '/portal/ship-via', icon: Truck },
 ]
 
 export function Sidebar() {
@@ -61,6 +63,15 @@ export function Sidebar() {
           )
         })}
       </nav>
+
+      <div className="absolute bottom-4 left-4 right-4">
+        <Link href="/">
+          <Button variant="ghost" className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Website
+          </Button>
+        </Link>
+      </div>
     </div>
   )
 }

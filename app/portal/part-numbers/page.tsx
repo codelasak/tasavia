@@ -9,7 +9,13 @@ import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { PartNumberDialog } from '@/components/part-numbers/PartNumberDialog'
-import { ExcelImportDialog } from '@/components/part-numbers/ExcelImportDialog'
+import dynamic from 'next/dynamic'
+
+// Dynamically import ExcelImportDialog with ssr: false to prevent server-side rendering issues
+const ExcelImportDialog = dynamic(
+  () => import('@/components/part-numbers/ExcelImportDialog').then(mod => ({ default: mod.ExcelImportDialog })),
+  { ssr: false }
+)
 
 type PartNumber = Database['public']['Tables']['pn_master_table']['Row']
 

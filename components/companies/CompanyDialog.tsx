@@ -67,17 +67,45 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       country: '',
       phone: '',
       email: '',
-      company_type: 'vendor' as const,
+      company_type: 'vendor',
     }
   })
 
   useEffect(() => {
     if (company) {
-      form.reset(company)
+      if (isMyCompany) {
+        const myCompanyData = company as MyCompany
+        form.reset({
+          my_company_name: myCompanyData.my_company_name || '',
+          my_company_code: myCompanyData.my_company_code || '',
+          my_company_address: myCompanyData.my_company_address || '',
+          city: myCompanyData.city || '',
+          country: myCompanyData.country || '',
+          phone: myCompanyData.phone || '',
+          email: myCompanyData.email || '',
+        })
+      } else {
+        const externalCompanyData = company as ExternalCompany
+        const validCompanyTypes = ['vendor', 'customer', 'both'] as const
+        const companyType = validCompanyTypes.includes(externalCompanyData.company_type as any) 
+          ? externalCompanyData.company_type as 'vendor' | 'customer' | 'both'
+          : 'vendor'
+        
+        form.reset({
+          company_name: externalCompanyData.company_name || '',
+          company_code: externalCompanyData.company_code || '',
+          address: externalCompanyData.address || '',
+          city: externalCompanyData.city || '',
+          country: externalCompanyData.country || '',
+          phone: externalCompanyData.phone || '',
+          email: externalCompanyData.email || '',
+          company_type: companyType,
+        })
+      }
     } else {
       form.reset()
     }
-  }, [company, form])
+  }, [company, form, isMyCompany])
 
   const onSubmit = async (data: any) => {
     try {

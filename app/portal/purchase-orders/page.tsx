@@ -101,7 +101,7 @@ export default function PurchaseOrdersPage() {
           <h1 className="text-3xl font-bold text-slate-900">Purchase Orders</h1>
           <p className="text-slate-600">Manage and track all purchase orders</p>
         </div>
-        <Link href="/purchase-orders/new">
+        <Link href="/portal/purchase-orders/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             New Purchase Order
@@ -193,17 +193,17 @@ export default function PurchaseOrdersPage() {
                         </div>
                       </div>
                       <div className="flex space-x-2 ml-4">
-                        <Link href={`/purchase-orders/${po.po_id}`}>
+                        <Link href={`/portal/purchase-orders/${po.po_id}`}>
                           <Button variant="ghost" size="icon">
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/purchase-orders/${po.po_id}/edit`}>
+                        <Link href={`/portal/purchase-orders/${po.po_id}/edit`}>
                           <Button variant="ghost" size="icon">
                             <Edit className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/purchase-orders/${po.po_id}/pdf`}>
+                        <Link href={`/portal/purchase-orders/${po.po_id}/pdf`}>
                           <Button variant="ghost" size="icon">
                             <FileText className="h-4 w-4" />
                           </Button>

@@ -1,15 +1,21 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Header } from '@/components/layout/Header'
 import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'TASAVIA Internal Dashboard',
-  description: 'Comprehensive business management system for TASAVIA',
+  title: 'TASAVIA - Aviation Technical & Commercial Services',
+  description: 'ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.',
+  keywords: 'aviation, aircraft, teardown, maintenance, repair, components, parts, technical services',
+  authors: [{ name: 'TASAVIA' }],
+  openGraph: {
+    title: 'TASAVIA - Aviation Technical & Commercial Services',
+    description: 'ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.',
+    type: 'website',
+    locale: 'en_US',
+  },
 }
 
 export default function RootLayout({
@@ -20,15 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex h-screen bg-slate-50">
-          <Sidebar />
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-auto p-6">
-              {children}
-            </main>
-          </div>
-        </div>
+        {children}
         <Toaster />
       </body>
     </html>

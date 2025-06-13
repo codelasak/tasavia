@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import PurchaseOrderPdfClientPage from './PurchaseOrderPdfClientPage'
+import PurchaseOrderEditClientPage from './PurchaseOrderEditClientPage'
 
 export async function generateStaticParams() {
   try {
@@ -21,12 +21,13 @@ export async function generateStaticParams() {
   }
 }
 
-interface PurchaseOrderPdfPageProps {
-  params: {
+interface PurchaseOrderEditPageProps {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
-export default function PurchaseOrderPdfPage({ params }: PurchaseOrderPdfPageProps) {
-  return <PurchaseOrderPdfClientPage poId={params.id} />
+export default async function PurchaseOrderEditPage({ params }: PurchaseOrderEditPageProps) {
+  const resolvedParams = await params
+  return <PurchaseOrderEditClientPage poId={resolvedParams.id} />
 }

@@ -113,7 +113,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
     } catch (error) {
       console.error('Error fetching purchase order:', error)
       toast.error('Failed to fetch purchase order')
-      router.push('/purchase-orders')
+      router.push('/portal/purchase-orders')
     } finally {
       setLoading(false)
     }
@@ -325,6 +325,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
 
         {/* Traceability Notice */}
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+          
           <div className="text-sm font-medium text-slate-900">
             All material must be traced to a certificated operator. Any material not traced to an operator must be pre-approved prior to shipment.
           </div>

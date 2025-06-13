@@ -13,6 +13,7 @@ import { InventoryDialog } from '@/components/inventory/InventoryDialog'
 
 interface InventoryItem {
   inventory_id: string
+  pn_id: string
   serial_number: string | null
   condition?: string
   location: string | null
@@ -77,8 +78,11 @@ export default function InventoryPage() {
       setInventory(data || [])
       
       // Extract unique locations and conditions for filters
-      const uniqueLocations = [...new Set(data?.map(item => item.location).filter(Boolean))] as string[]
-      const uniqueConditions = [...new Set(data?.map(item => item.condition).filter(Boolean))] as string[]
+      const locationData = data?.map(item => item.location).filter(Boolean) || []
+      const conditionData = data?.map(item => item.condition).filter(Boolean) || []
+      
+      const uniqueLocations = Array.from(new Set(locationData)) as string[]
+      const uniqueConditions = Array.from(new Set(conditionData)) as string[]
       
       setLocations(uniqueLocations)
       setConditions(uniqueConditions)

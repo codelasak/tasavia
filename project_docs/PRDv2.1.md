@@ -1,10 +1,11 @@
 ### **Product Requirements Document: TASAVIA Internal Dashboard**
 
-**Version: 1.2**
+**Version: 2.0 (Final)**
 **Date: June 13, 2025**
 **Prepared For:** TASAVIA
 
 #### **Revision History**
+  **v2.0 (June 13, 2025)**: Final consolidated document. Incorporates requirements for a public website, a secure internal portal, file attachments, and a detailed data model based on all prior discussions and provided materials.
 
   * **v1.2 (June 13, 2025):** Finalized requirements based on the sample PO PDF (`P25172.pdf`). Added a "Ship To/Consignee" address block, detailed cost fields (freight, misc charges), and line item numbers. Refined PO number format and PDF generation requirements.
   * **v1.1 (June 7, 2025):** Updated the Purchase Order section based on an initial schematic layout. Clarified UI behaviors like autocomplete, dropdowns, and auto-populated fields.
@@ -16,6 +17,13 @@
 
 This document outlines the product requirements for the TASAVIA Internal Dashboard. The dashboard aims to centralize and streamline key operational processes, including inventory management, purchase order processing, company data management, and part number referencing.
 
+1.2. Project Overview
+The project will deliver a modern, integrated web platform built using Next.js for the frontend and Supabase for the backend. It will serve two primary functions:
+
+Public Website: A redesign of the existing tasavia.com to serve as a professional marketing and information hub for clients and partners.
+Internal Portal: A secure, feature-rich dashboard accessible at the /portal route for authorized personnel to manage inventory, purchase orders, company data, and other core business operations.
+
+
 ### 2\. Target Users
 
   * Inventory Managers
@@ -24,6 +32,8 @@ This document outlines the product requirements for the TASAVIA Internal Dashboa
   * Company Administrators/Management
 
 ### 3\. User Stories
+  
+  US011 (Client): As a potential client, I want to learn about TASAVIA's services and expertise so I can evaluate them as a partner.
 
   * **US001 (Company Admin):** As a Company Administrator, I want to manage profiles for "My Companies" so that all internal company information is accurate for use in documents like POs.
   * **US002 (Company Admin):** As a Company Administrator, I want to manage profiles for external companies (vendors, customers) so that I can easily select them for transactions.
@@ -168,3 +178,66 @@ This document outlines the product requirements for the TASAVIA Internal Dashboa
   * **Security:** Secure user authentication and data access controls (Row Level Security).
   * **Reliability:** High availability with minimal downtime.
   * **Responsiveness:** Usable on desktop and tablet screens.
+
+
+  4.1. Public Website (tasavia.com)
+F001: Website Redesign: A complete redesign of the public website with a modern, professional, and responsive layout.
+F002: Homepage: A landing page featuring the company slogan, an introduction to the company's ISO9001 certification, a summary of top services, and contact information. (See Appendix A for layout).
+F003: Services Page: A page detailing TASAVIA's core service offerings, such as Aircraft Teardown, Repair Management, and Component Sales.
+F004: Contact Page: A page with an inquiry form and detailed contact information for both the Turkey and USA offices.
+
+Security: The internal portal at /portal must be strictly protected from public access via authentication middleware.
+
+
+Appendix A: Homepage Content & Layout
+This section provides the reference design for the new public homepage.
+
+&lt;div align="center">
+&lt;img src="[URL_TO_YOUR_TASAVIA_LOGO]" alt="TASAVIA Logo" width="250"/>
+&lt;/div>
+
+&lt;h3 align="center">
+&lt;a href="#about">About Us&lt;/a> •
+&lt;a href="#services">Services&lt;/a> •
+&lt;a href="#contact">Contact&lt;/a> •
+&lt;a href="/portal">&lt;b>Portal Login&lt;/b>&lt;/a>
+&lt;/h3>
+
+&lt;div id="home" align="center">
+
+YOUR PARTNER TO KEEP AIRCRAFTS FLYING
+TASAVIA is an ISO9001 certified aviation technical and commercial services provider.
+
+&lt;/div>
+
+&lt;a id="about">About TASAVIA&lt;/a>
+With a highly experienced team, we support our customers on the following subjects in the aviation industry:
+
+Aircraft Teardown
+Component Sale/Exchange
+Repair Management
+Technical Consultancy
+&lt;br>
+
+&lt;a id="services">Our Top Services&lt;/a>
+We provide a wide range of technical and commercial solutions to meet all your aviation needs.
+
+Aircraft Teardown Management
+Aircraft Base Maintenance Management
+Repair Management
+Component Sales & Exchange
+Aircraft Sales & Procurement Management
+On-site Technical Support
+&lt;a id="contact">Contact Us&lt;/a>
+Turkey Office	USA Office
+Address: EMNİYETTEPE MAH. SADABAT SK. &lt;br> NO: 11/1 EYÜPSULTAN / ISTANBUL / TURKEY	Address: 18815 LANTERN COVE LN &lt;br> TOMBALL TX 77375 USA
+Email: rfq@tasavia.com	Email: sales@tasavia.com
+
+E-Tablolar'a aktar
+&lt;br>
+&lt;br>
+
+&lt;div align="center">
+&lt;p>&amp;copy; 2025 TASAVIA. All Rights Reserved.&lt;/p>
+&lt;/div>
+
