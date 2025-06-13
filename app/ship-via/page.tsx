@@ -1,0 +1,211 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Plus, Search, Edit, Trash2, Truck, User, Hash } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { Database } from '@/lib/supabase'
+import { toast } from 'sonner'
+import { ShipViaDialog } from '@/components/ship-via/ShipViaDialog'
+
+type ShipVia = Database['public']['Tables']['my_ship_via']['Row']
+
+export default function ShipViaPage() {
+  const [shipViaList, setShipViaList] = useState<ShipVia[]>([])
+  const [filteredShipVia, setFilteredShipVia] = useState<ShipVia[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingShipVia, setEditingShipVia] = useState<ShipVia | null>(null)
+
+  useEffect(() => {
+    fetchShipVia()
+  }, [])
+
+  useEffect(() => {
+    const filtered = shipViaList.filter(shipVia =>
+      shipVia.ship_company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shipVia.account_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (shipVia.owner && shipVia.owner.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (shipVia.ship_model && shipVia.ship_model.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
+    setFilteredShipVia(filtered)
+  }, [shipViaList, searchTerm])
+
+  const fetchShipVia = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('my_ship_via')
+        .select('*')
+        .order('ship_company_name')
+
+      if (error) throw error
+      setShipViaList(data || [])
+    } catch (error) {
+      console.error('Error fetching ship via:', error)
+      toast.error('Failed to fetch ship via companies')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (shipVia: ShipVia) => {
+    setEditingShipVia(shipVia)
+    setDialogOpen(true)
+  }
+
+  const handleDelete = async (shipVia: ShipVia) => {
+    if (!confirm(`Are you sure you want to delete ${shipVia.ship_company_name}?`)) return
+
+    try {
+      const { error } = await supabase
+        .from('my_ship_via')
+        .delete()
+        .eq('ship_via_id', shipVia.ship_via_id)
+
+      if (error) throw error
+      
+      setShipViaList(shipViaList.filter(sv => sv.ship_via_id !== shipVia.ship_via_id))
+      toast.success('Ship via company deleted successfully')
+    } catch (error) {
+      console.error('Error deleting ship via:', error)
+      toast.error('Failed to delete ship via company')
+    }
+  }
+
+  const handleDialogClose = () => {
+    setDialogOpen(false)
+    setEditingShipVia(null)
+    fetchShipVia()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-500">Loading ship via companies...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Ship Via Management</h1>
+          <p className="text-slate-600">Manage shipping companies and logistics providers</p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Ship Via
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ship Via Companies</CardTitle>
+          <CardDescription>
+            {shipViaList.length} companies • {filteredShipVia.length} shown
+          </CardDescription>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <Input
+              placeholder="Search companies, account numbers, owners..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredShipVia.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-slate-500">No ship via companies found</div>
+              {searchTerm && (
+                <Button
+                  variant="link"
+                  onClick={() => setSearchTerm('')}
+                  className="mt-2"
+                >
+                  Clear search
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredShipVia.map((shipVia) => (
+                <Card key={shipVia.ship_via_id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center">
+                        <Truck className="h-5 w-5 mr-2 text-blue-600" />
+                        {shipVia.ship_company_name}
+                      </CardTitle>
+                      <div className="flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(shipVia)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(shipVia)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      <div className="flex items-center text-sm">
+                        <Hash className="h-4 w-4 mr-2 text-slate-500" />
+                        <div>
+                          <div className="text-slate-500">Account Number</div>
+                          <div className="font-mono font-semibold">{shipVia.account_no}</div>
+                        </div>
+                      </div>
+                      
+                      {shipVia.owner && (
+                        <div className="flex items-center text-sm">
+                          <User className="h-4 w-4 mr-2 text-slate-500" />
+                          <div>
+                            <div className="text-slate-500">Owner</div>
+                            <div className="font-medium">{shipVia.owner}</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {shipVia.ship_model && (
+                        <div className="text-sm">
+                          <div className="text-slate-500">Ship Model</div>
+                          <div className="font-medium">{shipVia.ship_model}</div>
+                        </div>
+                      )}
+                      
+                      <div className="pt-2 border-t border-slate-100">
+                        <div className="text-xs text-slate-500">
+                          Display Format: {shipVia.ship_company_name} # {shipVia.account_no}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ShipViaDialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        shipVia={editingShipVia}
+      />
+    </div>
+  )
+}
