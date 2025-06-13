@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -15,7 +15,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { CalendarIcon, Plus, Trash2, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -123,38 +123,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     name: 'items'
   })
 
-  useEffect(() => {
-    if (poId) {
-      fetchData()
-      fetchPurchaseOrder(poId)
-    }
-  }, [poId])
-
-  const fetchData = async () => {
-    try {
-      const [myCompaniesResult, companiesResult, partNumbersResult, shipViaResult] = await Promise.all([
-        supabase.from('my_companies').select('*').order('my_company_name'),
-        supabase.from('companies').select('*').order('company_name'),
-        supabase.from('pn_master_table').select('pn_id, pn, description').order('pn'),
-        supabase.from('my_ship_via').select('*').order('ship_company_name')
-      ])
-
-      if (myCompaniesResult.error) throw myCompaniesResult.error
-      if (companiesResult.error) throw companiesResult.error
-      if (partNumbersResult.error) throw partNumbersResult.error
-      if (shipViaResult.error) throw shipViaResult.error
-
-      setMyCompanies(myCompaniesResult.data || [])
-      setExternalCompanies(companiesResult.data || [])
-      setPartNumbers(partNumbersResult.data || [])
-      setShipViaList(shipViaResult.data || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('Failed to load form data')
-    }
-  }
-
-  const fetchPurchaseOrder = async (id: string) => {
+  const fetchPurchaseOrder = useCallback(async (id: string) => {
     try {
       const { data: poData, error: poError } = await supabase
         .from('purchase_orders')
@@ -208,7 +177,38 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     } finally {
       setLoading(false)
     }
-  }
+  }, [form, router, poId, supabase])
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [myCompaniesResult, companiesResult, partNumbersResult, shipViaResult] = await Promise.all([
+        supabase.from('my_companies').select('*').order('my_company_name'),
+        supabase.from('companies').select('*').order('company_name'),
+        supabase.from('pn_master_table').select('pn_id, pn, description').order('pn'),
+        supabase.from('my_ship_via').select('*').order('ship_company_name')
+      ])
+
+      if (myCompaniesResult.error) throw myCompaniesResult.error
+      if (companiesResult.error) throw companiesResult.error
+      if (partNumbersResult.error) throw partNumbersResult.error
+      if (shipViaResult.error) throw shipViaResult.error
+
+      setMyCompanies(myCompaniesResult.data || [])
+      setExternalCompanies(companiesResult.data || [])
+      setPartNumbers(partNumbersResult.data || [])
+      setShipViaList(shipViaResult.data || [])
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      toast.error('Failed to load form data')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (poId) {
+      fetchData()
+      fetchPurchaseOrder(poId)
+    }
+  }, [poId, fetchData, fetchPurchaseOrder])
 
   const calculateSubtotal = () => {
     return form.watch('items').reduce((sum, item) => sum + (item.quantity * item.unit_price), 0)

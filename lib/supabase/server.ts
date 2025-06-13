@@ -1,4 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+
+// Assuming Database interface is defined within this file or globally available.
+// If not, you might need to move it to a shared types file or define it here.
+// import { Database } from '../supabase' // REMOVED: No longer needed after file rename/refactor
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -11,7 +16,8 @@ if (!supabaseAnonKey) {
   throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// This is your server-side Supabase client for Server Components and API Routes
+export const supabase = createServerComponentClient<Database>({ cookies })
 
 export type Json =
   | string
@@ -399,4 +405,4 @@ export interface Database {
       [_ in never]: never
     }
   }
-}
+} 

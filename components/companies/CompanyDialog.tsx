@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { supabase } from '@/lib/supabase'
-import { Database } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
+import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 
 type MyCompany = Database['public']['Tables']['my_companies']['Row']

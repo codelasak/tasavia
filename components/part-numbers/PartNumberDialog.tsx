@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { supabase } from '@/lib/supabase'
-import { Database } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
+import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 
 type PartNumber = Database['public']['Tables']['pn_master_table']['Row']

@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { auth, User } from '@/lib/auth'
+import { User } from '@/lib/auth'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase/client'
 
 interface AuthContextType {
   user: User | null
@@ -36,58 +37,65 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname()
 
   useEffect(() => {
-    // Get initial user
-    const getInitialUser = async () => {
-      try {
-        const currentUser = await auth.getCurrentUser()
+    console.log("AuthProvider useEffect: Initializing auth state listener.");
+
+    // Listen for auth changes, this is the primary source of truth for client-side session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("AuthProvider: Auth state changed!");
+      console.log("Event:", event);
+      console.log("Session:", session);
+
+      if (session?.user) {
+        const currentUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          created_at: session.user.created_at || ''
+        }
         setUser(currentUser)
-      } catch (error) {
-        console.error('Error getting initial user:', error)
-      } finally {
-        setLoading(false)
+      } else {
+        setUser(null)
       }
-    }
-
-    getInitialUser()
-
-    // Listen for auth changes
-    const { data: { subscription } } = auth.onAuthStateChange((user) => {
-      setUser(user)
-      setLoading(false)
+      setLoading(false) // Always set loading to false once an event is received
     })
 
     return () => {
+      console.log("AuthProvider: Cleaning up auth state listener.");
       subscription?.unsubscribe()
     }
-  }, [])
+  }, []) // Empty dependency array to run only once on mount
 
   useEffect(() => {
+    console.log("AuthProvider: Redirect useEffect running. User:", user, "Loading:", loading, "Pathname:", pathname);
     // Redirect logic
     if (!loading) {
-      const isProtectedRoute = pathname.startsWith('/portal/dashboard')
-      const isPortalRoute = pathname === '/portal'
+      const isProtectedRoute = pathname.startsWith('/portal/') && pathname !== '/portal'
+      const isLoginPage = pathname === '/login'
 
       if (isProtectedRoute && !user) {
-        // User is not authenticated and trying to access protected route
-        router.push('/portal')
-      } else if (isPortalRoute && user) {
-        // User is authenticated and on login page, redirect to dashboard
-        router.push('/portal/dashboard')
+        console.log("AuthProvider: Redirecting unauthenticated user from protected route to /login");
+        router.replace('/login')
+      } else if (isLoginPage && user) {
+        console.log("AuthProvider: Redirecting authenticated user from /login to /portal/dashboard");
+        router.replace('/portal/dashboard')
+      } else if (pathname === '/portal' && user) {
+        console.log("AuthProvider: Redirecting authenticated user from /portal to /portal/dashboard");
+        router.replace('/portal/dashboard')
       }
     }
   }, [user, loading, pathname, router])
 
   const handleSignOut = async () => {
     try {
-      const { error } = await auth.signOut()
+      console.log("AuthProvider: Attempting to sign out.");
+      const { error } = await supabase.auth.signOut()
       if (error) {
-        toast.error('Error signing out: ' + error)
+        toast.error('Error signing out: ' + error.message)
       } else {
         toast.success('Signed out successfully')
         router.push('/')
       }
-    } catch (error) {
-      toast.error('An unexpected error occurred')
+    } catch (error: any) {
+      toast.error('An unexpected error occurred: ' + error.message)
     }
   }
 

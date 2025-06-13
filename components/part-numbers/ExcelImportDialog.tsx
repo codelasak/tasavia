@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -165,8 +165,8 @@ export function ExcelImportDialog({ open, onClose }: ExcelImportDialogProps) {
                 <h4 className="font-medium text-blue-900 mb-2">Excel Format Requirements:</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• First row should contain column headers</li>
-                  <li>• Must have a column with "PN" or "Part" in the header (required)</li>
-                  <li>• Optional columns: "Description", "Remarks"</li>
+                  <li>• Must have a column with &quot;PN&quot; or &quot;Part&quot; in the header (required)</li>
+                  <li>• Optional columns: &quot;Description&quot;, &quot;Remarks&quot;</li>
                   <li>• Empty part numbers will be skipped</li>
                   <li>• Duplicate part numbers will be updated</li>
                 </ul>

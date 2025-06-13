@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Download, Printer } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import Image from 'next/image'
@@ -75,23 +75,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Add PDF print mode class to html element when component mounts
-    document.documentElement.classList.add('pdf-print-mode')
-    
-    // Cleanup function to remove the class when component unmounts
-    return () => {
-      document.documentElement.classList.remove('pdf-print-mode')
-    }
-  }, [])
-
-  useEffect(() => {
-    if (poId) {
-      fetchPurchaseOrder(poId)
-    }
-  }, [poId])
-
-  const fetchPurchaseOrder = async (id: string) => {
+  const fetchPurchaseOrder = useCallback(async (id: string) => {
     try {
       const { data, error } = await supabase
         .from('purchase_orders')
@@ -117,7 +101,23 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, router])
+
+  useEffect(() => {
+    if (poId) {
+      fetchPurchaseOrder(poId)
+    }
+  }, [fetchPurchaseOrder, poId])
+
+  useEffect(() => {
+    // Add PDF print mode class to html element when component mounts
+    document.documentElement.classList.add('pdf-print-mode')
+    
+    // Cleanup function to remove the class when component unmounts
+    return () => {
+      document.documentElement.classList.remove('pdf-print-mode')
+    }
+  }, [])
 
   const handlePrint = () => {
     window.print()
