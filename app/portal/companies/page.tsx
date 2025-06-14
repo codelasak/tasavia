@@ -138,42 +138,29 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">External Companies</h1>
-          <p className="text-slate-600">Manage vendors, customers, and other external companies</p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Company
+    <div className="space-y-4 px-2 pb-20">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-2xl font-bold text-slate-900">External Companies</h1>
+        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4 mr-2" />Add
         </Button>
       </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>Company List</CardTitle>
-          <CardDescription>
-            {companies.length} companies • {filteredCompanies.length} shown
-          </CardDescription>
-          <div className="flex space-x-4">
-            <div className="relative flex-1">
+          <CardTitle className="text-base">Company List</CardTitle>
+          <div className="relative flex gap-2 mt-2">
+            <div className="flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input
-                placeholder="Search companies..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+              <Input placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="vendor">Vendors</SelectItem>
-                <SelectItem value="customer">Customers</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="vendor">Vendor</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
                 <SelectItem value="both">Both</SelectItem>
               </SelectContent>
             </Select>
@@ -181,69 +168,28 @@ export default function CompaniesPage() {
         </CardHeader>
         <CardContent>
           {filteredCompanies.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-slate-500">No companies found</div>
-              {(searchTerm || typeFilter !== 'all') && (
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    setSearchTerm('')
-                    setTypeFilter('all')
-                  }}
-                  className="mt-2"
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
+            <div className="text-center py-8 text-slate-500">No companies found</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
               {filteredCompanies.map((company) => (
                 <Card key={company.company_id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{company.company_name}</CardTitle>
+                      <CardTitle className="text-base">{company.company_name}</CardTitle>
                       <div className="flex space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(company)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(company)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(company)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(company)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <CardDescription>Code: {company.company_code}</CardDescription>
-                      <Badge className={getCompanyTypeBadge(company.company_type)}>
-                        {company.company_type || 'vendor'}
-                      </Badge>
+                      <CardDescription className="text-xs">Code: {company.company_code}</CardDescription>
+                      <Badge className={getCompanyTypeBadge(company.company_type)}>{company.company_type || 'vendor'}</Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="text-sm text-slate-600 space-y-1">
-                      {company.address && (
-                        <div>{company.address}</div>
-                      )}
-                      {(company.city || company.country) && (
-                        <div>
-                          {company.city}{company.city && company.country && ', '}{company.country}
-                        </div>
-                      )}
-                      {company.phone && (
-                        <div>📞 {company.phone}</div>
-                      )}
-                      {company.email && (
-                        <div>✉️ {company.email}</div>
-                      )}
-                    </div>
+                  <CardContent className="pt-0 text-xs text-slate-600">
+                    {(company.city || company.country) && (
+                      <div>{company.city}{company.city && company.country && ', '}{company.country}</div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -251,13 +197,7 @@ export default function CompaniesPage() {
           )}
         </CardContent>
       </Card>
-
-      <CompanyDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        company={editingCompany}
-        type="external_company"
-      />
+      <CompanyDialog open={dialogOpen} onClose={handleDialogClose} company={editingCompany} type="external_company" />
     </div>
   )
 }

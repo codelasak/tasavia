@@ -91,30 +91,22 @@ export default function ShipViaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Ship Via Management</h1>
-          <p className="text-slate-600">Manage shipping companies and logistics providers</p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Ship Via
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-4 pb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Ship Via</h1>
+        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4 mr-2" />Add
         </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Ship Via Companies</CardTitle>
-          <CardDescription>
-            {shipViaList.length} companies • {filteredShipVia.length} shown
-          </CardDescription>
+        <CardHeader className="pt-4 pb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
               placeholder="Search companies, account numbers, owners..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
         </CardHeader>
@@ -133,64 +125,27 @@ export default function ShipViaPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
               {filteredShipVia.map((shipVia) => (
                 <Card key={shipVia.ship_via_id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center">
-                        <Truck className="h-5 w-5 mr-2 text-blue-600" />
-                        {shipVia.ship_company_name}
-                      </CardTitle>
-                      <div className="flex space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(shipVia)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(shipVia)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  <CardContent className="p-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <Truck className="h-5 w-5 text-blue-600" />
+                        <span className="font-bold text-base text-slate-900">{shipVia.ship_company_name}</span>
+                        <span className="font-mono text-xs text-slate-500">{shipVia.account_no}</span>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      <div className="flex items-center text-sm">
-                        <Hash className="h-4 w-4 mr-2 text-slate-500" />
-                        <div>
-                          <div className="text-slate-500">Account Number</div>
-                          <div className="font-mono font-semibold">{shipVia.account_no}</div>
-                        </div>
-                      </div>
-                      
                       {shipVia.owner && (
-                        <div className="flex items-center text-sm">
-                          <User className="h-4 w-4 mr-2 text-slate-500" />
-                          <div>
-                            <div className="text-slate-500">Owner</div>
-                            <div className="font-medium">{shipVia.owner}</div>
-                          </div>
+                        <div className="flex items-center text-xs text-slate-500">
+                          <User className="h-4 w-4 mr-1" />{shipVia.owner}
                         </div>
                       )}
-                      
                       {shipVia.ship_model && (
-                        <div className="text-sm">
-                          <div className="text-slate-500">Ship Model</div>
-                          <div className="font-medium">{shipVia.ship_model}</div>
-                        </div>
+                        <div className="text-xs text-slate-400">{shipVia.ship_model}</div>
                       )}
-                      
-                      <div className="pt-2 border-t border-slate-100">
-                        <div className="text-xs text-slate-500">
-                          Display Format: {shipVia.ship_company_name} # {shipVia.account_no}
-                        </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(shipVia)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(shipVia)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
                   </CardContent>

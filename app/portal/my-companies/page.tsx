@@ -119,91 +119,42 @@ export default function MyCompaniesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">My Companies</h1>
-          <p className="text-slate-600">Manage your internal company profiles</p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Company
+    <div className="space-y-4 px-2 pb-20">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-2xl font-bold text-slate-900">My Companies</h1>
+        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4 mr-2" />Add
         </Button>
       </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>Company List</CardTitle>
-          <CardDescription>
-            {companies.length} companies • {filteredCompanies.length} shown
-          </CardDescription>
+          <CardTitle className="text-base">Company List</CardTitle>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-            <Input
-              placeholder="Search companies..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+            <Input placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
         </CardHeader>
         <CardContent>
           {filteredCompanies.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-slate-500">No companies found</div>
-              {searchTerm && (
-                <Button
-                  variant="link"
-                  onClick={() => setSearchTerm('')}
-                  className="mt-2"
-                >
-                  Clear search
-                </Button>
-              )}
-            </div>
+            <div className="text-center py-8 text-slate-500">No companies found</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
               {filteredCompanies.map((company) => (
                 <Card key={company.my_company_id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{company.my_company_name}</CardTitle>
+                      <CardTitle className="text-base">{company.my_company_name}</CardTitle>
                       <div className="flex space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(company)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(company)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(company)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(company)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
-                    <CardDescription>Code: {company.my_company_code}</CardDescription>
+                    <CardDescription className="text-xs">Code: {company.my_company_code}</CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="text-sm text-slate-600 space-y-1">
-                      {company.my_company_address && (
-                        <div>{company.my_company_address}</div>
-                      )}
-                      {(company.city || company.country) && (
-                        <div>
-                          {company.city}{company.city && company.country && ', '}{company.country}
-                        </div>
-                      )}
-                      {company.phone && (
-                        <div>📞 {company.phone}</div>
-                      )}
-                      {company.email && (
-                        <div>✉️ {company.email}</div>
-                      )}
-                    </div>
+                  <CardContent className="pt-0 text-xs text-slate-600">
+                    {(company.city || company.country) && (
+                      <div>{company.city}{company.city && company.country && ', '}{company.country}</div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -211,13 +162,7 @@ export default function MyCompaniesPage() {
           )}
         </CardContent>
       </Card>
-
-      <CompanyDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        company={editingCompany}
-        type="my_company"
-      />
+      <CompanyDialog open={dialogOpen} onClose={handleDialogClose} company={editingCompany} type="my_company" />
     </div>
   )
 }

@@ -101,7 +101,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
     } finally {
       setLoading(false)
     }
-  }, [supabase, router])
+  }, [router])
 
   useEffect(() => {
     if (poId) {
@@ -333,8 +333,8 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
 
         {/* Cost Summary */}
         <div className="flex justify-end mb-8">
-          <div className="w-80">
-            <table className="w-full">
+          <div className="w-full max-w-xs sm:max-w-md md:w-80 overflow-x-auto">
+            <table className="w-full text-xs sm:text-sm">
               <tbody>
                 <tr>
                   <td className="py-1 text-sm">Subtotal:</td>

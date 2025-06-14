@@ -69,18 +69,18 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
         <CardDescription>
           {purchaseOrders.length} purchase orders • {filteredPOs.length} shown
         </CardDescription>
-        <div className="flex space-x-4">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-4 sm:gap-0 pt-2 pb-2">
+          <div className="relative w-full sm:w-auto flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
               placeholder="Search PO number, companies..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -112,24 +112,24 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredPOs.map((po) => (
               <Card key={po.po_id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
+                <CardContent className="p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
-                        <div className="font-bold text-lg text-slate-900">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 mb-2">
+                        <div className="font-bold text-base sm:text-lg text-slate-900">
                           {po.po_number}
                         </div>
                         <Badge className={getStatusBadge(po.status)}>
                           {po.status}
                         </Badge>
-                        <div className="text-sm text-slate-500">
+                        <div className="text-xs sm:text-sm text-slate-500">
                           {format(new Date(po.po_date), 'MMM dd, yyyy')}
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm md:grid-cols-3 md:gap-4">
                         <div>
                           <div className="text-slate-500">From</div>
                           <div className="font-medium">{po.my_companies?.my_company_name}</div>
@@ -142,23 +142,23 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
                         </div>
                         <div>
                           <div className="text-slate-500">Total Amount</div>
-                          <div className="font-bold text-lg">${po.total_amount.toLocaleString()}</div>
+                          <div className="font-bold text-base sm:text-lg">${po.total_amount.toLocaleString()}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex space-x-2 ml-4">
-                      <Link href={`/portal/purchase-orders/${po.po_id}`}>
-                        <Button variant="ghost" size="icon">
+                    <div className="flex gap-2 mt-3 sm:mt-0 sm:ml-4">
+                      <Link href={`/portal/purchase-orders/${po.po_id}`} className="flex-1 sm:flex-none">
+                        <Button variant="ghost" size="icon" className="w-full sm:w-auto">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link href={`/portal/purchase-orders/${po.po_id}/edit`}>
-                        <Button variant="ghost" size="icon">
+                      <Link href={`/portal/purchase-orders/${po.po_id}/edit`} className="flex-1 sm:flex-none">
+                        <Button variant="ghost" size="icon" className="w-full sm:w-auto">
                           <Edit className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link href={`/portal/purchase-orders/${po.po_id}/pdf`}>
-                        <Button variant="ghost" size="icon">
+                      <Link href={`/portal/purchase-orders/${po.po_id}/pdf`} className="flex-1 sm:flex-none">
+                        <Button variant="ghost" size="icon" className="w-full sm:w-auto">
                           <FileText className="h-4 w-4" />
                         </Button>
                       </Link>

@@ -87,6 +87,14 @@ interface PurchaseOrderEditClientPageProps {
 }
 
 export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditClientPageProps) {
+  // Autofill prepared_by_name from localStorage if available
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' && localStorage.getItem('po_prepared_by')
+    if (saved && !form.getValues('prepared_by_name')) {
+      form.setValue('prepared_by_name', saved)
+    }
+    // eslint-disable-next-line
+  }, [])
   const router = useRouter()
   const [myCompanies, setMyCompanies] = useState<MyCompany[]>([])
   const [externalCompanies, setExternalCompanies] = useState<ExternalCompany[]>([])
@@ -177,7 +185,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     } finally {
       setLoading(false)
     }
-  }, [form, router, poId, supabase])
+  }, [form, router])
 
   const fetchData = useCallback(async () => {
     try {
@@ -229,7 +237,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
       const total = calculateTotal()
 
       // Update the purchase order
-      const { error: poError } = await supabase
+      const { error: poError, data: poUpdateData, status: poUpdateStatus } = await supabase
         .from('purchase_orders')
         .update({
           my_company_id: data.my_company_id,
@@ -254,15 +262,28 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         })
         .eq('po_id', poId)
 
-      if (poError) throw poError
+      if (poError) {
+        console.error('Supabase PO update error:', poError)
+        toast.error(`Failed to update purchase order: ${poError.message || JSON.stringify(poError)}`)
+        return
+      }
+      if (poUpdateStatus !== 204 && !poUpdateData) {
+        toast.error('Purchase order update did not return data. Check if PO exists.')
+        return
+      }
 
       // Delete existing line items
-      const { error: deleteError } = await supabase
+      const { error: deleteError, data: deleteData, status: deleteStatus } = await supabase
         .from('po_items')
         .delete()
         .eq('po_id', poId)
 
-      if (deleteError) throw deleteError
+      if (deleteError) {
+        console.error('Supabase PO items delete error:', deleteError)
+        toast.error(`Failed to delete PO line items: ${deleteError.message || JSON.stringify(deleteError)}`)
+        return
+      }
+      toast.success('Previous line items deleted.')
 
       // Create new line items
       const lineItems = data.items.map((item, index) => ({
@@ -276,13 +297,16 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         condition: item.condition || null,
       }))
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError, data: itemsData, status: itemsStatus } = await supabase
         .from('po_items')
         .insert(lineItems)
 
-      if (itemsError) throw itemsError
-
-      toast.success('Purchase order updated successfully')
+      if (itemsError) {
+        console.error('Supabase PO items insert error:', itemsError)
+        toast.error(`Failed to insert PO line items: ${itemsError.message || JSON.stringify(itemsError)}`)
+        return
+      }
+      toast.success('Line items inserted. Purchase order updated successfully')
       router.push(`/portal/purchase-orders/${poId}`)
     } catch (error: any) {
       console.error('Error updating purchase order:', error)
@@ -309,9 +333,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Edit Purchase Order</h1>
-          <p className="text-slate-600">Update purchase order details</p>
-        </div>
+          <h1 className="text-3xl font-bold text-slate-900">Edit Purchase Order</h1>        </div>
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -414,7 +436,25 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                   id="prepared_by_name"
                   {...form.register('prepared_by_name')}
                   className={form.formState.errors.prepared_by_name ? 'border-red-500' : ''}
+                  onBlur={e => {
+                    if (e.target.value) {
+                      localStorage.setItem('po_prepared_by', e.target.value)
+                    }
+                  }}
                 />
+                <button
+                  type="button"
+                  className="text-xs underline text-blue-600 mt-1"
+                  onClick={() => {
+                    const name = prompt('Enter your name for future POs:')
+                    if (name) {
+                      form.setValue('prepared_by_name', name)
+                      localStorage.setItem('po_prepared_by', name)
+                    }
+                  }}
+                >
+                  Save name for future use
+                </button>
               </div>
             </div>
           </CardContent>
@@ -556,11 +596,12 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     <SelectValue placeholder="Select payment term" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="NET30">NET30</SelectItem>
-                    <SelectItem value="NET15">NET15</SelectItem>
-                    <SelectItem value="NET60">NET60</SelectItem>
+                    <SelectItem value="PRE-PAY">PRE-PAY</SelectItem>
                     <SelectItem value="COD">COD</SelectItem>
-                    <SelectItem value="Prepaid">Prepaid</SelectItem>
+                    <SelectItem value="NET5">NET5</SelectItem>
+                    <SelectItem value="NET10">NET10</SelectItem>
+                    <SelectItem value="NET15">NET15</SelectItem>
+                    <SelectItem value="NET30">NET30</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -707,9 +748,12 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="AR">AR</SelectItem>
-                          <SelectItem value="New">New</SelectItem>
-                          <SelectItem value="Used">Used</SelectItem>
-                          <SelectItem value="Refurbished">Refurbished</SelectItem>
+                          <SelectItem value="SVC">SVC</SelectItem>
+                          <SelectItem value="AS-IS">AS-IS</SelectItem>
+                          <SelectItem value="OHC">OHC</SelectItem>
+                          <SelectItem value="INS">INS</SelectItem>
+                          <SelectItem value="REP">REP</SelectItem>
+                          <SelectItem value="MOD">MOD</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -766,7 +810,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
             <CardTitle>Cost Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
               <div>
                 <Label htmlFor="freight_charge">Freight/Forwarding Charge ($)</Label>
                 <Input
@@ -828,11 +872,11 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         </Card>
 
         {/* Form Actions */}
-        <div className="flex justify-end space-x-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:space-x-4">
+          <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
             {form.formState.isSubmitting ? 'Updating...' : 'Update Purchase Order'}
           </Button>
         </div>

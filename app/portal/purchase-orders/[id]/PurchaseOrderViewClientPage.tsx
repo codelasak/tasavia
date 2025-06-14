@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -78,13 +78,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (poId) {
-      fetchPurchaseOrder(poId)
-    }
-  }, [poId])
-
-  const fetchPurchaseOrder = async (id: string) => {
+  const fetchPurchaseOrder = useCallback(async (id: string) => {
     try {
       const { data, error } = await supabase
         .from('purchase_orders')
@@ -100,17 +94,21 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
         `)
         .eq('po_id', id)
         .single()
-
       if (error) throw error
       setPurchaseOrder(data)
     } catch (error) {
-      console.error('Error fetching purchase order:', error)
-      toast.error('Failed to fetch purchase order')
-      router.push('/portal/purchase-orders')
+      console.error('Failed to fetch purchase order:', error)
+      setPurchaseOrder(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (poId) {
+      fetchPurchaseOrder(poId)
+    }
+  }, [poId, fetchPurchaseOrder])
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -142,73 +140,73 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
   const vatAmount = purchaseOrder.subtotal * (purchaseOrder.vat_percentage / 100)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Purchase Order {purchaseOrder.po_number}</h1>
-            <p className="text-slate-600">View purchase order details</p>
-          </div>
-        </div>
-        <div className="flex space-x-2">
-          <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/edit`}>
-            <Button variant="outline">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
+    <div>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
             </Button>
-          </Link>
-          <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/pdf`}>
-            <Button>
-              <FileText className="h-4 w-4 mr-2" />
-              View PDF
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Header Information */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Purchase Order {purchaseOrder.po_number}</CardTitle>
-              <CardDescription>
-                Created on {format(new Date(purchaseOrder.po_date), 'MMMM dd, yyyy')}
-              </CardDescription>
+              <h1 className="text-3xl font-bold text-slate-900">Purchase Order {purchaseOrder.po_number}</h1>
             </div>
-            <Badge className={getStatusBadge(purchaseOrder.status)}>
-              {purchaseOrder.status}
-            </Badge>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-2">From (My Company)</h4>
-              <div className="text-sm text-slate-600 space-y-1">
-                <div className="font-medium">{purchaseOrder.my_companies.my_company_name}</div>
-                <div>{purchaseOrder.my_companies.my_company_code}</div>
-                {purchaseOrder.my_companies.my_company_address && (
-                  <div>{purchaseOrder.my_companies.my_company_address}</div>
-                )}
-                {(purchaseOrder.my_companies.city || purchaseOrder.my_companies.country) && (
-                  <div>
-                    {purchaseOrder.my_companies.city}
-                    {purchaseOrder.my_companies.city && purchaseOrder.my_companies.country && ', '}
-                    {purchaseOrder.my_companies.country}
-                  </div>
-                )}
-                {purchaseOrder.my_companies.phone && <div>📞 {purchaseOrder.my_companies.phone}</div>}
-                {purchaseOrder.my_companies.email && <div>✉️ {purchaseOrder.my_companies.email}</div>}
+          <div className="flex space-x-2">
+            <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/edit`}>
+              <Button variant="outline">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
+            <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/pdf`}>
+              <Button>
+                <FileText className="h-4 w-4 mr-2" />
+                View PDF
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Header Information */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Purchase Order {purchaseOrder.po_number}</CardTitle>
+                <CardDescription>
+                  {format(new Date(purchaseOrder.po_date), 'PPP')} • {purchaseOrder.currency}
+                </CardDescription>
               </div>
+              <Badge className={getStatusBadge(purchaseOrder.status)}>
+                {purchaseOrder.status}
+              </Badge>
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold text-slate-900 mb-2">From (My Company)</h4>
+                <div className="text-sm text-slate-600 space-y-1">
+                  <div className="font-medium">{purchaseOrder.my_companies.my_company_name}</div>
+                  <div>{purchaseOrder.my_companies.my_company_code}</div>
+                  {purchaseOrder.my_companies.my_company_address && (
+                    <div>{purchaseOrder.my_companies.my_company_address}</div>
+                  )}
+                  {(purchaseOrder.my_companies.city || purchaseOrder.my_companies.country) && (
+                    <div>
+                      {purchaseOrder.my_companies.city}
+                      {purchaseOrder.my_companies.city && purchaseOrder.my_companies.country && ', '}
+                      {purchaseOrder.my_companies.country}
+                    </div>
+                  )}
+                  {purchaseOrder.my_companies.phone && <div>📞 {purchaseOrder.my_companies.phone}</div>}
+                  {purchaseOrder.my_companies.email && <div>✉️ {purchaseOrder.my_companies.email}</div>}
+                </div>
+              </div>
 
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-2">To (Vendor)</h4>
+              <div>
+                <h4 className="font-semibold text-slate-900 mb-2">To (Vendor)</h4>
               <div className="text-sm text-slate-600 space-y-1">
                 <div className="font-medium">{purchaseOrder.companies.company_name}</div>
                 <div>{purchaseOrder.companies.company_code}</div>
@@ -313,7 +311,6 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                       <Badge variant="outline">{item.condition}</Badge>
                     )}
                   </div>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       {item.pn_master_table && (
@@ -323,16 +320,6 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                         </div>
                       )}
                     </div>
-                    <div>
-                      <div className="text-slate-500">Description</div>
-                      <div>{item.description || item.pn_master_table?.description || 'N/A'}</div>
-                    </div>
-                    {item.sn && (
-                      <div>
-                        <div className="text-slate-500">Serial Number</div>
-                        <div className="font-mono">{item.sn}</div>
-                      </div>
-                    )}
                     <div>
                       <div className="text-slate-500">Quantity</div>
                       <div className="font-semibold">{item.quantity}</div>
@@ -373,7 +360,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
             </div>
             <div className="flex justify-between">
               <span>VAT ({purchaseOrder.vat_percentage}%):</span>
-              <span>${vatAmount.toFixed(2)}</span>
+              <span>${(purchaseOrder.subtotal * (purchaseOrder.vat_percentage / 100)).toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg border-t pt-2">
               <span>Total NET ({purchaseOrder.currency}):</span>
@@ -383,5 +370,6 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
         </CardContent>
       </Card>
     </div>
-  )
+  </div>
+);
 }

@@ -95,33 +95,22 @@ export default function PartNumbersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Part Numbers</h1>
-          <p className="text-slate-600">Manage the master catalog of part numbers</p>
-        </div>
-        <div className="flex space-x-2">
-
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Part Number
-          </Button>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-4 pb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Part Numbers</h1>
+        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4 mr-2" />Add
+        </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Part Number Catalog</CardTitle>
-          <CardDescription>
-            {partNumbers.length} part numbers • {filteredPartNumbers.length} shown
-          </CardDescription>
+        <CardHeader className="pt-4 pb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
               placeholder="Search part numbers, descriptions, or remarks..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
         </CardHeader>
@@ -143,40 +132,20 @@ export default function PartNumbersPage() {
             <div className="space-y-2">
               {filteredPartNumbers.map((partNumber) => (
                 <Card key={partNumber.pn_id} className="hover:shadow-sm transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-4">
-                          <div className="font-mono font-semibold text-slate-900 min-w-0">
-                            {partNumber.pn}
-                          </div>
-                          {partNumber.description && (
-                            <div className="text-slate-600 flex-1 min-w-0">
-                              {partNumber.description}
-                            </div>
-                          )}
-                        </div>
-                        {partNumber.remarks && (
-                          <div className="text-sm text-slate-500 mt-1">
-                            {partNumber.remarks}
-                          </div>
+                  <CardContent className="p-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-base text-slate-900">{partNumber.pn}</span>
+                        {partNumber.description && (
+                          <span className="text-xs text-slate-500 line-clamp-2">{partNumber.description}</span>
                         )}
                       </div>
-                      <div className="flex space-x-1 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(partNumber)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(partNumber)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {partNumber.remarks && (
+                        <div className="text-xs text-slate-400 line-clamp-2">{partNumber.remarks}</div>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(partNumber)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(partNumber)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
                   </CardContent>

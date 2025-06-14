@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -137,9 +137,6 @@ export default function InventoryPage() {
     return colors[condition as keyof typeof colors] || 'bg-gray-100 text-gray-800'
   }
 
-  const totalValue = filteredInventory.reduce((sum, item) => sum + (item.total_value || 0), 0)
-  const totalItems = filteredInventory.reduce((sum, item) => sum + (item.quantity || 1), 0)
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -149,198 +146,96 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Inventory Management</h1>
-          <p className="text-slate-600">Track and manage your inventory items</p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Inventory Item
+    <div className="space-y-4 px-2 pb-20">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-2xl font-bold text-slate-900">Inventory</h1>
+        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4 mr-2" />Add
         </Button>
       </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Items</CardTitle>
-            <Package className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{totalItems}</div>
-            <p className="text-xs text-slate-500 mt-1">Across all locations</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Value</CardTitle>
-            <DollarSign className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">${totalValue.toLocaleString()}</div>
-            <p className="text-xs text-slate-500 mt-1">Current inventory value</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Locations</CardTitle>
-            <MapPin className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{locations.length}</div>
-            <p className="text-xs text-slate-500 mt-1">Storage locations</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
-        <CardHeader>
-          <CardTitle>Inventory Items</CardTitle>
-          <CardDescription>
-            {inventory.length} items • {filteredInventory.length} shown
-          </CardDescription>
-          <div className="flex space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input
-                placeholder="Search part numbers, descriptions, serial numbers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={conditionFilter} onValueChange={setConditionFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Conditions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Conditions</SelectItem>
-                {conditions.map(condition => (
-                  <SelectItem key={condition} value={condition}>{condition}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map(location => (
-                  <SelectItem key={location} value={location}>{location}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
         <CardContent>
-          {filteredInventory.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-slate-500">No inventory items found</div>
-              {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all') && (
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    setSearchTerm('')
-                    setConditionFilter('all')
-                    setLocationFilter('all')
-                  }}
-                  className="mt-2"
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredInventory.map((item) => (
-                <Card key={item.inventory_id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-4 mb-2">
-                          <div className="font-mono font-bold text-lg text-slate-900">
-                            {item.pn_master_table.pn}
-                          </div>
-                          <Badge className={getConditionBadge(item.condition)}>
-                            {item.condition || 'Unknown'}
-                          </Badge>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 gap-2 pt-4 pb-4">
+  <div className="relative w-full sm:w-auto flex-1">
+    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+    <Input
+      placeholder="Search part numbers, descriptions, serial numbers..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="pl-10 w-full"
+    />
+  </div>
+  <Select value={conditionFilter} onValueChange={setConditionFilter}>
+    <SelectTrigger className="w-full sm:w-40">
+      <SelectValue placeholder="All Conditions" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">All Conditions</SelectItem>
+      {conditions.map(condition => (
+        <SelectItem key={condition} value={condition}>{condition}</SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  <Select value={locationFilter} onValueChange={setLocationFilter}>
+    <SelectTrigger className="w-full sm:w-40">
+      <SelectValue placeholder="All Locations" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">All Locations</SelectItem>
+      {locations.map(location => (
+        <SelectItem key={location} value={location}>{location}</SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+          <div className="space-y-2">
+            {filteredInventory.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-slate-500">No inventory items found</div>
+                {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all') && (
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      setSearchTerm('')
+                      setConditionFilter('all')
+                      setLocationFilter('all')
+                    }}
+                    className="mt-2"
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredInventory.map((item) => (
+                  <Card key={item.inventory_id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table.pn}</span>
+                          <Badge className={getConditionBadge(item.condition)}>{item.condition || 'Unknown'}</Badge>
                           {item.location && (
-                            <div className="flex items-center text-sm text-slate-600">
-                              <MapPin className="h-4 w-4 mr-1" />
-                              {item.location}
-                            </div>
+                            <span className="flex items-center text-xs text-slate-500"><MapPin className="h-4 w-4 mr-1" />{item.location}</span>
                           )}
                         </div>
-                        
                         {item.pn_master_table.description && (
-                          <div className="text-slate-600 mb-2">
-                            {item.pn_master_table.description}
-                          </div>
+                          <div className="text-xs text-slate-500 line-clamp-2">{item.pn_master_table.description}</div>
                         )}
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-slate-500">Quantity</div>
-                            <div className="font-semibold">{item.quantity || 1}</div>
-                          </div>
-                          <div>
-                            <div className="text-slate-500">Unit Cost</div>
-                            <div className="font-semibold">${(item.unit_cost || 0).toFixed(2)}</div>
-                          </div>
-                          <div>
-                            <div className="text-slate-500">Total Value</div>
-                            <div className="font-bold text-green-600">${(item.total_value || 0).toFixed(2)}</div>
-                          </div>
-                          {item.serial_number && (
-                            <div>
-                              <div className="text-slate-500">Serial Number</div>
-                              <div className="font-mono text-sm">{item.serial_number}</div>
-                            </div>
-                          )}
+                        <div className="flex gap-4 text-xs">
+                          <span>Qty: <b>{item.quantity || 1}</b></span>
+                          <span>Value: <b>${(item.total_value || 0).toFixed(2)}</b></span>
                         </div>
-                        
-                        {item.notes && (
-                          <div className="mt-2 text-sm text-slate-600">
-                            <strong>Notes:</strong> {item.notes}
-                          </div>
-                        )}
                       </div>
-                      
-                      <div className="flex space-x-2 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
-
-      <InventoryDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        item={editingItem}
-      />
+      <InventoryDialog open={dialogOpen} onClose={handleDialogClose} item={editingItem} />
     </div>
   )
 }
