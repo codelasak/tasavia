@@ -9,7 +9,6 @@ import { Progress } from '@/components/ui/progress'
 import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
 
 interface ExcelImportDialogProps {
   open: boolean
@@ -46,6 +45,7 @@ export function ExcelImportDialog({ open, onClose }: ExcelImportDialogProps) {
     setProgress({ total: 0, processed: 0, errors: [] })
 
     try {
+      const XLSX = await import('xlsx')
       const arrayBuffer = await file.arrayBuffer()
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
       const sheetName = workbook.SheetNames[0]
@@ -111,7 +111,7 @@ export function ExcelImportDialog({ open, onClose }: ExcelImportDialogProps) {
       }
     } catch (error: any) {
       console.error('Error importing Excel file:', error)
-      toast.error(error.message || 'Failed to import Excel file')
+      toast.error(`Error importing Excel file: ${error.message}`)
     } finally {
       setImporting(false)
     }
