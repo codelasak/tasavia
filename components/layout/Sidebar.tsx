@@ -64,14 +64,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="absolute bottom-4 left-4 right-4">
-        <Link href="/">
-          <Button variant="ghost" className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Website
-          </Button>
-        </Link>
-      </div>
+
     </div>
   )
 }

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bell, Search, User, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Bell, Search, User, LogOut, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -9,6 +10,7 @@ import { useAuth } from '@/components/auth/AuthProvider'
 
 export function Header() {
   const { user, signOut } = useAuth()
+  const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -49,6 +51,10 @@ export function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => router.push('/')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    <span>Back to Website</span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={signOut} className="text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
