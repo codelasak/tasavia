@@ -4,18 +4,13 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Edit, Trash2, Upload } from 'lucide-react'
+import { Plus, Search, Edit, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 import { PartNumberDialog } from '@/components/part-numbers/PartNumberDialog'
-import dynamic from 'next/dynamic'
 
-// Dynamically import ExcelImportDialog with ssr: false to prevent server-side rendering issues
-const ExcelImportDialog = dynamic(
-  () => import('@/components/part-numbers/ExcelImportDialog').then(mod => ({ default: mod.ExcelImportDialog })),
-  { ssr: false }
-)
+
 
 type PartNumber = Database['public']['Tables']['pn_master_table']['Row']
 
@@ -25,7 +20,7 @@ export default function PartNumbersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [importDialogOpen, setImportDialogOpen] = useState(false)
+
   const [editingPartNumber, setEditingPartNumber] = useState<PartNumber | null>(null)
 
   useEffect(() => {
@@ -88,10 +83,7 @@ export default function PartNumbersPage() {
     fetchPartNumbers()
   }
 
-  const handleImportDialogClose = () => {
-    setImportDialogOpen(false)
-    fetchPartNumbers()
-  }
+
 
   if (loading) {
     return (
@@ -109,10 +101,7 @@ export default function PartNumbersPage() {
           <p className="text-slate-600">Manage the master catalog of part numbers</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import Excel
-          </Button>
+
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Part Number
@@ -204,10 +193,7 @@ export default function PartNumbersPage() {
         partNumber={editingPartNumber}
       />
       
-      <ExcelImportDialog
-        open={importDialogOpen}
-        onClose={handleImportDialogClose}
-      />
+
     </div>
   )
 }
