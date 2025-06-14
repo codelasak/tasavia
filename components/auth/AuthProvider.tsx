@@ -68,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log("AuthProvider: Redirect useEffect running. User:", user, "Loading:", loading, "Pathname:", pathname);
     // Redirect logic
     if (!loading) {
-      const isProtectedRoute = pathname.startsWith('/portal/') && pathname !== '/portal'
+      const isProtectedRoute = pathname.startsWith('/portal')
       const isLoginPage = pathname === '/login'
 
       if (isProtectedRoute && !user) {
