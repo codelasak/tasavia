@@ -84,9 +84,9 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
         .from('purchase_orders')
         .select(`
           *,
-          my_companies(my_company_name, my_company_code, my_company_address, city, country, phone, email),
-          companies(company_name, company_code, address, city, country, phone, email),
-          my_ship_via(ship_company_name, account_no),
+          my_companies(*),
+          companies(*),
+          my_ship_via(*),
           po_items(
             *,
             pn_master_table(pn, description)

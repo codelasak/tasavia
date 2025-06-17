@@ -12,7 +12,10 @@ import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 import { CompanyDialog } from '@/components/companies/CompanyDialog'
 
-type ExternalCompany = Database['public']['Tables']['companies']['Row']
+type ExternalCompany = Database['public']['Tables']['companies']['Row'] & {
+  company_addresses: Database['public']['Tables']['company_addresses']['Row'][];
+  company_contacts: Database['public']['Tables']['company_contacts']['Row'][];
+}
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<ExternalCompany[]>([])
@@ -30,9 +33,14 @@ export default function CompaniesPage() {
   useEffect(() => {
     let filtered = companies.filter(company =>
       company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.company_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (company.city && company.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (company.country && company.country.toLowerCase().includes(searchTerm.toLowerCase()))
+      (company.company_code && company.company_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      company.company_addresses.some(a => 
+        (a.city && a.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (a.country && a.country.toLowerCase().includes(searchTerm.toLowerCase()))
+      ) ||
+      company.company_contacts.some(c => c.contact_name && c.contact_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      company.company_contacts.some(c => c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      company.company_contacts.some(c => c.phone && c.phone.toLowerCase().includes(searchTerm.toLowerCase()))
     )
 
     if (typeFilter !== 'all' && typeFilter) {
@@ -46,7 +54,11 @@ export default function CompaniesPage() {
     try {
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(`
+          *,
+          company_addresses (*),
+          company_contacts (*)
+        `)
         .order('company_name')
 
       if (error) throw error
@@ -118,7 +130,7 @@ export default function CompaniesPage() {
     fetchCompanies()
   }
 
-  const getCompanyTypeBadge = (type: string | undefined) => {
+  const getCompanyTypeBadge = (type: string | null | undefined) => {
     if (!type) return 'bg-gray-100 text-gray-800'
     
     const colors = {
@@ -229,19 +241,28 @@ export default function CompaniesPage() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="text-sm text-slate-600 space-y-1">
-                      {company.address && (
-                        <div>{company.address}</div>
+                      <h4 className="font-semibold mt-2">Addresses</h4>
+                      {company.company_addresses.length > 0 ? (
+                        <ul className="space-y-1">
+                          {company.company_addresses.map(addr => (
+                            <li key={addr.address_id || Math.random()}> {addr.address_line1}, {addr.city}, {addr.country}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>No addresses</p>
                       )}
-                      {(company.city || company.country) && (
-                        <div>
-                          {company.city}{company.city && company.country && ', '}{company.country}
-                        </div>
-                      )}
-                      {company.phone && (
-                        <div>📞 {company.phone}</div>
-                      )}
-                      {company.email && (
-                        <div>✉️ {company.email}</div>
+
+                      <h4 className="font-semibold mt-2">Contacts</h4>
+                      {company.company_contacts.length > 0 ? (
+                        <ul className="space-y-1">
+                          {company.company_contacts.map(contact => (
+                            <li key={contact.contact_id || Math.random()}>
+                              {contact.contact_name}{contact.email && ` (${contact.email})`}{contact.phone && ` 📞 ${contact.phone}`}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>No contacts</p>
                       )}
                     </div>
                   </CardContent>

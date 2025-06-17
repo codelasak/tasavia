@@ -4,21 +4,21 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Search, Edit, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 import { CompanyDialog } from '@/components/companies/CompanyDialog'
 
-type ExternalCompany = Database['public']['Tables']['companies']['Row']
+type ExternalCompany = Database['public']['Tables']['companies']['Row'] & {
+  company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
+  company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
+}
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<ExternalCompany[]>([])
   const [filteredCompanies, setFilteredCompanies] = useState<ExternalCompany[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<ExternalCompany | null>(null)
@@ -28,25 +28,29 @@ export default function CompaniesPage() {
   }, [])
 
   useEffect(() => {
-    let filtered = companies.filter(company =>
-      company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.company_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (company.city && company.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (company.country && company.country.toLowerCase().includes(searchTerm.toLowerCase()))
+    const lowercasedTerm = searchTerm.toLowerCase()
+    const filtered = companies.filter(company =>
+      company.company_name.toLowerCase().includes(lowercasedTerm) ||
+      (company.company_code && company.company_code.toLowerCase().includes(lowercasedTerm)) ||
+      company.company_addresses.some(a => 
+        (a.city && a.city.toLowerCase().includes(lowercasedTerm)) ||
+        (a.country && a.country.toLowerCase().includes(lowercasedTerm))
+      ) ||
+      company.company_contacts.some(c => c.contact_name && c.contact_name.toLowerCase().includes(lowercasedTerm))
     )
-
-    if (typeFilter !== 'all' && typeFilter) {
-      filtered = filtered.filter(company => company.company_type === typeFilter)
-    }
-
     setFilteredCompanies(filtered)
-  }, [companies, searchTerm, typeFilter])
+  }, [companies, searchTerm])
 
   const fetchCompanies = async () => {
+    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(`
+          *,
+          company_contacts (*),
+          company_addresses (*)
+        `)
         .order('company_name')
 
       if (error) throw error
@@ -68,20 +72,29 @@ export default function CompaniesPage() {
     if (!confirm(`Are you sure you want to delete ${company.company_name}?`)) return
 
     try {
-      // First check if this company is referenced in any purchase orders
-      const { data: poReferences, error: poCheckError } = await supabase
+      // Check for references in purchase_orders as vendor
+      const { data: vendorPOs, error: vendorPOError } = await supabase
         .from('purchase_orders')
         .select('po_id')
         .eq('vendor_company_id', company.company_id)
         .limit(1)
 
-      if (poCheckError) {
-        console.error('Error checking PO references:', poCheckError)
-        throw new Error('Failed to check company references')
+      if (vendorPOError) throw new Error('Failed to check vendor PO references')
+      if (vendorPOs && vendorPOs.length > 0) {
+        toast.error('Cannot delete company: It is referenced as a vendor in existing purchase orders.')
+        return
       }
 
-      if (poReferences && poReferences.length > 0) {
-        toast.error('Cannot delete company: It is referenced in existing purchase orders')
+      // Check for references in purchase_orders as ship_via
+      const { data: shipViaPOs, error: shipViaPOError } = await supabase
+        .from('purchase_orders')
+        .select('po_id')
+        .eq('ship_via_id', company.company_id)
+        .limit(1)
+
+      if (shipViaPOError) throw new Error('Failed to check ship via PO references')
+      if (shipViaPOs && shipViaPOs.length > 0) {
+        toast.error('Cannot delete company: It is referenced as a shipping company in existing purchase orders.')
         return
       }
 
@@ -91,24 +104,13 @@ export default function CompaniesPage() {
         .delete()
         .eq('company_id', company.company_id)
 
-      if (error) {
-        console.error('Delete error:', error)
-        throw error
-      }
+      if (error) throw error
       
       setCompanies(companies.filter(c => c.company_id !== company.company_id))
       toast.success('Company deleted successfully')
     } catch (error: any) {
       console.error('Error deleting company:', error)
-      
-      // Handle specific error cases
-      if (error.code === '23503') {
-        toast.error('Cannot delete company: It is referenced by other records')
-      } else if (error.message?.includes('foreign key')) {
-        toast.error('Cannot delete company: It is referenced in purchase orders or other records')
-      } else {
-        toast.error(error.message || 'Failed to delete company')
-      }
+      toast.error(error.message || 'Failed to delete company')
     }
   }
 
@@ -118,23 +120,8 @@ export default function CompaniesPage() {
     fetchCompanies()
   }
 
-  const getCompanyTypeBadge = (type: string | undefined) => {
-    if (!type) return 'bg-gray-100 text-gray-800'
-    
-    const colors = {
-      vendor: 'bg-blue-100 text-blue-800',
-      customer: 'bg-green-100 text-green-800',
-      both: 'bg-purple-100 text-purple-800'
-    }
-    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'
-  }
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-slate-500">Loading companies...</div>
-      </div>
-    )
+    return <div className="flex items-center justify-center h-64"><div className="text-slate-500">Loading companies...</div></div>
   }
 
   return (
@@ -148,29 +135,16 @@ export default function CompaniesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Company List</CardTitle>
-          <div className="relative flex gap-2 mt-2">
-            <div className="flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
-            </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="vendor">Vendor</SelectItem>
-                <SelectItem value="customer">Customer</SelectItem>
-                <SelectItem value="both">Both</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <Input placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
         </CardHeader>
         <CardContent>
           {filteredCompanies.length === 0 ? (
             <div className="text-center py-8 text-slate-500">No companies found</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filteredCompanies.map((company) => (
                 <Card key={company.company_id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
@@ -181,15 +155,29 @@ export default function CompaniesPage() {
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(company)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <CardDescription className="text-xs">Code: {company.company_code}</CardDescription>
-                      <Badge className={getCompanyTypeBadge(company.company_type)}>{company.company_type || 'vendor'}</Badge>
-                    </div>
+                    <CardDescription className="text-xs">Code: {company.company_code} | Type: {company.company_type}</CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-0 text-xs text-slate-600">
-                    {(company.city || company.country) && (
-                      <div>{company.city}{company.city && company.country && ', '}{company.country}</div>
-                    )}
+                  <CardContent className="pt-2 text-xs text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold mb-1">Addresses</h4>
+                      {company.company_addresses.length > 0 ? (
+                        <ul className="space-y-1">
+                          {company.company_addresses.map(addr => (
+                            <li key={addr.address_id}>{addr.address_line1}, {addr.city}, {addr.country}</li>
+                          ))}
+                        </ul>
+                      ) : <p>No addresses</p>}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Contacts</h4>
+                      {company.company_contacts.length > 0 ? (
+                        <ul className="space-y-1">
+                          {company.company_contacts.map(contact => (
+                            <li key={contact.contact_id}>{contact.contact_name} ({contact.email})</li>
+                          ))}
+                        </ul>
+                      ) : <p>No contacts</p>}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

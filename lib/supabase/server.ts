@@ -81,56 +81,111 @@ export interface Database {
         Row: {
           company_id: string
           company_name: string
-          company_code: string
-          address: string | null
-          zip_code: string | null
-          city: string | null
-          country: string | null
-          contact_name: string | null
-          email: string | null
-          phone: string | null
-          default_ship_via_company_name: string | null
+          company_code: string | null
+          company_type: string | null
+          created_at: string | null
           default_ship_account_no: string | null
-          company_type?: string
-          created_at: string
-          updated_at: string
-          id?: string
+          default_ship_via_company_name: string | null
+          updated_at: string | null
         }
         Insert: {
           company_id?: string
           company_name: string
-          company_code: string
-          address?: string | null
-          zip_code?: string | null
-          city?: string | null
-          country?: string | null
-          contact_name?: string | null
-          email?: string | null
-          phone?: string | null
-          default_ship_via_company_name?: string | null
+          company_code?: string | null
+          company_type?: string | null
+          created_at?: string | null
           default_ship_account_no?: string | null
-          company_type?: string
-          created_at?: string
-          updated_at?: string
-          id?: string
+          default_ship_via_company_name?: string | null
+          updated_at?: string | null
         }
         Update: {
           company_id?: string
           company_name?: string
-          company_code?: string
-          address?: string | null
-          zip_code?: string | null
-          city?: string | null
-          country?: string | null
-          contact_name?: string | null
-          email?: string | null
-          phone?: string | null
-          default_ship_via_company_name?: string | null
+          company_code?: string | null
+          company_type?: string | null
+          created_at?: string | null
           default_ship_account_no?: string | null
-          company_type?: string
-          created_at?: string
-          updated_at?: string
-          id?: string
+          default_ship_via_company_name?: string | null
+          updated_at?: string | null
+        }
+      }
+      company_addresses: {
+        Row: {
+          address_id: string
+          address_line1: string
+          address_line2: string | null
+          city: string | null
+          company_id: string
+          company_ref_type: string
+          country: string | null
+          created_at: string | null
+          is_primary: boolean | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address_id?: string
+          address_line1: string
+          address_line2?: string | null
+          city?: string | null
+          company_id: string
+          company_ref_type: string
+          country?: string | null
+          created_at?: string | null
+          is_primary?: boolean | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address_id?: string
+          address_line1?: string
+          address_line2?: string | null
+          city?: string | null
+          company_id?: string
+          company_ref_type?: string
+          country?: string | null
+          created_at?: string | null
+          is_primary?: boolean | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+      }
+      company_contacts: {
+        Row: {
+          company_id: string
+          company_ref_type: string
+          contact_id: string
+          contact_name: string | null
+          created_at: string | null
+          email: string | null
+          is_primary: boolean | null
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          company_ref_type: string
+          contact_id?: string
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          is_primary?: boolean | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          company_ref_type?: string
+          contact_id?: string
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          is_primary?: boolean | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
         }
       }
       pn_master_table: {
