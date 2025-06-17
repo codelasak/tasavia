@@ -51,6 +51,9 @@ interface ShipVia {
   account_no: string
 }
 
+const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
+const PAYMENT_TERM_OPTIONS = ['PRE-PAY', 'COD', 'NET5', 'NET10', 'NET15', 'NET30'];
+
 const poItemSchema = z.object({
   pn_id: z.string().optional(),
   description: z.string().min(1, 'Description is required'),
@@ -70,9 +73,9 @@ const purchaseOrderSchema = z.object({
   ship_to_contact_phone: z.string().optional(),
   ship_to_contact_email: z.string().email().optional().or(z.literal('')),
   prepared_by_name: z.string().min(1, 'Prepared by name is required'),
-  currency: z.string().default('USD'),
+  currency: z.enum(CURRENCY_OPTIONS as [string, ...string[]]),
   ship_via_id: z.string().optional(),
-  payment_term: z.string().optional(),
+  payment_term: z.enum(PAYMENT_TERM_OPTIONS as [string, ...string[]]).optional(),
   remarks_1: z.string().optional(),
   freight_charge: z.number().min(0).default(0),
   misc_charge: z.number().min(0).default(0),
@@ -508,39 +511,43 @@ export default function NewPurchaseOrderPage() {
               </div>
 
               <div>
-                <Label htmlFor="payment_term">Payment Term</Label>
-                <Select
-                  value={form.watch('payment_term')}
-                  onValueChange={(value) => form.setValue('payment_term', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment term" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NET30">NET30</SelectItem>
-                    <SelectItem value="NET15">NET15</SelectItem>
-                    <SelectItem value="NET60">NET60</SelectItem>
-                    <SelectItem value="COD">COD</SelectItem>
-                    <SelectItem value="Prepaid">Prepaid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <Label htmlFor="currency">Currency</Label>
                 <Select
                   value={form.watch('currency')}
-                  onValueChange={(value) => form.setValue('currency', value)}
+                  onValueChange={value => form.setValue('currency', value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger id="currency" className={form.formState.errors.currency ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
+                    {CURRENCY_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.currency && (
+                  <div className="text-red-500 text-xs mt-1">{form.formState.errors.currency.message}</div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="payment_term">Payment Term</Label>
+                <Select
+                  value={form.watch('payment_term')}
+                  onValueChange={value => form.setValue('payment_term', value)}
+                >
+                  <SelectTrigger id="payment_term" className={form.formState.errors.payment_term ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select payment term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_TERM_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.payment_term && (
+                  <div className="text-red-500 text-xs mt-1">{form.formState.errors.payment_term.message}</div>
+                )}
               </div>
             </div>
 

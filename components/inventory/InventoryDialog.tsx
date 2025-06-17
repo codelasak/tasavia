@@ -35,10 +35,16 @@ interface PartNumber {
   description: string | null
 }
 
+const CONDITION_OPTIONS = [
+  'AR', 'SVC', 'AS-IS', 'OHC', 'INS', 'REP', 'MOD'
+];
+
 const inventorySchema = z.object({
   pn_id: z.string().min(1, 'Part number is required'),
   serial_number: z.string().optional(),
-  condition: z.string().min(1, 'Condition is required'),
+  condition: z.enum(CONDITION_OPTIONS as [string, ...string[]], {
+    errorMap: () => ({ message: 'Condition is required' })
+  }),
   location: z.string().optional(),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unit_cost: z.number().min(0, 'Unit cost must be positive'),
@@ -63,7 +69,7 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
     defaultValues: {
       pn_id: '',
       serial_number: '',
-      condition: 'New',
+      condition: 'AR',
       location: '',
       quantity: 1,
       unit_cost: 0,
@@ -82,7 +88,7 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
       form.reset({
         pn_id: item.pn_id,
         serial_number: item.serial_number || '',
-        condition: item.condition || 'New',
+        condition: item.condition || 'AR',
         location: item.location || '',
         quantity: item.quantity || 1,
         unit_cost: item.unit_cost || 0,
@@ -92,7 +98,7 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
       form.reset({
         pn_id: '',
         serial_number: '',
-        condition: 'New',
+        condition: 'AR',
         location: '',
         quantity: 1,
         unit_cost: 0,
@@ -226,19 +232,20 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
               <Label htmlFor="condition">Condition</Label>
               <Select
                 value={form.watch('condition')}
-                onValueChange={(value) => form.setValue('condition', value)}
+                onValueChange={value => form.setValue('condition', value)}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger id="condition" className={form.formState.errors.condition ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select condition" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="Used">Used</SelectItem>
-                  <SelectItem value="Refurbished">Refurbished</SelectItem>
-                  <SelectItem value="Damaged">Damaged</SelectItem>
-                  <SelectItem value="AR">AR</SelectItem>
+                  {CONDITION_OPTIONS.map(opt => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {form.formState.errors.condition && (
+                <div className="text-red-500 text-xs mt-1">{form.formState.errors.condition.message}</div>
+              )}
             </div>
           </div>
 
