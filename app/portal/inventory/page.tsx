@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Search, Edit, Trash2, Package, MapPin, DollarSign } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Package, MapPin, DollarSign, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { InventoryDialog } from '@/components/inventory/InventoryDialog'
@@ -29,6 +30,7 @@ interface InventoryItem {
 }
 
 export default function InventoryPage() {
+  const router = useRouter()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -211,20 +213,44 @@ export default function InventoryPage() {
                 {filteredInventory.map((item) => (
                   <Card key={item.inventory_id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-3">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table.pn}</span>
-                          <Badge className={getConditionBadge(item.condition)}>{item.condition || 'Unknown'}</Badge>
-                          {item.location && (
-                            <span className="flex items-center text-xs text-slate-500"><MapPin className="h-4 w-4 mr-1" />{item.location}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table.pn}</span>
+                            <Badge className={getConditionBadge(item.condition)}>{item.condition || 'Unknown'}</Badge>
+                            {item.location && (
+                              <span className="flex items-center text-xs text-slate-500"><MapPin className="h-4 w-4 mr-1" />{item.location}</span>
+                            )}
+                          </div>
+                          {item.pn_master_table.description && (
+                            <div className="text-xs text-slate-500 line-clamp-2 mb-1">{item.pn_master_table.description}</div>
                           )}
+                          <div className="flex gap-4 text-xs">
+                            <span>Qty: <b>{item.quantity || 1}</b></span>
+                            <span>Value: <b>${(item.total_value || 0).toFixed(2)}</b></span>
+                            {item.serial_number && <span>S/N: <b>{item.serial_number}</b></span>}
+                          </div>
                         </div>
-                        {item.pn_master_table.description && (
-                          <div className="text-xs text-slate-500 line-clamp-2">{item.pn_master_table.description}</div>
-                        )}
-                        <div className="flex gap-4 text-xs">
-                          <span>Qty: <b>{item.quantity || 1}</b></span>
-                          <span>Value: <b>${(item.total_value || 0).toFixed(2)}</b></span>
+                        <div className="flex gap-1 ml-4">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => router.push(`/portal/inventory/${item.inventory_id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDelete(item)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>

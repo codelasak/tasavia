@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Search, Eye, Edit, FileText } from 'lucide-react'
+import { Plus, Search, Eye, Edit, FileText, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import * as dateFns from 'date-fns'
+import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface PurchaseOrder {
   po_id: string
@@ -60,6 +62,68 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
       Cancelled: 'bg-red-100 text-red-800'
     }
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  }
+
+  const handleDelete = async (po: PurchaseOrder) => {
+    if (!confirm(`Are you sure you want to delete purchase order ${po.po_number}? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      // First check if there are any references to this PO in inventory
+      const { data: inventoryReferences, error: inventoryCheckError } = await supabase
+        .from('inventory')
+        .select('inventory_id')
+        .eq('po_id_original', po.po_id)
+        .limit(1)
+
+      if (inventoryCheckError) {
+        console.error('Error checking inventory references:', inventoryCheckError)
+        throw new Error('Failed to check purchase order references')
+      }
+
+      if (inventoryReferences && inventoryReferences.length > 0) {
+        toast.error('Cannot delete purchase order: It is referenced in inventory records')
+        return
+      }
+
+      // Delete PO items first (due to foreign key constraint)
+      const { error: itemsDeleteError } = await supabase
+        .from('po_items')
+        .delete()
+        .eq('po_id', po.po_id)
+
+      if (itemsDeleteError) {
+        console.error('Error deleting PO items:', itemsDeleteError)
+        throw itemsDeleteError
+      }
+
+      // Then delete the purchase order
+      const { error: poDeleteError } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('po_id', po.po_id)
+
+      if (poDeleteError) {
+        console.error('Error deleting purchase order:', poDeleteError)
+        throw poDeleteError
+      }
+
+      // Update the local state to remove the deleted PO
+      setPurchaseOrders(current => current.filter(p => p.po_id !== po.po_id))
+      toast.success('Purchase order deleted successfully')
+    } catch (error: any) {
+      console.error('Error deleting purchase order:', error)
+      
+      // Handle specific error cases
+      if (error.code === '23503') {
+        toast.error('Cannot delete purchase order: It is referenced by other records')
+      } else if (error.message?.includes('foreign key')) {
+        toast.error('Cannot delete purchase order: It is referenced in other records')
+      } else {
+        toast.error(error.message || 'Failed to delete purchase order')
+      }
+    }
   }
 
   return (
@@ -126,7 +190,7 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
                           {po.status}
                         </Badge>
                         <div className="text-xs sm:text-sm text-slate-500">
-                          {format(new Date(po.po_date), 'MMM dd, yyyy')}
+                          {dateFns.format(new Date(po.po_date), 'MMM dd, yyyy')}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm md:grid-cols-3 md:gap-4">
@@ -162,6 +226,14 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
                           <FileText className="h-4 w-4" />
                         </Button>
                       </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDelete(po)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

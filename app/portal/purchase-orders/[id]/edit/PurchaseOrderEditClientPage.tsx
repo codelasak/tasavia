@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { CalendarIcon, Plus, Trash2, ArrowLeft } from 'lucide-react'
-import { format } from 'date-fns'
+import * as dateFns from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -23,18 +23,34 @@ interface MyCompany {
   my_company_id: string
   my_company_name: string
   my_company_code: string
-  my_company_address: string | null
-  city: string | null
-  country: string | null
+  company_addresses: Array<{
+    address_line1: string
+    address_line2: string | null
+    city: string | null
+    country: string | null
+  }>
+  company_contacts: Array<{
+    contact_name: string
+    email: string | null
+    phone: string | null
+  }>
 }
 
 interface ExternalCompany {
   company_id: string
   company_name: string
   company_code: string
-  address: string | null
-  city: string | null
-  country: string | null
+  company_addresses: Array<{
+    address_line1: string
+    address_line2: string | null
+    city: string | null
+    country: string | null
+  }>
+  company_contacts: Array<{
+    contact_name: string
+    email: string | null
+    phone: string | null
+  }>
 }
 
 interface PartNumber {
@@ -87,14 +103,6 @@ interface PurchaseOrderEditClientPageProps {
 }
 
 export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditClientPageProps) {
-  // Autofill prepared_by_name from localStorage if available
-  useEffect(() => {
-    const saved = typeof window !== 'undefined' && localStorage.getItem('po_prepared_by')
-    if (saved && !form.getValues('prepared_by_name')) {
-      form.setValue('prepared_by_name', saved)
-    }
-    // eslint-disable-next-line
-  }, [])
   const router = useRouter()
   const [myCompanies, setMyCompanies] = useState<MyCompany[]>([])
   const [externalCompanies, setExternalCompanies] = useState<ExternalCompany[]>([])
@@ -102,7 +110,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
   const [shipViaList, setShipViaList] = useState<ShipVia[]>([])
   const [loading, setLoading] = useState(true)
 
-  const form = useForm<PurchaseOrderFormValues>({
+  const { setValue, getValues, ...form } = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
       my_company_id: '',
@@ -126,6 +134,15 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     }
   })
 
+  // Autofill prepared_by_name from localStorage if available
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' && localStorage.getItem('po_prepared_by')
+    if (saved && !getValues('prepared_by_name')) {
+      setValue('prepared_by_name', saved)
+    }
+    // eslint-disable-next-line
+  }, [setValue, getValues])
+
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'items'
@@ -139,45 +156,56 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         .eq('po_id', id)
         .single()
 
-      if (poError) throw poError
+      if (poError) {
+        console.error('PO Fetch Error:', poError)
+        throw new Error(`Failed to fetch purchase order: ${poError.message}`)
+      }
 
       const { data: itemsData, error: itemsError } = await supabase
         .from('po_items')
-        .select('*')
+        .select(`
+          *,
+          pn_master_table:pn_id (
+            pn_id,
+            pn,
+            description
+          )
+        `)
         .eq('po_id', id)
         .order('line_number')
 
-      if (itemsError) throw itemsError
+      if (itemsError) {
+        console.error('PO Items Fetch Error:', itemsError)
+        throw new Error(`Failed to fetch PO items: ${itemsError.message}`)
+      }
 
       // Populate form with existing data
-      form.reset({
-        my_company_id: poData.my_company_id,
-        vendor_company_id: poData.vendor_company_id,
-        po_date: new Date(poData.po_date),
-        ship_to_company_name: poData.ship_to_company_name || '',
-        ship_to_address_details: poData.ship_to_address_details || '',
-        ship_to_contact_name: poData.ship_to_contact_name || '',
-        ship_to_contact_phone: poData.ship_to_contact_phone || '',
-        ship_to_contact_email: poData.ship_to_contact_email || '',
-        prepared_by_name: poData.prepared_by_name || 'System User',
-        currency: poData.currency,
-        ship_via_id: poData.ship_via_id || '',
-        payment_term: poData.payment_term || '',
-        remarks_1: poData.remarks_1 || '',
-        freight_charge: poData.freight_charge || 0,
-        misc_charge: poData.misc_charge || 0,
-        vat_percentage: poData.vat_percentage || 0,
-        status: poData.status,
-        items: itemsData.map(item => ({
-          po_item_id: item.po_item_id,
-          pn_id: item.pn_id || '',
-          description: item.description || '',
-          sn: item.sn || '',
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          condition: item.condition || '',
-        }))
-      })
+      setValue('my_company_id', poData.my_company_id)
+      setValue('vendor_company_id', poData.vendor_company_id)
+      setValue('po_date', new Date(poData.po_date))
+      setValue('ship_to_company_name', poData.ship_to_company_name || '')
+      setValue('ship_to_address_details', poData.ship_to_address_details || '')
+      setValue('ship_to_contact_name', poData.ship_to_contact_name || '')
+      setValue('ship_to_contact_phone', poData.ship_to_contact_phone || '')
+      setValue('ship_to_contact_email', poData.ship_to_contact_email || '')
+      setValue('prepared_by_name', poData.prepared_by_name || 'System User')
+      setValue('currency', poData.currency)
+      setValue('ship_via_id', poData.ship_via_id || '')
+      setValue('payment_term', poData.payment_term || '')
+      setValue('remarks_1', poData.remarks_1 || '')
+      setValue('freight_charge', poData.freight_charge || 0)
+      setValue('misc_charge', poData.misc_charge || 0)
+      setValue('vat_percentage', poData.vat_percentage || 0)
+      setValue('status', poData.status)
+      setValue('items', itemsData.map(item => ({
+        po_item_id: item.po_item_id,
+        pn_id: item.pn_id || '',
+        description: item.description || item.pn_master_table?.description || '',
+        sn: item.sn || '',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        condition: item.condition || '',
+      })))
     } catch (error) {
       console.error('Error fetching purchase order:', error)
       toast.error('Failed to fetch purchase order')
@@ -185,7 +213,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     } finally {
       setLoading(false)
     }
-  }, [form, router])
+  }, [setValue, router])
 
   const fetchData = useCallback(async () => {
     try {
@@ -196,13 +224,47 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         supabase.from('my_ship_via').select('*').order('ship_company_name')
       ])
 
-      if (myCompaniesResult.error) throw myCompaniesResult.error
-      if (companiesResult.error) throw companiesResult.error
-      if (partNumbersResult.error) throw partNumbersResult.error
-      if (shipViaResult.error) throw shipViaResult.error
+      if (myCompaniesResult.error) {
+        console.error('My Companies Fetch Error:', myCompaniesResult.error)
+        throw new Error(`Failed to fetch my companies: ${myCompaniesResult.error.message}`)
+      }
+      if (companiesResult.error) {
+        console.error('Companies Fetch Error:', companiesResult.error)
+        throw new Error(`Failed to fetch companies: ${companiesResult.error.message}`)
+      }
+      if (partNumbersResult.error) {
+        console.error('Part Numbers Fetch Error:', partNumbersResult.error)
+        throw new Error(`Failed to fetch part numbers: ${partNumbersResult.error.message}`)
+      }
+      if (shipViaResult.error) {
+        console.error('Ship Via Fetch Error:', shipViaResult.error)
+        throw new Error(`Failed to fetch ship via: ${shipViaResult.error.message}`)
+      }
 
-      setMyCompanies(myCompaniesResult.data || [])
-      setExternalCompanies(companiesResult.data || [])
+      // Fetch addresses and contacts separately
+      const [myCompanyAddresses, myCompanyContacts, companyAddresses, companyContacts] = await Promise.all([
+        supabase.from('company_addresses').select('*').eq('company_ref_type', 'my_companies'),
+        supabase.from('company_contacts').select('*').eq('company_ref_type', 'my_companies'),
+        supabase.from('company_addresses').select('*').eq('company_ref_type', 'companies'),
+        supabase.from('company_contacts').select('*').eq('company_ref_type', 'companies')
+      ])
+
+      // Combine my companies with their addresses and contacts
+      const enrichedMyCompanies = myCompaniesResult.data?.map(company => ({
+        ...company,
+        company_addresses: myCompanyAddresses.data?.filter(addr => addr.company_id === company.my_company_id) || [],
+        company_contacts: myCompanyContacts.data?.filter(contact => contact.company_id === company.my_company_id) || []
+      })) || []
+
+      // Combine external companies with their addresses and contacts
+      const enrichedExternalCompanies = companiesResult.data?.map(company => ({
+        ...company,
+        company_addresses: companyAddresses.data?.filter(addr => addr.company_id === company.company_id) || [],
+        company_contacts: companyContacts.data?.filter(contact => contact.company_id === company.company_id) || []
+      })) || []
+
+      setMyCompanies(enrichedMyCompanies)
+      setExternalCompanies(enrichedExternalCompanies)
       setPartNumbers(partNumbersResult.data || [])
       setShipViaList(shipViaResult.data || [])
     } catch (error) {
@@ -237,12 +299,12 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
       const total = calculateTotal()
 
       // Update the purchase order
-      const { error: poError, data: poUpdateData, status: poUpdateStatus } = await supabase
+      const { error: poUpdateError } = await supabase
         .from('purchase_orders')
         .update({
           my_company_id: data.my_company_id,
           vendor_company_id: data.vendor_company_id,
-          po_date: format(data.po_date, 'yyyy-MM-dd'),
+          po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
           ship_to_company_name: data.ship_to_company_name || null,
           ship_to_address_details: data.ship_to_address_details || null,
           ship_to_contact_name: data.ship_to_contact_name || null,
@@ -262,28 +324,19 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         })
         .eq('po_id', poId)
 
-      if (poError) {
-        console.error('Supabase PO update error:', poError)
-        toast.error(`Failed to update purchase order: ${poError.message || JSON.stringify(poError)}`)
-        return
-      }
-      if (poUpdateStatus !== 204 && !poUpdateData) {
-        toast.error('Purchase order update did not return data. Check if PO exists.')
-        return
+      if (poUpdateError) {
+        throw new Error(`Failed to update purchase order: ${poUpdateError.message}`)
       }
 
       // Delete existing line items
-      const { error: deleteError, data: deleteData, status: deleteStatus } = await supabase
+      const { error: deleteError } = await supabase
         .from('po_items')
         .delete()
         .eq('po_id', poId)
 
       if (deleteError) {
-        console.error('Supabase PO items delete error:', deleteError)
-        toast.error(`Failed to delete PO line items: ${deleteError.message || JSON.stringify(deleteError)}`)
-        return
+        throw new Error(`Failed to delete existing line items: ${deleteError.message}`)
       }
-      toast.success('Previous line items deleted.')
 
       // Create new line items
       const lineItems = data.items.map((item, index) => ({
@@ -297,20 +350,20 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         condition: item.condition || null,
       }))
 
-      const { error: itemsError, data: itemsData, status: itemsStatus } = await supabase
+      const { error: itemsError } = await supabase
         .from('po_items')
         .insert(lineItems)
 
       if (itemsError) {
-        console.error('Supabase PO items insert error:', itemsError)
-        toast.error(`Failed to insert PO line items: ${itemsError.message || JSON.stringify(itemsError)}`)
-        return
+        throw new Error(`Failed to insert new line items: ${itemsError.message}`)
       }
-      toast.success('Line items inserted. Purchase order updated successfully')
+
+      toast.success('Purchase order updated successfully')
       router.push(`/portal/purchase-orders/${poId}`)
-    } catch (error: any) {
-      console.error('Error updating purchase order:', error)
-      toast.error(error.message || 'Failed to update purchase order')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+      console.error('Error updating purchase order:', errorMessage)
+      toast.error(`Update failed: ${errorMessage}`)
     }
   }
 
@@ -349,9 +402,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="my_company_id">My Company</Label>
                 <Select
                   value={form.watch('my_company_id')}
-                  onValueChange={(value) => form.setValue('my_company_id', value)}
+                  onValueChange={(value) => setValue('my_company_id', value)}
                 >
-                  <SelectTrigger className={form.formState.errors.my_company_id ? 'border-red-500' : ''}>
+                  <SelectTrigger id="my_company_id" className={form.formState.errors.my_company_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select your company" />
                   </SelectTrigger>
                   <SelectContent>
@@ -368,9 +421,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="vendor_company_id">Vendor</Label>
                 <Select
                   value={form.watch('vendor_company_id')}
-                  onValueChange={(value) => form.setValue('vendor_company_id', value)}
+                  onValueChange={(value) => setValue('vendor_company_id', value)}
                 >
-                  <SelectTrigger className={form.formState.errors.vendor_company_id ? 'border-red-500' : ''}>
+                  <SelectTrigger id="vendor_company_id" className={form.formState.errors.vendor_company_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select vendor" />
                   </SelectTrigger>
                   <SelectContent>
@@ -387,9 +440,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={form.watch('status')}
-                  onValueChange={(value) => form.setValue('status', value)}
+                  onValueChange={(value) => setValue('status', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="status_trigger_3">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -416,14 +469,14 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {form.watch('po_date') ? format(form.watch('po_date'), "PPP") : <span>Pick a date</span>}
+                      {form.watch('po_date') ? dateFns.format(form.watch('po_date'), "PPP") : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
                       selected={form.watch('po_date')}
-                      onSelect={(date) => form.setValue('po_date', date || new Date())}
+                      onSelect={(date) => setValue('po_date', date || new Date())}
                       initialFocus
                     />
                   </PopoverContent>
@@ -448,7 +501,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                   onClick={() => {
                     const name = prompt('Enter your name for future POs:')
                     if (name) {
-                      form.setValue('prepared_by_name', name)
+                      setValue('prepared_by_name', name)
                       localStorage.setItem('po_prepared_by', name)
                     }
                   }}
@@ -474,9 +527,22 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     <div className="text-sm text-slate-600 space-y-1">
                       <div className="font-medium">{selectedMyCompany.my_company_name}</div>
                       <div>{selectedMyCompany.my_company_code}</div>
-                      {selectedMyCompany.my_company_address && <div>{selectedMyCompany.my_company_address}</div>}
-                      {(selectedMyCompany.city || selectedMyCompany.country) && (
-                        <div>{selectedMyCompany.city}{selectedMyCompany.city && selectedMyCompany.country && ', '}{selectedMyCompany.country}</div>
+                      {selectedMyCompany.company_addresses.length > 0 && (
+                        <>
+                          {selectedMyCompany.company_addresses.map((addr, idx) => (
+                            <div key={idx}>
+                              <div>{addr.address_line1}</div>
+                              {addr.address_line2 && <div>{addr.address_line2}</div>}
+                              {(addr.city || addr.country) && (
+                                <div>
+                                  {addr.city}
+                                  {addr.city && addr.country && ', '}
+                                  {addr.country}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </>
                       )}
                     </div>
                   </div>
@@ -488,9 +554,22 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     <div className="text-sm text-slate-600 space-y-1">
                       <div className="font-medium">{selectedVendor.company_name}</div>
                       <div>{selectedVendor.company_code}</div>
-                      {selectedVendor.address && <div>{selectedVendor.address}</div>}
-                      {(selectedVendor.city || selectedVendor.country) && (
-                        <div>{selectedVendor.city}{selectedVendor.city && selectedVendor.country && ', '}{selectedVendor.country}</div>
+                      {selectedVendor.company_addresses.length > 0 && (
+                        <>
+                          {selectedVendor.company_addresses.map((addr, idx) => (
+                            <div key={idx}>
+                              <div>{addr.address_line1}</div>
+                              {addr.address_line2 && <div>{addr.address_line2}</div>}
+                              {(addr.city || addr.country) && (
+                                <div>
+                                  {addr.city}
+                                  {addr.city && addr.country && ', '}
+                                  {addr.country}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </>
                       )}
                     </div>
                   </div>
@@ -571,9 +650,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="ship_via_id">Ship Via</Label>
                 <Select
                   value={form.watch('ship_via_id')}
-                  onValueChange={(value) => form.setValue('ship_via_id', value)}
+                  onValueChange={(value) => setValue('ship_via_id', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="ship_via_id" className={form.formState.errors.ship_via_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select shipping method" />
                   </SelectTrigger>
                   <SelectContent>
@@ -590,9 +669,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="payment_term">Payment Term</Label>
                 <Select
                   value={form.watch('payment_term')}
-                  onValueChange={(value) => form.setValue('payment_term', value)}
+                  onValueChange={(value) => setValue('payment_term', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="payment_term_trigger_5">
                     <SelectValue placeholder="Select payment term" />
                   </SelectTrigger>
                   <SelectContent>
@@ -610,9 +689,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="currency">Currency</Label>
                 <Select
                   value={form.watch('currency')}
-                  onValueChange={(value) => form.setValue('currency', value)}
+                  onValueChange={(value) => setValue('currency', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="currency_trigger_6">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -647,6 +726,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => append({
                   pn_id: '',
                   description: '',
@@ -664,7 +744,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
           <CardContent>
             <div className="space-y-4">
               {fields.map((field, index) => (
-                <Card key={field.id} className="p-4">
+                <Card key={field.id} className="p-4 relative" data-testid={`line-item-${index}`}>
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-medium">Item {index + 1}</h4>
                     {fields.length > 1 && (
@@ -672,6 +752,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                         type="button"
                         variant="ghost"
                         size="icon"
+                        className="absolute top-2 right-2 h-6 w-6"
                         onClick={() => remove(index)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -681,18 +762,18 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label>Part Number</Label>
+                      <Label htmlFor={`items.${index}.pn_id`}>Part Number</Label>
                       <Select
                         value={form.watch(`items.${index}.pn_id`)}
                         onValueChange={(value) => {
-                          form.setValue(`items.${index}.pn_id`, value)
+                          setValue(`items.${index}.pn_id`, value)
                           const selectedPart = partNumbers.find(pn => pn.pn_id === value)
                           if (selectedPart && selectedPart.description) {
-                            form.setValue(`items.${index}.description`, selectedPart.description)
+                            setValue(`items.${index}.description`, selectedPart.description)
                           }
                         }}
                       >
-                        <SelectTrigger className={form.formState.errors.items?.[index]?.pn_id ? 'border-red-500' : ''}>
+                        <SelectTrigger id={`pn_id_trigger_${index}`} className={form.formState.errors.items?.[index]?.pn_id ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Select part number" />
                         </SelectTrigger>
                         <SelectContent>
@@ -716,8 +797,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     </div>
 
                     <div>
-                      <Label>Description</Label>
+                      <Label htmlFor={`items.${index}.description`}>Description</Label>
                       <Input
+                        id={`items.${index}.description`}
                         {...form.register(`items.${index}.description`)}
                         placeholder="Item description"
                         className={form.formState.errors.items?.[index]?.description ? 'border-red-500' : ''}
@@ -730,20 +812,21 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     </div>
 
                     <div>
-                      <Label>Serial Number</Label>
+                      <Label htmlFor={`items.${index}.sn`}>Serial Number</Label>
                       <Input
+                        id={`items.${index}.sn`}
                         {...form.register(`items.${index}.sn`)}
                         placeholder="Optional"
                       />
                     </div>
 
                     <div>
-                      <Label>Condition</Label>
+                      <Label htmlFor={`items.${index}.condition`}>Condition</Label>
                       <Select
                         value={form.watch(`items.${index}.condition`)}
-                        onValueChange={(value) => form.setValue(`items.${index}.condition`, value)}
+                        onValueChange={(value) => setValue(`items.${index}.condition`, value)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id={`condition_trigger_${index}`}>
                           <SelectValue placeholder="Select condition" />
                         </SelectTrigger>
                         <SelectContent>
@@ -759,8 +842,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     </div>
 
                     <div>
-                      <Label>Quantity</Label>
+                      <Label htmlFor={`items.${index}.quantity`}>Quantity</Label>
                       <Input
+                        id={`items.${index}.quantity`}
                         type="number"
                         min="1"
                         {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
@@ -774,8 +858,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                     </div>
 
                     <div>
-                      <Label>Unit Price ($)</Label>
+                      <Label htmlFor={`items.${index}.unit_price`}>Unit Price ($)</Label>
                       <Input
+                        id={`items.${index}.unit_price`}
                         type="number"
                         step="0.01"
                         min="0"

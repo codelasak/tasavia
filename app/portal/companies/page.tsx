@@ -44,17 +44,34 @@ export default function CompaniesPage() {
   const fetchCompanies = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Fetch companies first
+      const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
-        .select(`
-          *,
-          company_contacts (*),
-          company_addresses (*)
-        `)
+        .select('*')
         .order('company_name')
 
-      if (error) throw error
-      setCompanies(data || [])
+      if (companiesError) throw companiesError
+
+      // Fetch addresses separately
+      const { data: addressData } = await supabase
+        .from('company_addresses')
+        .select('*')
+        .eq('company_ref_type', 'companies')
+
+      // Fetch contacts separately 
+      const { data: contactData } = await supabase
+        .from('company_contacts') 
+        .select('*')
+        .eq('company_ref_type', 'companies')
+
+      // Combine the data
+      const companiesWithRelations = companiesData?.map(company => ({
+        ...company,
+        company_addresses: addressData?.filter(addr => addr.company_id === company.company_id) || [],
+        company_contacts: contactData?.filter(contact => contact.company_id === company.company_id) || []
+      })) || []
+
+      setCompanies(companiesWithRelations)
     } catch (error) {
       console.error('Error fetching companies:', error)
       toast.error('Failed to fetch companies')

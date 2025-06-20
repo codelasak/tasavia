@@ -31,20 +31,32 @@ interface PurchaseOrderDetails {
   my_companies: {
     my_company_name: string
     my_company_code: string
-    my_company_address: string | null
-    city: string | null
-    country: string | null
-    phone: string | null
-    email: string | null
+    company_addresses: Array<{
+      address_line1: string
+      address_line2: string | null
+      city: string | null
+      country: string | null
+    }>
+    company_contacts: Array<{
+      contact_name: string
+      email: string | null
+      phone: string | null
+    }>
   }
   companies: {
     company_name: string
     company_code: string
-    address: string | null
-    city: string | null
-    country: string | null
-    phone: string | null
-    email: string | null
+    company_addresses: Array<{
+      address_line1: string
+      address_line2: string | null
+      city: string | null
+      country: string | null
+    }>
+    company_contacts: Array<{
+      contact_name: string
+      email: string | null
+      phone: string | null
+    }>
   }
   my_ship_via: {
     ship_company_name: string
@@ -77,7 +89,8 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
 
   const fetchPurchaseOrder = useCallback(async (id: string) => {
     try {
-      const { data, error } = await supabase
+      // First fetch the purchase order with basic company info
+      const { data: poData, error: poError } = await supabase
         .from('purchase_orders')
         .select(`
           *,
@@ -91,9 +104,51 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
         `)
         .eq('po_id', id)
         .single()
+      
+      if (poError) throw poError
 
-      if (error) throw error
-      setPurchaseOrder(data)
+      // Fetch my company addresses and contacts
+      const { data: myCompanyAddresses } = await supabase
+        .from('company_addresses')
+        .select('*')
+        .eq('company_id', poData.my_companies.my_company_id)
+        .eq('company_ref_type', 'my_companies')
+
+      const { data: myCompanyContacts } = await supabase
+        .from('company_contacts')
+        .select('*')
+        .eq('company_id', poData.my_companies.my_company_id)
+        .eq('company_ref_type', 'my_companies')
+
+      // Fetch vendor company addresses and contacts
+      const { data: vendorAddresses } = await supabase
+        .from('company_addresses')
+        .select('*')
+        .eq('company_id', poData.companies.company_id)
+        .eq('company_ref_type', 'companies')
+
+      const { data: vendorContacts } = await supabase
+        .from('company_contacts')
+        .select('*')
+        .eq('company_id', poData.companies.company_id)
+        .eq('company_ref_type', 'companies')
+
+      // Combine the data
+      const enrichedData = {
+        ...poData,
+        my_companies: {
+          ...poData.my_companies,
+          company_addresses: myCompanyAddresses || [],
+          company_contacts: myCompanyContacts || []
+        },
+        companies: {
+          ...poData.companies,
+          company_addresses: vendorAddresses || [],
+          company_contacts: vendorContacts || []
+        }
+      }
+      
+      setPurchaseOrder(enrichedData)
     } catch (error) {
       console.error('Error fetching purchase order:', error)
       toast.error('Failed to fetch purchase order')
@@ -197,18 +252,33 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
             <div className="space-y-1 text-sm">
               <div className="font-semibold">{purchaseOrder.my_companies.my_company_name}</div>
               <div>{purchaseOrder.my_companies.my_company_code}</div>
-              {purchaseOrder.my_companies.my_company_address && (
-                <div>{purchaseOrder.my_companies.my_company_address}</div>
+              {purchaseOrder.my_companies.company_addresses.length > 0 && (
+                <>
+                  {purchaseOrder.my_companies.company_addresses.map((addr, idx) => (
+                    <div key={idx}>
+                      <div>{addr.address_line1}</div>
+                      {addr.address_line2 && <div>{addr.address_line2}</div>}
+                      {(addr.city || addr.country) && (
+                        <div>
+                          {addr.city}
+                          {addr.city && addr.country && ', '}
+                          {addr.country}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
               )}
-              {(purchaseOrder.my_companies.city || purchaseOrder.my_companies.country) && (
-                <div>
-                  {purchaseOrder.my_companies.city}
-                  {purchaseOrder.my_companies.city && purchaseOrder.my_companies.country && ', '}
-                  {purchaseOrder.my_companies.country}
-                </div>
+              {purchaseOrder.my_companies.company_contacts.length > 0 && (
+                <>
+                  {purchaseOrder.my_companies.company_contacts.map((contact, idx) => (
+                    <div key={idx}>
+                      {contact.phone && <div>Tel: {contact.phone}</div>}
+                      {contact.email && <div>Email: {contact.email}</div>}
+                    </div>
+                  ))}
+                </>
               )}
-              {purchaseOrder.my_companies.phone && <div>Tel: {purchaseOrder.my_companies.phone}</div>}
-              {purchaseOrder.my_companies.email && <div>Email: {purchaseOrder.my_companies.email}</div>}
             </div>
           </div>
 
@@ -217,16 +287,33 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
             <div className="space-y-1 text-sm">
               <div className="font-semibold">{purchaseOrder.companies.company_name}</div>
               <div>{purchaseOrder.companies.company_code}</div>
-              {purchaseOrder.companies.address && <div>{purchaseOrder.companies.address}</div>}
-              {(purchaseOrder.companies.city || purchaseOrder.companies.country) && (
-                <div>
-                  {purchaseOrder.companies.city}
-                  {purchaseOrder.companies.city && purchaseOrder.companies.country && ', '}
-                  {purchaseOrder.companies.country}
-                </div>
+              {purchaseOrder.companies.company_addresses.length > 0 && (
+                <>
+                  {purchaseOrder.companies.company_addresses.map((addr, idx) => (
+                    <div key={idx}>
+                      <div>{addr.address_line1}</div>
+                      {addr.address_line2 && <div>{addr.address_line2}</div>}
+                      {(addr.city || addr.country) && (
+                        <div>
+                          {addr.city}
+                          {addr.city && addr.country && ', '}
+                          {addr.country}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
               )}
-              {purchaseOrder.companies.phone && <div>Tel: {purchaseOrder.companies.phone}</div>}
-              {purchaseOrder.companies.email && <div>Email: {purchaseOrder.companies.email}</div>}
+              {purchaseOrder.companies.company_contacts.length > 0 && (
+                <>
+                  {purchaseOrder.companies.company_contacts.map((contact, idx) => (
+                    <div key={idx}>
+                      {contact.phone && <div>Tel: {contact.phone}</div>}
+                      {contact.email && <div>Email: {contact.email}</div>}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>

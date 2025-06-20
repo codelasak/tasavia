@@ -10,7 +10,10 @@ import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 import { CompanyDialog } from '@/components/companies/CompanyDialog'
 
-type MyCompany = Database['public']['Tables']['my_companies']['Row']
+type MyCompany = Database['public']['Tables']['my_companies']['Row'] & {
+  company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
+  company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
+}
 
 export default function MyCompaniesPage() {
   const [companies, setCompanies] = useState<MyCompany[]>([])
@@ -25,24 +28,50 @@ export default function MyCompaniesPage() {
   }, [])
 
   useEffect(() => {
+    const lowercasedTerm = searchTerm.toLowerCase()
     const filtered = companies.filter(company =>
-      company.my_company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.my_company_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (company.city && company.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (company.country && company.country.toLowerCase().includes(searchTerm.toLowerCase()))
+      company.my_company_name.toLowerCase().includes(lowercasedTerm) ||
+      company.my_company_code.toLowerCase().includes(lowercasedTerm) ||
+      company.company_addresses.some(a => 
+        (a.city && a.city.toLowerCase().includes(lowercasedTerm)) ||
+        (a.country && a.country.toLowerCase().includes(lowercasedTerm))
+      ) ||
+      company.company_contacts.some(c => c.contact_name && c.contact_name.toLowerCase().includes(lowercasedTerm))
     )
     setFilteredCompanies(filtered)
   }, [companies, searchTerm])
 
   const fetchCompanies = async () => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Fetch my companies first
+      const { data: companiesData, error: companiesError } = await supabase
         .from('my_companies')
         .select('*')
         .order('my_company_name')
 
-      if (error) throw error
-      setCompanies(data || [])
+      if (companiesError) throw companiesError
+
+      // Fetch addresses separately
+      const { data: addressData } = await supabase
+        .from('company_addresses')
+        .select('*')
+        .eq('company_ref_type', 'my_companies')
+
+      // Fetch contacts separately 
+      const { data: contactData } = await supabase
+        .from('company_contacts') 
+        .select('*')
+        .eq('company_ref_type', 'my_companies')
+
+      // Combine the data
+      const companiesWithRelations = companiesData?.map(company => ({
+        ...company,
+        company_addresses: addressData?.filter(addr => addr.company_id === company.my_company_id) || [],
+        company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || []
+      })) || []
+
+      setCompanies(companiesWithRelations)
     } catch (error) {
       console.error('Error fetching companies:', error)
       toast.error('Failed to fetch companies')
@@ -151,10 +180,27 @@ export default function MyCompaniesPage() {
                     </div>
                     <CardDescription className="text-xs">Code: {company.my_company_code}</CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-0 text-xs text-slate-600">
-                    {(company.city || company.country) && (
-                      <div>{company.city}{company.city && company.country && ', '}{company.country}</div>
-                    )}
+                  <CardContent className="pt-2 text-xs text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold mb-1">Addresses</h4>
+                      {company.company_addresses.length > 0 ? (
+                        <ul className="space-y-1">
+                          {company.company_addresses.map(addr => (
+                            <li key={addr.address_id}>{addr.address_line1}, {addr.city}, {addr.country}</li>
+                          ))}
+                        </ul>
+                      ) : <p>No addresses</p>}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Contacts</h4>
+                      {company.company_contacts.length > 0 ? (
+                        <ul className="space-y-1">
+                          {company.company_contacts.map(contact => (
+                            <li key={contact.contact_id}>{contact.contact_name} ({contact.email})</li>
+                          ))}
+                        </ul>
+                      ) : <p>No contacts</p>}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

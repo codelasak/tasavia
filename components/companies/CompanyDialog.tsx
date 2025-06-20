@@ -23,6 +23,23 @@ type MyCompanyDB = {
   my_company_code: string;
   created_at?: string | null;
   updated_at?: string | null;
+  company_contacts?: Array<{
+    contact_id?: string;
+    contact_name: string | null;
+    email?: string | null;
+    phone?: string | null;
+    role?: string | null;
+    is_primary: boolean | null;
+  }>;
+  company_addresses?: Array<{
+    address_id?: string;
+    address_line1: string;
+    address_line2?: string | null;
+    city?: string | null;
+    country?: string | null;
+    zip_code?: string | null;
+    is_primary: boolean | null;
+  }>;
 };
 
 type CompanyDB = {
@@ -76,14 +93,8 @@ type CompanyAddress = {
 type MyCompanyFormData = {
   my_company_name: string;
   my_company_code: string;
-  address_line1: string;
-  address_line2?: string;
-  city: string;
-  country: string;
-  zip_code: string;
-  contact_name: string;
-  phone: string;
-  email?: string;
+  company_addresses: CompanyAddress[];
+  company_contacts: CompanyContact[];
   // Add type discriminator
   formType: 'my_company';
 };
@@ -127,16 +138,24 @@ function isExternalCompany(company: any): company is CompanyDB {
 const myCompanySchema = z.object({
   my_company_name: z.string().min(1, 'Company name is required'),
   my_company_code: z.string().min(1, 'Company code is required'),
-  // Address fields
-  address_line1: z.string().min(1, 'Address line 1 is required'),
-  address_line2: z.string().optional(),
-  city: z.string().min(1, 'City is required'),
-  country: z.string().min(1, 'Country is required'),
-  zip_code: z.string().min(1, 'ZIP/Postal code is required'),
-  // Contact fields
-  contact_name: z.string().min(1, 'Contact name is required'),
-  phone: z.string().min(1, 'Phone number is required'),
-  email: z.string().email('Invalid email address').or(z.literal('')).optional(),
+  company_contacts: z.array(z.object({
+    contact_id: z.string().optional(),
+    contact_name: z.string().min(1, 'Contact name is required'),
+    email: z.string().email('Invalid email address').or(z.literal('')).optional(),
+    phone: z.string().optional(),
+    role: z.string().optional(),
+    is_primary: z.boolean().nullable().default(false),
+  })).optional().default([]),
+  company_addresses: z.array(z.object({
+    address_id: z.string().optional(),
+    address_line1: z.string().min(1, 'Address is required'),
+    address_line2: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().optional(),
+    zip_code: z.string().optional(),
+    is_primary: z.boolean().nullable().default(false),
+  })).optional().default([]),
+  formType: z.literal('my_company'),
 });
 
 // Schema for External Company form
@@ -146,25 +165,24 @@ const externalCompanySchema = z.object({
   company_type: z.enum(['vendor', 'customer', 'both']),
   default_ship_account_no: z.string().optional(),
   default_ship_via_company_name: z.string().optional(),
-  
   company_contacts: z.array(z.object({
     contact_id: z.string().optional(),
-    contact_name: z.string().nullable().optional(),
-    email: z.string().email('Invalid email').or(z.literal('')).optional(),
+    contact_name: z.string().min(1, 'Contact name is required'),
+    email: z.string().email('Invalid email address').or(z.literal('')).optional(),
     phone: z.string().optional(),
     role: z.string().optional(),
     is_primary: z.boolean().nullable().default(false),
   })).optional().default([]),
-  
   company_addresses: z.array(z.object({
     address_id: z.string().optional(),
-    address_line1: z.string().min(1, 'Address line 1 is required'),
+    address_line1: z.string().min(1, 'Address is required'),
     address_line2: z.string().optional(),
     city: z.string().optional(),
     country: z.string().optional(),
     zip_code: z.string().optional(),
     is_primary: z.boolean().nullable().default(false),
   })).optional().default([]),
+  formType: z.literal('external_company'),
 });
 
 // Infer the types from the schemas
@@ -196,14 +214,19 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       formType: 'my_company',
       my_company_name: company?.my_company_name || '',
       my_company_code: company?.my_company_code || '',
-      address_line1: '',
-      address_line2: '',
-      city: '',
-      country: '',
-      zip_code: '',
-      contact_name: '',
-      phone: '',
-      email: ''
+      company_addresses: company?.company_addresses?.map(address => ({
+        ...address,
+        address_line2: address.address_line2 || undefined,
+        city: address.city || undefined,
+        country: address.country || undefined,
+        zip_code: address.zip_code || undefined
+      })) || [],
+      company_contacts: company?.company_contacts?.map(contact => ({
+        ...contact,
+        email: contact.email || undefined,
+        phone: contact.phone || undefined,
+        role: contact.role || undefined
+      })) || []
     };
   }
 
@@ -215,8 +238,19 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       company_type: (company?.company_type as 'vendor' | 'customer' | 'both') || 'vendor',
       default_ship_account_no: company?.default_ship_account_no || '',
       default_ship_via_company_name: company?.default_ship_via_company_name || '',
-      company_contacts: [],
-      company_addresses: []
+      company_contacts: company?.company_contacts?.map(contact => ({
+        ...contact,
+        email: contact.email || undefined,
+        phone: contact.phone || undefined,
+        role: contact.role || undefined
+      })) || [],
+      company_addresses: company?.company_addresses?.map(address => ({
+        ...address,
+        address_line2: address.address_line2 || undefined,
+        city: address.city || undefined,
+        country: address.country || undefined,
+        zip_code: address.zip_code || undefined
+      })) || []
     };
   }
 
@@ -235,30 +269,26 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
   });
 
   const handleAddContact = () => {
-    if (!isMyCompanyType) {
-      appendContact({
-        contact_id: uuidv4(),
-        contact_name: '',
-        email: '',
-        phone: '',
-        role: '',
-        is_primary: false
-      });
-    }
+    appendContact({
+      contact_id: uuidv4(),
+      contact_name: '',
+      email: '',
+      phone: '',
+      role: '',
+      is_primary: false
+    });
   };
 
   const handleAddAddress = () => {
-    if (!isMyCompanyType) {
-      appendAddress({
-        address_id: uuidv4(),
-        address_line1: '',
-        address_line2: '',
-        city: '',
-        country: '',
-        zip_code: '',
-        is_primary: false
-      });
-    }
+    appendAddress({
+      address_id: uuidv4(),
+      address_line1: '',
+      address_line2: '',
+      city: '',
+      country: '',
+      zip_code: '',
+      is_primary: false
+    });
   };
 
   // Set default values when the company or type changes
@@ -266,8 +296,23 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
     if (company) {
       // Transform company data to match form data structure
       if (isMyCompanyType) {
+        const myCompanyData = company as MyCompanyDB;
         form.reset({
-          ...(company as MyCompanyDB),
+          my_company_name: myCompanyData.my_company_name,
+          my_company_code: myCompanyData.my_company_code,
+          company_addresses: myCompanyData.company_addresses?.map(address => ({
+            ...address,
+            address_line2: address.address_line2 || undefined,
+            city: address.city || undefined,
+            country: address.country || undefined,
+            zip_code: address.zip_code || undefined
+          })) || [],
+          company_contacts: myCompanyData.company_contacts?.map(contact => ({
+            ...contact,
+            email: contact.email || undefined,
+            phone: contact.phone || undefined,
+            role: contact.role || undefined
+          })) || [],
           formType: 'my_company'
         });
       } else {
@@ -303,7 +348,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
     try {
       if (isMyCompanyFormData(formData)) {
         // Handle My Company form submission
-        const { formType, ...companyData } = formData;
+        const { formType, company_addresses, company_contacts, ...companyData } = formData;
         
         if (isMyCompany(company)) {
           // Update existing my_company
@@ -313,14 +358,78 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             .eq('my_company_id', company.my_company_id);
           
           if (error) throw error;
+          
+          // Handle company contacts
+          if (company_contacts.length > 0) {
+            const contactsToInsert = company_contacts.map(contact => ({
+              ...contact,
+              company_id: company.my_company_id,
+              company_ref_type: 'my_companies'
+            }));
+            
+            const { error: contactsError } = await supabase
+              .from('company_contacts')
+              .upsert(contactsToInsert);
+              
+            if (contactsError) throw contactsError;
+          }
+          
+          // Handle company addresses
+          if (company_addresses.length > 0) {
+            const addressesToInsert = company_addresses.map(address => ({
+              ...address,
+              company_id: company.my_company_id,
+              company_ref_type: 'my_companies'
+            }));
+            
+            const { error: addressesError } = await supabase
+              .from('company_addresses')
+              .upsert(addressesToInsert);
+              
+            if (addressesError) throw addressesError;
+          }
+          
           toast.success('My Company updated successfully');
         } else {
           // Create new my_company
-          const { error } = await supabase
+          const { data: newCompany, error: companyError } = await supabase
             .from('my_companies')
-            .insert(companyData);
+            .insert(companyData)
+            .select()
+            .single();
             
-          if (error) throw error;
+          if (companyError) throw companyError;
+          
+          // Handle company contacts
+          if (company_contacts.length > 0) {
+            const contactsToInsert = company_contacts.map(contact => ({
+              ...contact,
+              company_id: newCompany.my_company_id,
+              company_ref_type: 'my_companies'
+            }));
+            
+            const { error: contactsError } = await supabase
+              .from('company_contacts')
+              .insert(contactsToInsert);
+              
+            if (contactsError) throw contactsError;
+          }
+          
+          // Handle company addresses
+          if (company_addresses.length > 0) {
+            const addressesToInsert = company_addresses.map(address => ({
+              ...address,
+              company_id: newCompany.my_company_id,
+              company_ref_type: 'my_companies'
+            }));
+            
+            const { error: addressesError } = await supabase
+              .from('company_addresses')
+              .insert(addressesToInsert);
+              
+            if (addressesError) throw addressesError;
+          }
+          
           toast.success('My Company created successfully');
         }
       } else if (isExternalCompanyFormData(formData)) {
@@ -472,39 +581,81 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           )}
 
           {isMyCompanyType ? (
-            // Form fields for MyCompany
+            // Form fields for MyCompany with dynamic contacts and addresses
             <>
-             <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label>Address</Label>
-                  <Input {...form.register('company_addresses.0.address_line1' as const)} />
-                </div>
+              {/* Contacts Section */}
+              <div className="space-y-4 rounded-md border p-4">
+                <h3 className="text-lg font-medium">Contacts</h3>
+                {contactFields.map((field, index) => (
+                  <div key={field.id} className="space-y-2 rounded-md border p-3">
+                    <div className="flex justify-end">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeContact(index)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Contact Name</Label>
+                        <Input {...form.register(`company_contacts.${index}.contact_name` as const)} />
+                      </div>
+                      <div>
+                        <Label>Email</Label>
+                        <Input type="email" {...form.register(`company_contacts.${index}.email` as const)} />
+                      </div>
+                      <div>
+                        <Label>Phone</Label>
+                        <Input {...form.register(`company_contacts.${index}.phone` as const)} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" onClick={() => appendContact({ 
+                  contact_name: '', 
+                  email: '', 
+                  phone: '',
+                  role: '',
+                  is_primary: false
+                })}>
+                  <PlusCircle className="h-4 w-4 mr-2" /> Add Contact
+                </Button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                 <div>
-                  <Label>Zip Code</Label>
-                  <Input {...form.register('company_addresses.0.zip_code' as const)} />
-                </div>
-                <div>
-                  <Label>City</Label>
-                  <Input {...form.register('company_addresses.0.city' as const)} />
-                </div>
-                <div>
-                  <Label>Country</Label>
-                  <Input {...form.register('company_addresses.0.country' as const)} />
-                </div>
-                 <div>
-                  <Label>Contact Name</Label>
-                  <Input {...form.register('company_contacts.0.contact_name' as const)} />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input {...form.register('company_contacts.0.phone' as const)} />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input type="email" {...form.register('company_contacts.0.email' as const)} />
-                </div>
+
+              {/* Addresses Section */}
+              <div className="space-y-4 rounded-md border p-4">
+                <h3 className="text-lg font-medium">Addresses</h3>
+                {addressFields.map((field, index) => (
+                  <div key={field.id} className="space-y-2 rounded-md border p-3">
+                    <div className="flex justify-end">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeAddress(index)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div>
+                      <Label>Address</Label>
+                      <Input {...form.register(`company_addresses.${index}.address_line1` as const)} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>Zip Code</Label>
+                        <Input {...form.register(`company_addresses.${index}.zip_code` as const)} />
+                      </div>
+                      <div>
+                        <Label>City</Label>
+                        <Input {...form.register(`company_addresses.${index}.city` as const)} />
+                      </div>
+                      <div>
+                        <Label>Country</Label>
+                        <Input {...form.register(`company_addresses.${index}.country` as const)} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" onClick={() => appendAddress({
+                  address_line1: '',
+                  address_line2: '',
+                  city: '',
+                  country: '',
+                  zip_code: '',
+                  is_primary: false
+                })}>
+                  <PlusCircle className="h-4 w-4 mr-2" /> Add Address
+                </Button>
               </div>
             </>
           ) : (

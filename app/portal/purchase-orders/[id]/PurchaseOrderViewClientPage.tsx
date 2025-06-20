@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Edit, FileText, Printer } from 'lucide-react'
+import { ArrowLeft, Edit, FileText, Printer, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
@@ -34,20 +34,32 @@ interface PurchaseOrderDetails {
   my_companies: {
     my_company_name: string
     my_company_code: string
-    my_company_address: string | null
-    city: string | null
-    country: string | null
-    phone: string | null
-    email: string | null
+    company_addresses: Array<{
+      address_line1: string
+      address_line2: string | null
+      city: string | null
+      country: string | null
+    }>
+    company_contacts: Array<{
+      contact_name: string
+      email: string | null
+      phone: string | null
+    }>
   }
   companies: {
     company_name: string
     company_code: string
-    address: string | null
-    city: string | null
-    country: string | null
-    phone: string | null
-    email: string | null
+    company_addresses: Array<{
+      address_line1: string
+      address_line2: string | null
+      city: string | null
+      country: string | null
+    }>
+    company_contacts: Array<{
+      contact_name: string
+      email: string | null
+      phone: string | null
+    }>
   }
   my_ship_via: {
     ship_company_name: string
@@ -80,7 +92,8 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
 
   const fetchPurchaseOrder = useCallback(async (id: string) => {
     try {
-      const { data, error } = await supabase
+      // First fetch the purchase order with basic company info
+      const { data: poData, error: poError } = await supabase
         .from('purchase_orders')
         .select(`
           *,
@@ -94,8 +107,51 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
         `)
         .eq('po_id', id)
         .single()
-      if (error) throw error
-      setPurchaseOrder(data)
+      
+      if (poError) throw poError
+
+      // Fetch my company addresses and contacts
+      const { data: myCompanyAddresses } = await supabase
+        .from('company_addresses')
+        .select('*')
+        .eq('company_id', poData.my_companies.my_company_id)
+        .eq('company_ref_type', 'my_companies')
+
+      const { data: myCompanyContacts } = await supabase
+        .from('company_contacts')
+        .select('*')
+        .eq('company_id', poData.my_companies.my_company_id)
+        .eq('company_ref_type', 'my_companies')
+
+      // Fetch vendor company addresses and contacts
+      const { data: vendorAddresses } = await supabase
+        .from('company_addresses')
+        .select('*')
+        .eq('company_id', poData.companies.company_id)
+        .eq('company_ref_type', 'companies')
+
+      const { data: vendorContacts } = await supabase
+        .from('company_contacts')
+        .select('*')
+        .eq('company_id', poData.companies.company_id)
+        .eq('company_ref_type', 'companies')
+
+      // Combine the data
+      const enrichedData = {
+        ...poData,
+        my_companies: {
+          ...poData.my_companies,
+          company_addresses: myCompanyAddresses || [],
+          company_contacts: myCompanyContacts || []
+        },
+        companies: {
+          ...poData.companies,
+          company_addresses: vendorAddresses || [],
+          company_contacts: vendorContacts || []
+        }
+      }
+      
+      setPurchaseOrder(enrichedData)
     } catch (error) {
       console.error('Failed to fetch purchase order:', error)
       setPurchaseOrder(null)
@@ -119,6 +175,69 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
       Cancelled: 'bg-red-100 text-red-800'
     }
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  }
+
+  const handleDelete = async () => {
+    if (!purchaseOrder) return
+    
+    if (!confirm(`Are you sure you want to delete purchase order ${purchaseOrder.po_number}? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      // First check if there are any references to this PO in inventory
+      const { data: inventoryReferences, error: inventoryCheckError } = await supabase
+        .from('inventory')
+        .select('inventory_id')
+        .eq('po_id_original', purchaseOrder.po_id)
+        .limit(1)
+
+      if (inventoryCheckError) {
+        console.error('Error checking inventory references:', inventoryCheckError)
+        throw new Error('Failed to check purchase order references')
+      }
+
+      if (inventoryReferences && inventoryReferences.length > 0) {
+        toast.error('Cannot delete purchase order: It is referenced in inventory records')
+        return
+      }
+
+      // Delete PO items first (due to foreign key constraint)
+      const { error: itemsDeleteError } = await supabase
+        .from('po_items')
+        .delete()
+        .eq('po_id', purchaseOrder.po_id)
+
+      if (itemsDeleteError) {
+        console.error('Error deleting PO items:', itemsDeleteError)
+        throw itemsDeleteError
+      }
+
+      // Then delete the purchase order
+      const { error: poDeleteError } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('po_id', purchaseOrder.po_id)
+
+      if (poDeleteError) {
+        console.error('Error deleting purchase order:', poDeleteError)
+        throw poDeleteError
+      }
+
+      toast.success('Purchase order deleted successfully')
+      router.push('/portal/purchase-orders')
+    } catch (error: any) {
+      console.error('Error deleting purchase order:', error)
+      
+      // Handle specific error cases
+      if (error.code === '23503') {
+        toast.error('Cannot delete purchase order: It is referenced by other records')
+      } else if (error.message?.includes('foreign key')) {
+        toast.error('Cannot delete purchase order: It is referenced in other records')
+      } else {
+        toast.error(error.message || 'Failed to delete purchase order')
+      }
+    }
   }
 
   if (loading) {
@@ -160,11 +279,19 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
               </Button>
             </Link>
             <Link href={`/portal/purchase-orders/${purchaseOrder.po_id}/pdf`}>
-              <Button>
+              <Button variant="outline">
                 <FileText className="h-4 w-4 mr-2" />
                 View PDF
               </Button>
             </Link>
+            <Button 
+              variant="outline" 
+              onClick={handleDelete}
+              className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
           </div>
         </div>
 
@@ -190,38 +317,70 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                 <div className="text-sm text-slate-600 space-y-1">
                   <div className="font-medium">{purchaseOrder.my_companies.my_company_name}</div>
                   <div>{purchaseOrder.my_companies.my_company_code}</div>
-                  {purchaseOrder.my_companies.my_company_address && (
-                    <div>{purchaseOrder.my_companies.my_company_address}</div>
+                  {purchaseOrder.my_companies.company_addresses.length > 0 && (
+                    <>
+                      {purchaseOrder.my_companies.company_addresses.map((addr, idx) => (
+                        <div key={idx}>
+                          <div>{addr.address_line1}</div>
+                          {addr.address_line2 && <div>{addr.address_line2}</div>}
+                          {(addr.city || addr.country) && (
+                            <div>
+                              {addr.city}
+                              {addr.city && addr.country && ', '}
+                              {addr.country}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
                   )}
-                  {(purchaseOrder.my_companies.city || purchaseOrder.my_companies.country) && (
-                    <div>
-                      {purchaseOrder.my_companies.city}
-                      {purchaseOrder.my_companies.city && purchaseOrder.my_companies.country && ', '}
-                      {purchaseOrder.my_companies.country}
-                    </div>
+                  {purchaseOrder.my_companies.company_contacts.length > 0 && (
+                    <>
+                      {purchaseOrder.my_companies.company_contacts.map((contact, idx) => (
+                        <div key={idx}>
+                          {contact.phone && <div>📞 {contact.phone}</div>}
+                          {contact.email && <div>✉️ {contact.email}</div>}
+                        </div>
+                      ))}
+                    </>
                   )}
-                  {purchaseOrder.my_companies.phone && <div>📞 {purchaseOrder.my_companies.phone}</div>}
-                  {purchaseOrder.my_companies.email && <div>✉️ {purchaseOrder.my_companies.email}</div>}
                 </div>
               </div>
 
               <div>
                 <h4 className="font-semibold text-slate-900 mb-2">To (Vendor)</h4>
-              <div className="text-sm text-slate-600 space-y-1">
-                <div className="font-medium">{purchaseOrder.companies.company_name}</div>
-                <div>{purchaseOrder.companies.company_code}</div>
-                {purchaseOrder.companies.address && <div>{purchaseOrder.companies.address}</div>}
-                {(purchaseOrder.companies.city || purchaseOrder.companies.country) && (
-                  <div>
-                    {purchaseOrder.companies.city}
-                    {purchaseOrder.companies.city && purchaseOrder.companies.country && ', '}
-                    {purchaseOrder.companies.country}
-                  </div>
-                )}
-                {purchaseOrder.companies.phone && <div>📞 {purchaseOrder.companies.phone}</div>}
-                {purchaseOrder.companies.email && <div>✉️ {purchaseOrder.companies.email}</div>}
+                <div className="text-sm text-slate-600 space-y-1">
+                  <div className="font-medium">{purchaseOrder.companies.company_name}</div>
+                  <div>{purchaseOrder.companies.company_code}</div>
+                  {purchaseOrder.companies.company_addresses.length > 0 && (
+                    <>
+                      {purchaseOrder.companies.company_addresses.map((addr, idx) => (
+                        <div key={idx}>
+                          <div>{addr.address_line1}</div>
+                          {addr.address_line2 && <div>{addr.address_line2}</div>}
+                          {(addr.city || addr.country) && (
+                            <div>
+                              {addr.city}
+                              {addr.city && addr.country && ', '}
+                              {addr.country}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {purchaseOrder.companies.company_contacts.length > 0 && (
+                    <>
+                      {purchaseOrder.companies.company_contacts.map((contact, idx) => (
+                        <div key={idx}>
+                          {contact.phone && <div>📞 {contact.phone}</div>}
+                          {contact.email && <div>✉️ {contact.email}</div>}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
           </div>
         </CardContent>
       </Card>
