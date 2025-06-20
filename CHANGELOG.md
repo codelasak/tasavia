@@ -3,11 +3,66 @@
 All notable changes to the TASAVIA Dashboard project will be documented in this file.
 
 
-
-## [Unreleased]
+## [0.1.1] - 2025-06-20
 
 ### Added
-- README.md with comprehensive project documentation
+- **Comprehensive testing infrastructure** (ecd315d)
+  - Complete Playwright E2E testing setup with configuration - *100 lines added*
+  - Jest unit testing configuration and setup - *6 lines total*
+  - Test coverage for all major components:
+    - Purchase Order Edit tests - *142 lines added*
+    - Purchase Orders List tests - *94 lines added* 
+    - New Purchase Order page tests - *99 lines added*
+    - Company Dialog tests - *86 lines added*
+    - Inventory Dialog tests - *61 lines added*
+    - Part Number Dialog tests - *45 lines added*
+    - Ship Via Dialog tests - *46 lines added*
+  - E2E test suites for complete user flows:
+    - Authentication flow tests - *215 lines added*
+    - Basic navigation tests - *70 lines added*
+    - Dashboard functionality tests - *182 lines added*
+    - Inventory management tests - *206 lines added*
+    - Company management tests - *328 lines total*
+    - Part numbers management tests - *258 lines added*
+    - Purchase orders workflow tests - *177 lines added*
+  - Test utilities and data fixtures - *168 lines added*
+  - Demo todo app example tests - *437 lines added*
+
+- **Enhanced application features** (ecd315d)
+  - New inventory detail page with full item management - *257 lines added*
+  - Enhanced purchase order PDF generation - *151 lines improved*
+  - Improved purchase order viewing and editing - *542 lines enhanced*
+  - Advanced company management with addresses/contacts - *331 lines enhanced*
+  - README.md with comprehensive project documentation - *142 lines added*
+
+- **Jest testing foundation** (0952f28)
+  - Jest configuration for unit testing - *20 lines added*
+  - Supabase auth helpers mocking - *39 lines added*
+  - Jest setup file - *1 line added*
+
+### Changed
+- **Enhanced data fetching and UI improvements** (ecd315d)
+  - Improved companies page with better data loading - *33 lines modified*
+  - Enhanced my-companies page functionality - *70 lines improved*
+  - Better inventory page with expanded features - *52 lines enhanced*
+  - Optimized purchase orders list with improved UX - *78 lines modified*
+  - Enhanced new purchase order creation - *117 lines improved*
+  - Updated PDF page with better error handling - *20 lines modified*
+
+- **Enhanced CompanyDialog component** (0952f28)
+  - Improved address and contact management - *71 lines modified*
+
+### Updated
+- **Dependencies and configuration** (ecd315d)
+  - Updated .gitignore for Playwright and test artifacts - *9 lines added*
+  - Enhanced package.json with testing dependencies - *6 lines modified*
+  - Updated database schema documentation - *326 lines restructured*
+  - Added database migration for company contacts/addresses - *125 lines added*
+  - TypeScript configuration improvements - *1 line added*
+
+- **Package dependencies** (0952f28)
+  - Major package.json updates with testing libraries - *9 lines added*
+  - Comprehensive package-lock.json updates - *8,848 lines net change*
 
 ## [0.1.0] - 2025-06-17
 

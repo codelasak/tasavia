@@ -104,6 +104,22 @@ describe('PurchaseOrderEditClientPage', () => {
               order: jest.fn().mockResolvedValue({ data: mockShipVia, error: null }),
             }),
           };
+        case 'company_addresses':
+          return {
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        case 'company_contacts':
+          return {
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
         default:
           throw new Error(`Unexpected table name in mock: ${tableName}`);
       }
