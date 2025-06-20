@@ -75,5 +75,14 @@
     "vaul": "^0.9.9",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^30.0.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.0",
+    "jest-environment-jsdom": "^30.0.0",
+    "ts-jest": "^29.4.0"
   }
 }

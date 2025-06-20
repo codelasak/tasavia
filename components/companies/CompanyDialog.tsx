@@ -30,9 +30,6 @@ type CompanyDB = {
   company_name: string;
   company_code?: string | null;
   company_type?: string | null;
-  default_currency?: string | null;
-  default_payment_term?: string | null;
-  condition?: string | null;
   default_ship_account_no?: string | null;
   default_ship_via_company_name?: string | null;
   created_at?: string | null;
@@ -75,10 +72,6 @@ type CompanyAddress = {
   is_primary: boolean | null;
 };
 
-const CONDITION_OPTIONS = ['AR', 'SVC', 'AS-IS', 'OHC', 'INS', 'REP', 'MOD'];
-const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
-const PAYMENT_TERM_OPTIONS = ['PRE-PAY', 'COD', 'NET5', 'NET10', 'NET15', 'NET30'];
-
 // Form data types
 type MyCompanyFormData = {
   my_company_name: string;
@@ -99,9 +92,6 @@ type ExternalCompanyFormData = {
   company_name: string;
   company_code: string;
   company_type: 'vendor' | 'customer' | 'both';
-  default_currency: string;
-  default_payment_term: string;
-  condition: string;
   default_ship_account_no?: string;
   default_ship_via_company_name?: string;
   company_contacts: CompanyContact[];
@@ -154,9 +144,6 @@ const externalCompanySchema = z.object({
   company_name: z.string().min(1, 'Company name is required'),
   company_code: z.string().min(1, 'Company code is required'),
   company_type: z.enum(['vendor', 'customer', 'both']),
-  default_currency: z.string().min(1, 'Currency is required'),
-  default_payment_term: z.string().min(1, 'Payment term is required'),
-  condition: z.string().min(1, 'Condition is required'),
   default_ship_account_no: z.string().optional(),
   default_ship_via_company_name: z.string().optional(),
   
@@ -226,9 +213,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       company_name: company?.company_name || '',
       company_code: company?.company_code || '',
       company_type: (company?.company_type as 'vendor' | 'customer' | 'both') || 'vendor',
-      default_currency: company?.default_currency || 'USD',
-      default_payment_term: company?.default_payment_term || 'NET30',
-      condition: company?.condition || 'AR',
       default_ship_account_no: company?.default_ship_account_no || '',
       default_ship_via_company_name: company?.default_ship_via_company_name || '',
       company_contacts: [],
@@ -292,9 +276,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           company_name: companyData.company_name,
           company_code: companyData.company_code ?? '',
           company_type: (companyData.company_type ?? 'vendor') as 'vendor' | 'customer' | 'both',
-          default_currency: companyData.default_currency || 'USD',
-          default_payment_term: companyData.default_payment_term || 'NET30',
-          condition: companyData.condition || 'AR',
           default_ship_account_no: companyData.default_ship_account_no || undefined,
           default_ship_via_company_name: companyData.default_ship_via_company_name || undefined,
           company_contacts: companyData.company_contacts?.map(contact => ({
@@ -354,9 +335,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               company_name: companyData.company_name,
               company_code: companyData.company_code,
               company_type: companyData.company_type,
-              default_currency: companyData.default_currency,
-              default_payment_term: companyData.default_payment_term,
-              condition: companyData.condition,
               default_ship_account_no: companyData.default_ship_account_no,
               default_ship_via_company_name: companyData.default_ship_via_company_name
             })
@@ -403,9 +381,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               company_name: companyData.company_name,
               company_code: companyData.company_code,
               company_type: companyData.company_type,
-              default_currency: companyData.default_currency,
-              default_payment_term: companyData.default_payment_term,
-              condition: companyData.condition,
               default_ship_account_no: companyData.default_ship_account_no,
               default_ship_via_company_name: companyData.default_ship_via_company_name
             })
@@ -486,9 +461,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 value={form.watch('company_type')}
                 onValueChange={(value) => form.setValue('company_type', value as 'vendor' | 'customer' | 'both')}
               >
-                <SelectTrigger id="company_type">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="vendor">Vendor</SelectItem>
                   <SelectItem value="customer">Customer</SelectItem>
@@ -497,48 +470,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               </Select>
             </div>
           )}
-
-          <div>
-            <Label htmlFor="default_currency">Currency</Label>
-            <Select onValueChange={(value) => form.setValue('default_currency', value)} defaultValue={form.watch('default_currency')}>
-              <SelectTrigger id="default_currency">
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCY_OPTIONS.map(option => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="default_payment_term">Payment Term</Label>
-            <Select onValueChange={(value) => form.setValue('default_payment_term', value)} defaultValue={form.watch('default_payment_term')}>
-              <SelectTrigger id="default_payment_term">
-                <SelectValue placeholder="Select payment term" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_TERM_OPTIONS.map(option => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="condition">Condition</Label>
-            <Select onValueChange={(value) => form.setValue('condition', value)} defaultValue={form.watch('condition')}>
-              <SelectTrigger id="condition">
-                <SelectValue placeholder="Select condition" />
-              </SelectTrigger>
-              <SelectContent>
-                {CONDITION_OPTIONS.map(option => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {isMyCompanyType ? (
             // Form fields for MyCompany
