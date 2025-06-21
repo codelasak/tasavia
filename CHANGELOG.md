@@ -3,6 +3,63 @@
 All notable changes to the TASAVIA Dashboard project will be documented in this file.
 
 
+## [0.1.2] - 2025-06-21
+
+### Added
+- **Comprehensive Admin User Management System**
+  - Complete admin-controlled user creation with email and phone authentication
+  - Role-based access control (RBAC) with User, Admin, and Super Admin roles
+  - Admin dashboard with full CRUD operations for user management
+  - Role assignment during user creation with visual role indicators
+  - Secure API endpoints for admin operations with proper authentication
+  - Enhanced sidebar navigation with dynamic admin section visibility
+
+- **Advanced Authentication Features**
+  - Dual authentication methods: Email+Password and Phone+OTP via Twilio
+  - Admin-only user creation (no public signup allowed)
+  - Primary Email + Linked Phone strategy for user accounts
+  - Phone number validation with E.164 international format support
+  - Enhanced login page with email/phone toggle functionality
+  - Comprehensive user status management (Active, Inactive, Suspended)
+
+- **Database Security and RLS Policies**
+  - Row Level Security (RLS) policies for accounts table
+  - Admin role verification system with proper database queries
+  - Secure user_roles and roles table relationships
+  - Admin user creation with proper role assignment
+  - Account status and login method restrictions
+
+### Enhanced
+- **User Interface Improvements**
+  - Color-coded role badges (Super Admin: Purple, Admin: Orange, User: Gray)
+  - Enhanced create user form with role selection dropdown
+  - Comprehensive admin users list with edit and delete functionality
+  - Real-time user management with status updates
+  - Visual indicators for user authentication methods
+  - Responsive design for mobile and desktop admin interfaces
+
+- **API Security and Debugging**
+  - Server-side admin verification for all admin operations
+  - Comprehensive error handling and logging throughout the system
+  - Detailed debugging logs for troubleshooting user creation issues
+  - Session-based authentication with proper token validation
+  - Secure admin API endpoints with proper authorization headers
+
+### Technical Details
+- **Authentication System**: Supabase Auth with Twilio Verify integration
+- **Admin Panel**: Full CRUD operations with role-based permissions
+- **Security**: RLS policies, admin verification, secure API endpoints
+- **User Management**: Status control, login method restrictions, role assignment
+- **UI Components**: Enhanced forms, badges, dialogs, and navigation
+
+### Fixed
+- Phone number formatting and validation for international numbers
+- RLS policy conflicts preventing user data access
+- Admin authentication issues in user management operations
+- User creation API endpoint error handling
+- Role assignment during user creation process
+- Chrome extension connection warnings (identified as low-priority development environment issue)
+
 ## [0.1.1] - 2025-06-20
 
 ### Added

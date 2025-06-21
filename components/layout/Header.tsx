@@ -54,7 +54,14 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium">Signed in as</p>
-                      <p className="text-xs text-slate-500">{user?.email}</p>
+                      <p className="text-xs text-slate-500">
+                        {user?.auth_method === 'phone' ? user?.phone : user?.email}
+                      </p>
+                      {user?.auth_method && (
+                        <p className="text-xs text-slate-400 capitalize">
+                          via {user.auth_method}
+                        </p>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

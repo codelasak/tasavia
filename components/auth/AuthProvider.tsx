@@ -40,18 +40,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log("AuthProvider useEffect: Initializing auth state listener.");
 
     // Listen for auth changes, this is the primary source of truth for client-side session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthProvider: Auth state changed!");
       console.log("Event:", event);
       console.log("Session:", session);
 
       if (session?.user) {
-        const currentUser: User = {
-          id: session.user.id,
-          email: session.user.email || '',
-          created_at: session.user.created_at || ''
+        try {
+          // Get additional user data from accounts table
+          const { data: accountData, error } = await supabase
+            .from('accounts')
+            .select('phone_number, name')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error && error.code !== 'PGRST116') {
+            console.warn('Error fetching account data:', error);
+          }
+
+          const currentUser: User = {
+            id: session.user.id,
+            email: session.user.email || undefined,
+            phone: session.user.phone || accountData?.phone_number || undefined,
+            created_at: session.user.created_at || '',
+            auth_method: session.user.phone || accountData?.phone_number ? 'phone' : 'email'
+          }
+          setUser(currentUser)
+        } catch (error) {
+          console.error('Error processing user data:', error);
+          // Fallback to basic user data
+          const currentUser: User = {
+            id: session.user.id,
+            email: session.user.email || undefined,
+            phone: session.user.phone || undefined,
+            created_at: session.user.created_at || '',
+            auth_method: session.user.email ? 'email' : 'phone'
+          }
+          setUser(currentUser)
         }
-        setUser(currentUser)
       } else {
         setUser(null)
       }

@@ -11,9 +11,14 @@ import {
   Truck,
   BarChart3,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  Users,
+  Shield
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 // Grouped and ordered navigation for better UX
 const groupedNavigation = [
@@ -41,10 +46,33 @@ const groupedNavigation = [
   },
 ]
 
-import { useEffect } from 'react'
-
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Check if user is admin
+  useEffect(() => {
+    async function checkAdminStatus() {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .rpc('is_admin', { user_id: user.id });
+          
+          if (!error) {
+            setIsAdmin(data || false);
+          }
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    }
+    
+    checkAdminStatus();
+  }, [user]);
 
   // Prevent scroll on mobile when sidebar is open
   useEffect(() => {
@@ -57,6 +85,23 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       document.body.style.overflow = ''
     }
   }, [open])
+
+  // Dynamic navigation based on user role
+  const getNavigation = () => {
+    const baseNav = [...groupedNavigation];
+    
+    if (isAdmin) {
+      baseNav.push({
+        label: 'Administration',
+        items: [
+          { name: 'User Management', href: '/portal/admin/users', icon: Users },
+          { name: 'System Settings', href: '/portal/admin/settings', icon: Shield },
+        ],
+      });
+    }
+    
+    return baseNav;
+  };
 
   // Sidebar content
   const sidebarContent = (
@@ -82,7 +127,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       </div>
       <p className="text-slate-400 text-sm mt-2 px-6">Internal Dashboard</p>
       <nav className="px-3 mt-4" role="navigation" aria-label="Sidebar">
-        {groupedNavigation.map((group, groupIdx) => (
+        {getNavigation().map((group, groupIdx) => (
           <div key={group.label} className={groupIdx > 0 ? 'mt-6' : ''}>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold px-2 mb-2 select-none">
               {group.label}
