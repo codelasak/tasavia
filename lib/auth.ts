@@ -483,5 +483,98 @@ export const auth = {
         return { success: false, error: error.message };
       }
     }
+  },
+
+  // Personal Profile Management Functions
+  profile: {
+    // Get current user's full profile
+    getProfile: async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to fetch profile');
+        }
+
+        return result;
+      } catch (error: any) {
+        console.error('Get profile error:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Update current user's profile
+    updateProfile: async (data: { name?: string; phone?: string }) => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch('/api/user/profile', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to update profile');
+        }
+
+        return result;
+      } catch (error: any) {
+        console.error('Update profile error:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Change password
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch('/api/user/password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            currentPassword,
+            newPassword
+          })
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to change password');
+        }
+
+        return result;
+      } catch (error: any) {
+        console.error('Change password error:', error);
+        return { success: false, error: error.message };
+      }
+    }
   }
 }

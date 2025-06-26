@@ -22,18 +22,22 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
   // Redirect logic
-  const isProtectedRoute = pathname.startsWith('/portal/') && pathname !== '/portal'
-  const isLoginPage = pathname === '/login'
+  const isPortalRoute = pathname.startsWith('/portal');
+  const isLoginPage = pathname === '/login';
 
-  if (isProtectedRoute && !user) {
+  if (isPortalRoute && !user) {
     // User is not authenticated and trying to access a protected route
-    return NextResponse.redirect(new URL('/login', req.url))
-  } else if (isLoginPage && user) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+  
+  if (isLoginPage && user) {
     // User is authenticated and on the login page, redirect to dashboard
-    return NextResponse.redirect(new URL('/portal/dashboard', req.url))
-  } else if (pathname === '/portal' && user) {
+    return NextResponse.redirect(new URL('/portal/dashboard', req.url));
+  }
+  
+  if (pathname === '/portal' && user) {
     // User is authenticated and on /portal, redirect to dashboard
-    return NextResponse.redirect(new URL('/portal/dashboard', req.url))
+    return NextResponse.redirect(new URL('/portal/dashboard', req.url));
   }
 
   return res

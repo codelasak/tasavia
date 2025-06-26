@@ -45,7 +45,7 @@ async function verifyAdmin(authHeader: string | null) {
     
     console.log('verifyAdmin - Admin check result:', { data: adminCheck, error: adminError });
     
-    const isAdmin = adminCheck?.some(role => 
+    const isAdmin = adminCheck?.some((role: any) => 
       role.roles?.role_name === 'admin' || role.roles?.role_name === 'super_admin'
     );
     
@@ -141,19 +141,84 @@ export async function DELETE(
 
     const userId = params.id;
 
-    // Delete user using admin client
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    
-    if (error) {
-      throw new Error(error.message);
+    // First, check if the user exists and get their info
+    const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (getUserError) {
+      throw new Error(`User not found: ${getUserError.message}`);
     }
 
-    // The account record should be deleted automatically due to foreign key cascade
-    // But let's make sure
+    // Check if this user is the only super admin
+    const { data: userRoles } = await supabaseAdmin
+      .from('user_roles')
+      .select(`
+        roles!inner(role_name)
+      `)
+      .eq('user_id', userId);
+
+    const isSuperAdmin = userRoles?.some((role: any) => 
+      role.roles?.role_name === 'super_admin'
+    );
+
+    if (isSuperAdmin) {
+      // Count total super admins
+      const { data: allSuperAdmins } = await supabaseAdmin
+        .from('user_roles')
+        .select(`
+          user_id,
+          roles!inner(role_name)
+        `)
+        .eq('roles.role_name', 'super_admin');
+
+      if (allSuperAdmins && allSuperAdmins.length <= 1) {
+        throw new Error('Cannot delete the last super admin user');
+      }
+    }
+
+    // Delete related records in the correct order to avoid foreign key constraint issues
+    
+    // 1. Delete user roles
+    const { error: userRolesError } = await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (userRolesError) {
+      console.error('Error deleting user roles:', userRolesError);
+    }
+
+    // 2. Update admin_actions to set foreign keys to NULL instead of deleting
     await supabaseAdmin
+      .from('admin_actions')
+      .update({ admin_id: null })
+      .eq('admin_id', userId);
+
+    await supabaseAdmin
+      .from('admin_actions')
+      .update({ target_user_id: null })
+      .eq('target_user_id', userId);
+
+    // 3. Update accounts where this user was the creating admin
+    await supabaseAdmin
+      .from('accounts')
+      .update({ created_by_admin_id: null })
+      .eq('created_by_admin_id', userId);
+
+    // 4. Delete the account record
+    const { error: accountError } = await supabaseAdmin
       .from('accounts')
       .delete()
       .eq('id', userId);
+    
+    if (accountError) {
+      console.error('Error deleting account record:', accountError);
+    }
+
+    // 5. Finally, delete the user from Supabase Auth
+    const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    
+    if (deleteUserError) {
+      throw new Error(`Failed to delete user from auth: ${deleteUserError.message}`);
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -32,7 +32,7 @@ async function verifyAdmin(authHeader: string | null) {
       `)
       .eq('user_id', user.id);
     
-    const isAdmin = adminCheck?.some(role => 
+    const isAdmin = adminCheck?.some((role: any) => 
       role.roles?.role_name === 'admin' || role.roles?.role_name === 'super_admin'
     );
     
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       return {
         ...user,
         accountData,
-        role: userRole?.roles?.role_name || 'user'
+        role: (userRole?.roles as any)?.role_name || 'user'
       };
     });
 

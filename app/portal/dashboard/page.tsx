@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Building2, Package, ShoppingCart, BarChart3, DollarSign, TrendingUp } from 'lucide-react'
 import { supabase } from '@/lib/supabase/server'
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
+import { redirect } from 'next/navigation'
 
 interface DashboardStats {
   totalCompanies: number
@@ -13,6 +14,12 @@ interface DashboardStats {
 }
 
 export default async function DashboardPage() {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+  
   const stats: DashboardStats = await fetchDashboardStats();
 
   return <DashboardClient initialStats={stats} />;

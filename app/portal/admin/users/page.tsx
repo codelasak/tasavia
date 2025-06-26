@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { CreateUserForm } from '@/components/admin/CreateUserForm';
+import { PasswordResetDialog } from '@/components/admin/PasswordResetDialog';
 import { auth } from '@/lib/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Plus, Mail, Phone, Shield, AlertCircle, CheckCircle, XCircle, Edit, Trash2, Crown } from 'lucide-react';
+import { Users, Plus, Mail, Phone, Shield, AlertCircle, CheckCircle, XCircle, Edit, Trash2, Crown, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase/client';
 
@@ -41,6 +42,7 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [passwordResetUser, setPasswordResetUser] = useState<AdminUser | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -320,6 +322,14 @@ export default function AdminUsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => setPasswordResetUser(adminUser)}
+                          title="Reset Password"
+                        >
+                          <Key className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => openEditDialog(adminUser)}
                         >
                           <Edit className="w-4 h-4" />
@@ -435,6 +445,17 @@ export default function AdminUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Password Reset Dialog */}
+      <PasswordResetDialog
+        open={!!passwordResetUser}
+        onOpenChange={(open) => !open && setPasswordResetUser(null)}
+        user={passwordResetUser || { id: '', email: '', user_metadata: {} }}
+        onSuccess={() => {
+          loadUsers();
+          setPasswordResetUser(null);
+        }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
