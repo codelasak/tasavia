@@ -211,14 +211,6 @@ export default function HomePage() {
                 >
                   Contact
                 </motion.button>
-                <Link href="/portal">
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-lg hover:shadow-blue-500/20 transition-all">
-                      Portal Login
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </motion.div>
-                </Link>
               </div>
             </div>
 
@@ -281,17 +273,6 @@ export default function HomePage() {
                 >
                   Contact
                 </motion.button>
-                <Link href="/portal" className="block w-full mt-2">
-                  <motion.div 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Button className="w-full justify-center bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-lg hover:shadow-blue-500/20 transition-all">
-                      Portal Login
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </motion.div>
-                </Link>
               </div>
             </motion.div>
           )}
@@ -351,15 +332,6 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
             >
-              <Link href="/portal" className="w-full sm:w-auto">
-                <Button 
-                  size="lg" 
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-lg hover:shadow-blue-500/20 transition-all group"
-                >
-                  Get Started
-                  <MoveRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
               <Link href="#services" className="w-full sm:w-auto">
                 <Button 
                   variant="outline" 
@@ -916,13 +888,6 @@ export default function HomePage() {
                 <Award className="h-4 w-4 mr-1" />
                 ISO9001 Certified
               </Badge>
-              <Link 
-                href="/portal" 
-                className="text-slate-400 hover:text-white transition-colors flex items-center"
-              >
-                <ArrowRight className="h-4 w-4 mr-1" />
-                Portal Access
-              </Link>
             </div>
           </div>
         </div>
