@@ -63,8 +63,11 @@ interface PartNumber {
 
 interface ShipVia {
   ship_via_id: string
+  company_id: string
   ship_company_name: string
   account_no: string
+  owner: string | null
+  ship_model: string | null
 }
 
 const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
@@ -164,7 +167,7 @@ export default function NewPurchaseOrderPage() {
         supabase.from('my_companies').select('*').order('my_company_name'),
         supabase.from('companies').select('*').order('company_name'),
         supabase.from('pn_master_table').select('pn_id, pn, description').order('pn'),
-        supabase.from('my_ship_via').select('*').order('ship_company_name')
+        supabase.from('company_ship_via').select('*')
       ])
 
       if (myCompaniesResult.error) throw myCompaniesResult.error
@@ -283,6 +286,7 @@ export default function NewPurchaseOrderPage() {
 
   const selectedMyCompany = myCompanies.find(c => c.my_company_id === form.watch('my_company_id'))
   const selectedVendor = externalCompanies.find(c => c.company_id === form.watch('vendor_company_id'))
+  const vendorShipVia = shipViaList.filter(sv => sv.company_id === form.watch('vendor_company_id'))
 
   if (loading) {
     return (
@@ -566,7 +570,7 @@ export default function NewPurchaseOrderPage() {
                     <SelectValue placeholder="Select shipping method" />
                   </SelectTrigger>
                   <SelectContent>
-                    {shipViaList.map((shipVia) => (
+                    {vendorShipVia.map((shipVia) => (
                       <SelectItem key={shipVia.ship_via_id} value={shipVia.ship_via_id}>
                         {shipVia.ship_company_name} # {shipVia.account_no}
                       </SelectItem>

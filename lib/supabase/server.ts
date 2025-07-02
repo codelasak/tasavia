@@ -249,6 +249,41 @@ export interface Database {
           id?: string
         }
       }
+      company_ship_via: {
+        Row: {
+          ship_via_id: string
+          company_id: string
+          ship_company_name: string
+          account_no: string
+          owner: string | null
+          ship_model: string | null
+          created_at: string
+          updated_at: string
+          id?: string
+        }
+        Insert: {
+          ship_via_id?: string
+          company_id: string
+          ship_company_name: string
+          account_no: string
+          owner?: string | null
+          ship_model?: string | null
+          created_at?: string
+          updated_at?: string
+          id?: string
+        }
+        Update: {
+          ship_via_id?: string
+          company_id?: string
+          ship_company_name?: string
+          account_no?: string
+          owner?: string | null
+          ship_model?: string | null
+          created_at?: string
+          updated_at?: string
+          id?: string
+        }
+      }
       purchase_orders: {
         Row: {
           po_id: string
