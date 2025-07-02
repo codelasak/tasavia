@@ -58,7 +58,7 @@ interface PurchaseOrderDetails {
       phone: string | null
     }>
   }
-  my_ship_via: {
+  company_ship_via: {
     ship_company_name: string
     account_no: string
   } | null
@@ -96,7 +96,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           *,
           my_companies(*),
           companies(*),
-          my_ship_via(*),
+          company_ship_via(*),
           po_items(
             *,
             pn_master_table(pn, description)
@@ -350,9 +350,9 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           <div>
             <span className="font-semibold">Currency:</span> {purchaseOrder.currency}
           </div>
-          {purchaseOrder.my_ship_via && (
+          {purchaseOrder.company_ship_via && (
             <div>
-              <span className="font-semibold">Ship Via:</span> {purchaseOrder.my_ship_via.ship_company_name} # {purchaseOrder.my_ship_via.account_no}
+              <span className="font-semibold">Ship Via:</span> {purchaseOrder.company_ship_via.ship_company_name} # {purchaseOrder.company_ship_via.account_no}
             </div>
           )}
           {purchaseOrder.payment_term && (

@@ -23,7 +23,7 @@ const mockedSupabase = supabase as jest.Mocked<typeof supabase>;
 const mockMyCompanies = [{ my_company_id: '1', my_company_name: 'My Test Company' }];
 const mockExternalCompanies = [{ company_id: '2', company_name: 'Test Vendor' }];
 const mockPartNumbers = [{ pn_id: '3', pn: 'PN-001', description: 'Test Part' }];
-const mockShipVia = [{ ship_via_id: '4', ship_company_name: 'Test Shipper', account_no: '123' }];
+const mockShipVia = [{ ship_via_id: '4', company_id: '2', ship_company_name: 'Test Shipper', account_no: '123', owner: null, ship_model: null }];
 
 describe('NewPurchaseOrderPage', () => {
   beforeEach(() => {
@@ -47,7 +47,7 @@ describe('NewPurchaseOrderPage', () => {
       if (tableName === 'pn_master_table') {
         return createChainableSelectMock(mockPartNumbers) as any;
       }
-      if (tableName === 'my_ship_via') {
+      if (tableName === 'company_ship_via') {
         return createChainableSelectMock(mockShipVia) as any;
       }
 

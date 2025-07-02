@@ -13,6 +13,7 @@ import { CompanyDialog } from '@/components/companies/CompanyDialog'
 type ExternalCompany = Database['public']['Tables']['companies']['Row'] & {
   company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
   company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
+  company_ship_via: Database['public']['Tables']['company_ship_via']['Row'][]
 }
 
 export default function CompaniesPage() {
@@ -58,17 +59,22 @@ export default function CompaniesPage() {
         .select('*')
         .eq('company_ref_type', 'companies')
 
-      // Fetch contacts separately 
+      // Fetch contacts separately
       const { data: contactData } = await supabase
-        .from('company_contacts') 
+        .from('company_contacts')
         .select('*')
         .eq('company_ref_type', 'companies')
+
+      const { data: shipViaData } = await supabase
+        .from('company_ship_via')
+        .select('*')
 
       // Combine the data
       const companiesWithRelations = companiesData?.map(company => ({
         ...company,
         company_addresses: addressData?.filter(addr => addr.company_id === company.company_id) || [],
-        company_contacts: contactData?.filter(contact => contact.company_id === company.company_id) || []
+        company_contacts: contactData?.filter(contact => contact.company_id === company.company_id) || [],
+        company_ship_via: shipViaData?.filter(sv => sv.company_id === company.company_id) || []
       })) || []
 
       setCompanies(companiesWithRelations)

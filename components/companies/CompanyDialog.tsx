@@ -89,6 +89,14 @@ type CompanyAddress = {
   is_primary: boolean | null;
 };
 
+type CompanyShipVia = {
+  ship_via_id?: string;
+  ship_company_name: string;
+  account_no: string;
+  owner?: string | null;
+  ship_model?: string | null;
+};
+
 // Form data types
 type MyCompanyFormData = {
   my_company_name: string;
@@ -107,6 +115,7 @@ type ExternalCompanyFormData = {
   default_ship_via_company_name?: string;
   company_contacts: CompanyContact[];
   company_addresses: CompanyAddress[];
+  company_ship_via: CompanyShipVia[];
   // Add type discriminator
   formType: 'external_company';
 };
@@ -182,6 +191,13 @@ const externalCompanySchema = z.object({
     zip_code: z.string().optional(),
     is_primary: z.boolean().nullable().default(false),
   })).optional().default([]),
+  company_ship_via: z.array(z.object({
+    ship_via_id: z.string().optional(),
+    ship_company_name: z.string().min(1, 'Company name is required'),
+    account_no: z.string().min(1, 'Account number is required'),
+    owner: z.string().optional(),
+    ship_model: z.string().optional(),
+  })).optional().default([]),
   formType: z.literal('external_company'),
 });
 
@@ -250,6 +266,11 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         city: address.city || undefined,
         country: address.country || undefined,
         zip_code: address.zip_code || undefined
+      })) || [],
+      company_ship_via: (company as any)?.company_ship_via?.map((sv: any) => ({
+        ...sv,
+        owner: sv.owner || undefined,
+        ship_model: sv.ship_model || undefined
       })) || []
     };
   }
@@ -266,6 +287,11 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
   const { fields: addressFields, append: appendAddress, remove: removeAddress } = useFieldArray({
     control: form.control as any, // Type assertion to handle the union type
     name: 'company_addresses' as const,
+  });
+
+  const { fields: shipViaFields, append: appendShipVia, remove: removeShipVia } = useFieldArray({
+    control: form.control as any,
+    name: 'company_ship_via' as const,
   });
 
   const handleAddContact = () => {
@@ -288,6 +314,16 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       country: '',
       zip_code: '',
       is_primary: false
+    });
+  };
+
+  const handleAddShipVia = () => {
+    appendShipVia({
+      ship_via_id: uuidv4(),
+      ship_company_name: '',
+      account_no: '',
+      owner: '',
+      ship_model: ''
     });
   };
 
@@ -335,6 +371,11 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             city: address.city || undefined,
             country: address.country || undefined,
             zip_code: address.zip_code || undefined
+          })) || [],
+          company_ship_via: (company as any)?.company_ship_via?.map((sv: any) => ({
+            ...sv,
+            owner: sv.owner || undefined,
+            ship_model: sv.ship_model || undefined
           })) || [],
           formType: 'external_company'
         });
@@ -480,6 +521,21 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               
             if (addressesError) throw addressesError;
           }
+
+          if (companyData.company_ship_via.length > 0) {
+            const shipViaToInsert = companyData.company_ship_via.map(sv => ({
+              ...sv,
+              company_id: company.company_id,
+              owner: sv.owner || null,
+              ship_model: sv.ship_model || null
+            }));
+
+            const { error: shipViaError } = await supabase
+              .from('company_ship_via')
+              .upsert(shipViaToInsert);
+
+            if (shipViaError) throw shipViaError;
+          }
           
           toast.success('Company updated successfully');
         } else {
@@ -526,6 +582,21 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               .insert(addressesToInsert);
               
             if (addressesError) throw addressesError;
+          }
+
+          if (companyData.company_ship_via.length > 0) {
+            const shipViaToInsert = companyData.company_ship_via.map(sv => ({
+              ...sv,
+              company_id: newCompany.company_id,
+              owner: sv.owner || null,
+              ship_model: sv.ship_model || null
+            }));
+
+            const { error: shipViaError } = await supabase
+              .from('company_ship_via')
+              .insert(shipViaToInsert);
+
+            if (shipViaError) throw shipViaError;
           }
           
           toast.success('Company created successfully');
@@ -733,6 +804,39 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                   is_primary: false
                 })}>
                   <PlusCircle className="h-4 w-4 mr-2" /> Add Address
+                </Button>
+              </div>
+
+              {/* Ship Via Accounts Section */}
+              <div className="space-y-4 rounded-md border p-4">
+                <h3 className="text-lg font-medium">Ship Via Accounts</h3>
+                {shipViaFields.map((field, index) => (
+                  <div key={field.id} className="space-y-2 rounded-md border p-3">
+                    <div className="flex justify-end">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeShipVia(index)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Company Name</Label>
+                        <Input {...form.register(`company_ship_via.${index}.ship_company_name` as const)} />
+                      </div>
+                      <div>
+                        <Label>Account Number</Label>
+                        <Input {...form.register(`company_ship_via.${index}.account_no` as const)} />
+                      </div>
+                      <div>
+                        <Label>Owner</Label>
+                        <Input {...form.register(`company_ship_via.${index}.owner` as const)} />
+                      </div>
+                      <div>
+                        <Label>Ship Model</Label>
+                        <Input {...form.register(`company_ship_via.${index}.ship_model` as const)} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" onClick={handleAddShipVia}>
+                  <PlusCircle className="h-4 w-4 mr-2" /> Add Ship Via
                 </Button>
               </div>
             </>

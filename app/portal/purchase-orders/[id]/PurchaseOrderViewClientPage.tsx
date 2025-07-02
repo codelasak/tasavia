@@ -61,7 +61,7 @@ interface PurchaseOrderDetails {
       phone: string | null
     }>
   }
-  my_ship_via: {
+  company_ship_via: {
     ship_company_name: string
     account_no: string
   } | null
@@ -99,7 +99,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
           *,
           my_companies(*),
           companies(*),
-          my_ship_via(*),
+          company_ship_via(*),
           po_items(
             *,
             pn_master_table(pn, description)
@@ -428,11 +428,11 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
               <div className="text-slate-500">Currency</div>
               <div className="font-medium">{purchaseOrder.currency}</div>
             </div>
-            {purchaseOrder.my_ship_via && (
+            {purchaseOrder.company_ship_via && (
               <div>
                 <div className="text-slate-500">Ship Via</div>
                 <div className="font-medium">
-                  {purchaseOrder.my_ship_via.ship_company_name} # {purchaseOrder.my_ship_via.account_no}
+                  {purchaseOrder.company_ship_via.ship_company_name} # {purchaseOrder.company_ship_via.account_no}
                 </div>
               </div>
             )}

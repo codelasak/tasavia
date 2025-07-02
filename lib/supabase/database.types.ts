@@ -297,6 +297,39 @@ export type Database = {
         }
         Relationships: []
       }
+      company_ship_via: {
+        Row: {
+          ship_via_id: string
+          company_id: string
+          ship_company_name: string
+          account_no: string
+          owner: string | null
+          ship_model: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ship_via_id?: string
+          company_id: string
+          ship_company_name: string
+          account_no: string
+          owner?: string | null
+          ship_model?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ship_via_id?: string
+          company_id?: string
+          ship_company_name?: string
+          account_no?: string
+          owner?: string | null
+          ship_model?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pn_master_table: {
         Row: {
           created_at: string | null
@@ -484,7 +517,7 @@ export type Database = {
             foreignKeyName: "purchase_orders_ship_via_id_fkey"
             columns: ["ship_via_id"]
             isOneToOne: false
-            referencedRelation: "my_ship_via"
+            referencedRelation: "company_ship_via"
             referencedColumns: ["ship_via_id"]
           },
           {
