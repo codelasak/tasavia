@@ -120,8 +120,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         toast.success('Signed out successfully')
         router.push('/')
       }
-    } catch (error: any) {
-      toast.error('An unexpected error occurred: ' + error.message)
+    } catch (error) {
+      toast.error('An unexpected error occurred: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 

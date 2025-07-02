@@ -1,5 +1,34 @@
 import { supabase } from './supabase/client'
 
+// Utility function to normalize phone numbers for consistent lookup
+function normalizePhoneNumber(phoneNumber: string): { withPlus: string; withoutPlus: string } {
+  const cleaned = phoneNumber.replace(/[^\d+]/g, '');
+  const withPlus = cleaned.startsWith('+') ? cleaned : '+' + cleaned;
+  const withoutPlus = cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
+  
+  return { withPlus, withoutPlus };
+}
+
+// Utility function to get the canonical phone format for existing users
+async function getCanonicalPhoneFormat(phoneNumber: string): Promise<string> {
+  const { withPlus, withoutPlus } = normalizePhoneNumber(phoneNumber);
+  
+  // Check if user exists with either format
+  const { data: accountData } = await supabase
+    .from('accounts')
+    .select('id, phone_number')
+    .or(`phone_number.eq.${withPlus},phone_number.eq.${withoutPlus}`)
+    .single();
+
+  if (accountData?.phone_number) {
+    // Return the format stored in the accounts table
+    return accountData.phone_number;
+  }
+  
+  // Default to E.164 format for new users
+  return withPlus;
+}
+
 export interface User {
   id: string
   email?: string
@@ -91,80 +120,57 @@ export const auth = {
     }
   },
 
-  // Send OTP to phone number using Supabase Auth + Twilio Verify
+  // Send OTP to phone number - use server-side API for better control
   sendOTP: async (phoneNumber: string) => {
     try {
-      // First check if user exists and is allowed to use phone auth
-      const { data: accountData } = await supabase
-        .from('accounts')
-        .select('status, allowed_login_methods')
-        .eq('phone_number', phoneNumber)
-        .single();
-
-      if (accountData) {
-        // Check if user is active
-        if (accountData.status !== 'active') {
-          throw new Error('Account is not active. Please contact an administrator.');
-        }
-
-        // Check if phone login is allowed
-        if (accountData.allowed_login_methods === 'email_only') {
-          throw new Error('Phone login is not enabled for this account. Please use email to sign in.');
-        }
-      }
-
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: phoneNumber,
-        options: {
-          channel: 'sms'
-        }
+      const response = await fetch('/api/auth/phone-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber,
+          action: 'send-otp'
+        }),
       });
+
+      const result = await response.json();
       
-      if (error) {
-        console.error('Supabase Auth Error:', error);
-        throw new Error(error.message);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send OTP');
       }
 
-      return { success: true, data };
+      return result;
     } catch (error: any) {
       console.error('Phone auth error:', error);
       return { success: false, error: error.message };
     }
   },
 
-  // Verify OTP and sign in using Supabase Auth + Twilio Verify
+  // Verify OTP - use server-side API for better control
   verifyOTP: async (phoneNumber: string, otpCode: string) => {
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: phoneNumber,
-        token: otpCode,
-        type: 'sms'
+      const response = await fetch('/api/auth/phone-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber,
+          otpCode,
+          action: 'verify-otp'
+        }),
       });
+
+      const result = await response.json();
       
-      if (error) {
-        throw new Error(error.message);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to verify OTP');
       }
 
-      // Create or update user account record
-      if (data.user) {
-        const { error: upsertError } = await supabase
-          .from('accounts')
-          .upsert({
-            id: data.user.id,
-            phone_number: phoneNumber,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'id'
-          });
-        
-        if (upsertError) {
-          console.warn('Failed to update account record:', upsertError);
-        }
-      }
-
-      return { success: true, user: data.user, session: data.session };
+      return result;
     } catch (error: any) {
+      console.error('Phone auth error:', error);
       return { success: false, error: error.message };
     }
   },

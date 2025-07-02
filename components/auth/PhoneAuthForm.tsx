@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,13 @@ export function PhoneAuthForm({ onOTPSent, onError }: PhoneAuthFormProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,17 +55,28 @@ export function PhoneAuthForm({ onOTPSent, onError }: PhoneAuthFormProps) {
 
       const result = await auth.sendOTP(formattedPhone);
       
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
+      
       if (result.success) {
-        onOTPSent(formattedPhone);
+        // Use the normalized phone number returned from the server
+        const phoneToUse = result.normalizedPhone || formattedPhone;
+        onOTPSent(phoneToUse);
       } else {
         throw new Error(result.error || 'Failed to send verification code');
       }
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to send verification code';
+    } catch (err) {
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
+      
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send verification code';
       setError(errorMessage);
       onError(errorMessage);
     } finally {
-      setIsLoading(false);
+      // Check if component is still mounted before updating state
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

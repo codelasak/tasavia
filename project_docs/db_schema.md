@@ -2,11 +2,33 @@
 -- Table order and constraints may not be valid for execution.
 
 CREATE TABLE public.accounts (
+  phone_number text UNIQUE,
+  phone_verified boolean DEFAULT false,
+  phone_verified_at timestamp with time zone,
   id uuid NOT NULL,
   name text,
   picture_url text,
+  created_by_admin_id uuid,
+  allowed_login_methods text DEFAULT 'both'::text CHECK (allowed_login_methods = ANY (ARRAY['email_only'::text, 'phone_only'::text, 'both'::text])),
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'suspended'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT accounts_pkey PRIMARY KEY (id),
-  CONSTRAINT accounts_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT accounts_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT accounts_created_by_admin_id_fkey FOREIGN KEY (created_by_admin_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.admin_actions (
+  admin_id uuid,
+  target_user_id uuid,
+  action_type character varying NOT NULL,
+  ip_address inet,
+  user_agent text,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  details jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_actions_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_actions_target_user_id_fkey FOREIGN KEY (target_user_id) REFERENCES auth.users(id),
+  CONSTRAINT admin_actions_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.announcements (
   title text NOT NULL,
@@ -38,10 +60,9 @@ CREATE TABLE public.company_addresses (
   address_id uuid NOT NULL DEFAULT gen_random_uuid(),
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  company_ref_type text NOT NULL DEFAULT 'my_companies'::text,
-  CONSTRAINT company_addresses_pkey PRIMARY KEY (address_id),
-  CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES public.my_companies(my_company_id),
-  CONSTRAINT fk_company_companies FOREIGN KEY (company_id) REFERENCES public.companies(company_id)
+  company_ref_type text NOT NULL DEFAULT 'my_companies'::text CHECK (company_ref_type = ANY (ARRAY['my_companies'::text, 'companies'::text])),
+  is_primary boolean NOT NULL DEFAULT false,
+  CONSTRAINT company_addresses_pkey PRIMARY KEY (address_id)
 );
 CREATE TABLE public.company_contacts (
   company_id uuid NOT NULL,
@@ -52,11 +73,9 @@ CREATE TABLE public.company_contacts (
   updated_at timestamp with time zone DEFAULT now(),
   contact_name text NOT NULL,
   contact_id uuid NOT NULL DEFAULT gen_random_uuid(),
-  company_ref_type text NOT NULL DEFAULT 'my_companies'::text,
+  company_ref_type text NOT NULL DEFAULT 'my_companies'::text CHECK (company_ref_type = ANY (ARRAY['my_companies'::text, 'companies'::text])),
   is_primary boolean NOT NULL DEFAULT false,
-  CONSTRAINT company_contacts_pkey PRIMARY KEY (contact_id),
-  CONSTRAINT fk_company_contact FOREIGN KEY (company_id) REFERENCES public.my_companies(my_company_id),
-  CONSTRAINT fk_company_contacts_companies FOREIGN KEY (company_id) REFERENCES public.companies(company_id)
+  CONSTRAINT company_contacts_pkey PRIMARY KEY (contact_id)
 );
 CREATE TABLE public.inventory (
   pn_id uuid NOT NULL,
@@ -168,6 +187,6 @@ CREATE TABLE public.user_roles (
   role_id uuid NOT NULL,
   assigned_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role_id),
-  CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(role_id)
+  CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(role_id),
+  CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );

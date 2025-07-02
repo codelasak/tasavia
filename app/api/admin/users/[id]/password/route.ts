@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createAuthHandler } from '@/lib/auth-middleware';
+import { z } from 'zod';
 
 // Server-side Supabase client with service role key
 const supabaseAdmin = createClient(
@@ -7,41 +9,20 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Regular client for auth verification
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Input validation schema
+const passwordResetSchema = z.object({
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character'),
+  forceChange: z.boolean().optional().default(true)
+});
 
-async function verifySuperAdmin(authHeader: string | null) {
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.substring(7);
-  
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
-
-    // Check if user is super admin
-    const { data: adminCheck } = await supabaseAdmin
-      .from('user_roles')
-      .select(`
-        roles!inner(role_name)
-      `)
-      .eq('user_id', user.id);
-    
-    const isSuperAdmin = adminCheck?.some((role: any) => 
-      role.roles?.role_name === 'super_admin'
-    );
-    
-    return isSuperAdmin ? user : null;
-  } catch (error) {
-    console.error('Super admin verification error:', error);
-    return null;
-  }
-}
+const paramsSchema = z.object({
+  id: z.string().uuid('Invalid user ID format')
+});
 
 async function logAdminAction(
   adminId: string,
@@ -71,63 +52,20 @@ async function logAdminAction(
   }
 }
 
-function validatePassword(password: string): { valid: boolean; message?: string } {
-  if (!password || password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters long' };
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one uppercase letter' };
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one lowercase letter' };
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one number' };
-  }
-  
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one special character' };
-  }
-  
-  return { valid: true };
-}
-
-export async function POST(
+async function handlePasswordReset(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
+  adminUser: any
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const superAdmin = await verifySuperAdmin(authHeader);
-    
-    if (!superAdmin) {
-      return NextResponse.json({ 
-        error: 'Unauthorized - Super admin access required' 
-      }, { status: 401 });
-    }
+    // Validate params
+    const validatedParams = paramsSchema.parse(params);
+    const userId = validatedParams.id;
 
-    const userId = params.id;
+    // Parse and validate request body
     const body = await request.json();
-    const { password, forceChange = true } = body;
-
-    if (!password) {
-      return NextResponse.json(
-        { error: 'Password is required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate password strength
-    const validation = validatePassword(password);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.message },
-        { status: 400 }
-      );
-    }
+    const validatedBody = passwordResetSchema.parse(body);
+    const { password, forceChange } = validatedBody;
 
     // Check if target user exists
     const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -145,12 +83,15 @@ export async function POST(
 
     if (updateError) {
       console.error('Password update error:', updateError);
-      throw new Error(`Failed to update password: ${updateError.message}`);
+      return NextResponse.json(
+        { error: 'Failed to update password' },
+        { status: 500 }
+      );
     }
 
     // Log the admin action for audit trail
     await logAdminAction(
-      superAdmin.id,
+      adminUser.id,
       userId,
       'password_reset',
       {
@@ -160,20 +101,25 @@ export async function POST(
       request
     );
 
-    // If forceChange is true, we could implement additional logic here
-    // For now, we'll just log it in the audit trail
-
     return NextResponse.json({ 
       success: true, 
-      message: 'Password updated successfully',
-      forceChange: forceChange
+      message: 'Password updated successfully'
     });
 
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+    
     console.error('Password reset error:', error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
+
+export const POST = createAuthHandler(handlePasswordReset, 'super_admin');
