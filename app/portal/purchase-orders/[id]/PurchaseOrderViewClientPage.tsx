@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Edit, FileText, Printer, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { Database } from '@/lib/supabase/server'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import Link from 'next/link'
@@ -61,9 +60,13 @@ interface PurchaseOrderDetails {
       phone: string | null
     }>
   }
-  my_ship_via: {
+  company_ship_via: {
     ship_company_name: string
     account_no: string
+    owner?: string
+    ship_model?: string
+    predefined_company?: string
+    custom_company_name?: string
   } | null
   po_items: Array<{
     po_item_id: string
@@ -99,7 +102,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
           *,
           my_companies(*),
           companies(*),
-          my_ship_via(*),
+          company_ship_via(*),
           po_items(
             *,
             pn_master_table(pn, description)
@@ -428,11 +431,20 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
               <div className="text-slate-500">Currency</div>
               <div className="font-medium">{purchaseOrder.currency}</div>
             </div>
-            {purchaseOrder.my_ship_via && (
+            {purchaseOrder.company_ship_via && (
               <div>
                 <div className="text-slate-500">Ship Via</div>
                 <div className="font-medium">
-                  {purchaseOrder.my_ship_via.ship_company_name} # {purchaseOrder.my_ship_via.account_no}
+                  <div>
+                    {purchaseOrder.company_ship_via.predefined_company === 'CUSTOM' && purchaseOrder.company_ship_via.custom_company_name 
+                      ? purchaseOrder.company_ship_via.custom_company_name 
+                      : purchaseOrder.company_ship_via.ship_company_name}
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    Account: {purchaseOrder.company_ship_via.account_no}
+                    {purchaseOrder.company_ship_via.owner && ` • Owner: ${purchaseOrder.company_ship_via.owner}`}
+                    {purchaseOrder.company_ship_via.ship_model && ` • ${purchaseOrder.company_ship_via.ship_model}`}
+                  </div>
                 </div>
               </div>
             )}

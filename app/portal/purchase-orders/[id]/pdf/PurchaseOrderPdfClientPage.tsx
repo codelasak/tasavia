@@ -58,9 +58,13 @@ interface PurchaseOrderDetails {
       phone: string | null
     }>
   }
-  my_ship_via: {
+  company_ship_via: {
     ship_company_name: string
     account_no: string
+    owner?: string
+    ship_model?: string
+    predefined_company?: string
+    custom_company_name?: string
   } | null
   po_items: Array<{
     po_item_id: string
@@ -96,7 +100,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           *,
           my_companies(*),
           companies(*),
-          my_ship_via(*),
+          company_ship_via(*),
           po_items(
             *,
             pn_master_table(pn, description)
@@ -350,9 +354,14 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           <div>
             <span className="font-semibold">Currency:</span> {purchaseOrder.currency}
           </div>
-          {purchaseOrder.my_ship_via && (
+          {purchaseOrder.company_ship_via && (
             <div>
-              <span className="font-semibold">Ship Via:</span> {purchaseOrder.my_ship_via.ship_company_name} # {purchaseOrder.my_ship_via.account_no}
+              <span className="font-semibold">Ship Via:</span> 
+              {purchaseOrder.company_ship_via.predefined_company === 'CUSTOM' && purchaseOrder.company_ship_via.custom_company_name 
+                ? purchaseOrder.company_ship_via.custom_company_name 
+                : purchaseOrder.company_ship_via.ship_company_name} # {purchaseOrder.company_ship_via.account_no}
+              {purchaseOrder.company_ship_via.owner && ` (Owner: ${purchaseOrder.company_ship_via.owner})`}
+              {purchaseOrder.company_ship_via.ship_model && ` - ${purchaseOrder.company_ship_via.ship_model}`}
             </div>
           )}
           {purchaseOrder.payment_term && (

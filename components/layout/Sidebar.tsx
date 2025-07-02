@@ -38,10 +38,9 @@ const groupedNavigation = [
     ],
   },
   {
-    label: 'Parts & Shipping',
+    label: 'Parts',
     items: [
       { name: 'Part Numbers', href: '/portal/part-numbers', icon: Package },
-      { name: 'Ship Via', href: '/portal/ship-via', icon: Truck },
     ],
   },
 ]

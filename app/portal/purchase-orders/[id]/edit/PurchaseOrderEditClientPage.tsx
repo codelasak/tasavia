@@ -18,6 +18,7 @@ import * as dateFns from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import POCompletionModal from '@/components/purchase-orders/POCompletionModal'
 
 interface MyCompany {
   my_company_id: string
@@ -63,6 +64,10 @@ interface ShipVia {
   ship_via_id: string
   ship_company_name: string
   account_no: string
+  owner?: string
+  ship_model?: string
+  predefined_company?: string
+  custom_company_name?: string
 }
 
 const poItemSchema = z.object({
@@ -109,6 +114,9 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
   const [partNumbers, setPartNumbers] = useState<PartNumber[]>([])
   const [shipViaList, setShipViaList] = useState<ShipVia[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCompletionModal, setShowCompletionModal] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<string>('')
+  const [currentPoNumber, setCurrentPoNumber] = useState<string>('')
 
   const { setValue, getValues, ...form } = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -197,6 +205,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
       setValue('misc_charge', poData.misc_charge || 0)
       setValue('vat_percentage', poData.vat_percentage || 0)
       setValue('status', poData.status)
+      setCurrentPoNumber(poData.po_number)
       setValue('items', itemsData.map(item => ({
         po_item_id: item.po_item_id,
         pn_id: item.pn_id || '',
@@ -221,7 +230,17 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
         supabase.from('my_companies').select('*').order('my_company_name'),
         supabase.from('companies').select('*').order('company_name'),
         supabase.from('pn_master_table').select('pn_id, pn, description').order('pn'),
-        supabase.from('my_ship_via').select('*').order('ship_company_name')
+        supabase.from('company_ship_via')
+          .select(`
+            ship_via_id,
+            ship_company_name,
+            account_no,
+            owner,
+            ship_model,
+            predefined_company,
+            custom_company_name
+          `)
+          .order('ship_company_name')
       ])
 
       if (myCompaniesResult.error) {
@@ -293,71 +312,108 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     return subtotal + freight + misc + vatAmount
   }
 
+  const handleStatusChange = (newStatus: string) => {
+    const currentStatus = form.watch('status')
+    
+    // If changing to Completed, show confirmation modal
+    if (newStatus === 'Completed' && currentStatus !== 'Completed') {
+      setPendingStatus(newStatus)
+      setShowCompletionModal(true)
+    } else {
+      setValue('status', newStatus)
+    }
+  }
+
+  const handlePOCompletion = async () => {
+    try {
+      // First update the status to completed
+      setValue('status', 'Completed')
+      
+      // Save the form to update the PO status
+      const formData = getValues()
+      await updatePurchaseOrder(formData)
+      
+      toast.success('Purchase order completed successfully! Inventory items have been created automatically.')
+      
+      // Close modal and navigate back
+      setShowCompletionModal(false)
+      router.push(`/portal/purchase-orders/${poId}`)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+      console.error('Error completing purchase order:', errorMessage)
+      toast.error(`Completion failed: ${errorMessage}`)
+      throw error
+    }
+  }
+
+  const updatePurchaseOrder = async (data: PurchaseOrderFormValues) => {
+    const subtotal = calculateSubtotal()
+    const total = calculateTotal()
+
+    // Update the purchase order
+    const { error: poUpdateError } = await supabase
+      .from('purchase_orders')
+      .update({
+        my_company_id: data.my_company_id,
+        vendor_company_id: data.vendor_company_id,
+        po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
+        ship_to_company_name: data.ship_to_company_name || null,
+        ship_to_address_details: data.ship_to_address_details || null,
+        ship_to_contact_name: data.ship_to_contact_name || null,
+        ship_to_contact_phone: data.ship_to_contact_phone || null,
+        ship_to_contact_email: data.ship_to_contact_email || null,
+        prepared_by_name: data.prepared_by_name,
+        currency: data.currency,
+        ship_via_id: data.ship_via_id || null,
+        payment_term: data.payment_term || null,
+        remarks_1: data.remarks_1 || null,
+        freight_charge: data.freight_charge,
+        misc_charge: data.misc_charge,
+        vat_percentage: data.vat_percentage,
+        status: data.status,
+        subtotal,
+        total_amount: total,
+      })
+      .eq('po_id', poId)
+
+    if (poUpdateError) {
+      throw new Error(`Failed to update purchase order: ${poUpdateError.message}`)
+    }
+
+    // Delete existing line items
+    const { error: deleteError } = await supabase
+      .from('po_items')
+      .delete()
+      .eq('po_id', poId)
+
+    if (deleteError) {
+      throw new Error(`Failed to delete existing line items: ${deleteError.message}`)
+    }
+
+    // Create new line items
+    const lineItems = data.items.map((item, index) => ({
+      po_id: poId,
+      line_number: index + 1,
+      pn_id: item.pn_id || null,
+      description: item.description,
+      sn: item.sn || null,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      condition: item.condition || null,
+    }))
+
+    const { error: itemsError } = await supabase
+      .from('po_items')
+      .insert(lineItems)
+
+    if (itemsError) {
+      throw new Error(`Failed to insert new line items: ${itemsError.message}`)
+    }
+  }
+
   const onSubmit = async (data: PurchaseOrderFormValues) => {
     try {
-      const subtotal = calculateSubtotal()
-      const total = calculateTotal()
-
-      // Update the purchase order
-      const { error: poUpdateError } = await supabase
-        .from('purchase_orders')
-        .update({
-          my_company_id: data.my_company_id,
-          vendor_company_id: data.vendor_company_id,
-          po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
-          ship_to_company_name: data.ship_to_company_name || null,
-          ship_to_address_details: data.ship_to_address_details || null,
-          ship_to_contact_name: data.ship_to_contact_name || null,
-          ship_to_contact_phone: data.ship_to_contact_phone || null,
-          ship_to_contact_email: data.ship_to_contact_email || null,
-          prepared_by_name: data.prepared_by_name,
-          currency: data.currency,
-          ship_via_id: data.ship_via_id || null,
-          payment_term: data.payment_term || null,
-          remarks_1: data.remarks_1 || null,
-          freight_charge: data.freight_charge,
-          misc_charge: data.misc_charge,
-          vat_percentage: data.vat_percentage,
-          status: data.status,
-          subtotal,
-          total_amount: total,
-        })
-        .eq('po_id', poId)
-
-      if (poUpdateError) {
-        throw new Error(`Failed to update purchase order: ${poUpdateError.message}`)
-      }
-
-      // Delete existing line items
-      const { error: deleteError } = await supabase
-        .from('po_items')
-        .delete()
-        .eq('po_id', poId)
-
-      if (deleteError) {
-        throw new Error(`Failed to delete existing line items: ${deleteError.message}`)
-      }
-
-      // Create new line items
-      const lineItems = data.items.map((item, index) => ({
-        po_id: poId,
-        line_number: index + 1,
-        pn_id: item.pn_id || null,
-        description: item.description,
-        sn: item.sn || null,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        condition: item.condition || null,
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('po_items')
-        .insert(lineItems)
-
-      if (itemsError) {
-        throw new Error(`Failed to insert new line items: ${itemsError.message}`)
-      }
-
+      await updatePurchaseOrder(data)
       toast.success('Purchase order updated successfully')
       router.push(`/portal/purchase-orders/${poId}`)
     } catch (error) {
@@ -440,7 +496,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={form.watch('status')}
-                  onValueChange={(value) => setValue('status', value)}
+                  onValueChange={handleStatusChange}
                 >
                   <SelectTrigger id="status_trigger_3">
                     <SelectValue />
@@ -658,7 +714,18 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
                   <SelectContent>
                     {shipViaList.map((shipVia) => (
                       <SelectItem key={shipVia.ship_via_id} value={shipVia.ship_via_id}>
-                        {shipVia.ship_company_name} # {shipVia.account_no}
+                        <div className="flex flex-col">
+                          <div className="font-medium">
+                            {shipVia.predefined_company === 'CUSTOM' && shipVia.custom_company_name 
+                              ? shipVia.custom_company_name 
+                              : shipVia.ship_company_name}
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            Account: {shipVia.account_no}
+                            {shipVia.owner && ` • Owner: ${shipVia.owner}`}
+                            {shipVia.ship_model && ` • ${shipVia.ship_model}`}
+                          </div>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -966,6 +1033,18 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
           </Button>
         </div>
       </form>
+
+      <POCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => {
+          setShowCompletionModal(false)
+          setPendingStatus('')
+        }}
+        onConfirm={handlePOCompletion}
+        poId={poId}
+        poNumber={currentPoNumber}
+        currentStatus={form.watch('status')}
+      />
     </div>
   )
 }

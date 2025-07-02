@@ -3,6 +3,75 @@
 All notable changes to the TASAVIA Dashboard project will be documented in this file.
 
 
+## [0.1.3] - 2025-07-02
+
+### Added
+- **Comprehensive Password Reset System**
+  - Complete password reset workflow for users and admins
+  - Enhanced validation and error handling with Zod schemas
+  - Super admin password management capabilities
+  - User profile page with password change functionality
+  - Admin password reset dialog for user management
+  - Email-based password reset process with security checks
+  - Reset eligibility verification API endpoint
+
+- **Enhanced Authentication Features**
+  - Phone number linking to existing email accounts
+  - Improved phone OTP authentication flow
+  - Enhanced auth middleware with better error handling
+  - Comprehensive user profile management system
+  - Profile picture upload and management
+  - Enhanced authentication provider with better state management
+
+- **Administrative Enhancements**
+  - Super admin setup functionality
+  - Enhanced user management with password reset capabilities
+  - Improved admin user creation and management
+  - Admin dashboard with comprehensive user controls
+  - Enhanced header with profile dropdown and logout functionality
+
+- **Security Improvements**
+  - Enhanced input validation using Zod schemas
+  - Improved error boundary implementation
+  - Better authentication flow with consistent error responses
+  - Enhanced middleware for route protection
+  - Secure password management with proper hashing
+
+### Enhanced
+- **User Interface Improvements**
+  - Cleaner homepage with removed portal login links
+  - Enhanced login page with improved phone authentication
+  - Comprehensive profile management interface
+  - Better error handling and user feedback
+  - Improved admin interface for user management
+  - Enhanced sidebar navigation with admin features
+
+- **API Security and Error Handling**
+  - Refactored password change logic for better security
+  - Improved API endpoints with consistent error responses
+  - Enhanced authentication checks across all endpoints
+  - Better validation and sanitization of user inputs
+  - Comprehensive logging and debugging capabilities
+
+### Technical Details
+- **Password Management**: Complete reset workflow with email verification
+- **Authentication**: Enhanced phone OTP with account linking
+- **Admin Tools**: Super admin capabilities and user management
+- **Security**: Zod validation, improved error handling, secure APIs
+- **UI Components**: Profile management, password forms, admin dialogs
+
+### Fixed
+- Login page authentication flow improvements
+- Password reset process security vulnerabilities
+- User profile update and management issues
+- Admin user creation and role assignment
+- Phone authentication and OTP verification
+- Authentication middleware and route protection
+
+### Removed
+- Portal login links and buttons from HomePage component
+- Redundant authentication flows and UI elements
+
 ## [0.1.2] - 2025-06-21
 
 ### Added

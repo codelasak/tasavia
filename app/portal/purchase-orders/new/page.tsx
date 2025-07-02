@@ -65,6 +65,10 @@ interface ShipVia {
   ship_via_id: string
   ship_company_name: string
   account_no: string
+  owner?: string
+  ship_model?: string
+  predefined_company?: string
+  custom_company_name?: string
 }
 
 const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
@@ -164,7 +168,17 @@ export default function NewPurchaseOrderPage() {
         supabase.from('my_companies').select('*').order('my_company_name'),
         supabase.from('companies').select('*').order('company_name'),
         supabase.from('pn_master_table').select('pn_id, pn, description').order('pn'),
-        supabase.from('my_ship_via').select('*').order('ship_company_name')
+        supabase.from('company_ship_via')
+          .select(`
+            ship_via_id,
+            ship_company_name,
+            account_no,
+            owner,
+            ship_model,
+            predefined_company,
+            custom_company_name
+          `)
+          .order('ship_company_name')
       ])
 
       if (myCompaniesResult.error) throw myCompaniesResult.error
@@ -568,7 +582,18 @@ export default function NewPurchaseOrderPage() {
                   <SelectContent>
                     {shipViaList.map((shipVia) => (
                       <SelectItem key={shipVia.ship_via_id} value={shipVia.ship_via_id}>
-                        {shipVia.ship_company_name} # {shipVia.account_no}
+                        <div className="flex flex-col">
+                          <div className="font-medium">
+                            {shipVia.predefined_company === 'CUSTOM' && shipVia.custom_company_name 
+                              ? shipVia.custom_company_name 
+                              : shipVia.ship_company_name}
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            Account: {shipVia.account_no}
+                            {shipVia.owner && ` • Owner: ${shipVia.owner}`}
+                            {shipVia.ship_model && ` • ${shipVia.ship_model}`}
+                          </div>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
