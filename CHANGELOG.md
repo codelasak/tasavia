@@ -3,6 +3,98 @@
 All notable changes to the TASAVIA Dashboard project will be documented in this file.
 
 
+## [0.1.4] - 2025-07-03
+
+### Added
+- **Critical Database Security Enhancements**
+  - Implemented Row Level Security (RLS) on all public tables
+  - Added RLS policies for company_addresses, company_contacts, and announcements tables
+  - Enhanced authentication-based access control for sensitive data
+  - Secured admin-controlled announcements with proper RLS policies
+
+- **Database Function Security Hardening**
+  - Applied security constraints to all custom PostgreSQL functions
+  - Set search_path=public on 12+ database functions to prevent injection attacks
+  - Enhanced function signatures and parameter validation
+  - Implemented proper security context for database operations
+
+- **Performance Optimization Infrastructure**
+  - Added critical foreign key indexes for improved query performance
+  - Implemented composite indexes for frequently queried table combinations
+  - Optimized RLS policies to prevent auth function re-evaluation
+  - Enhanced database query performance with strategic indexing
+
+- **Advanced Database Analysis Tools**
+  - Comprehensive business domain analysis using Gemini CLI
+  - Deep codebase understanding with large context analysis
+  - Aviation industry-specific business logic optimization
+  - Enhanced development workflow with AI-powered insights
+
+### Enhanced
+- **Database Security Posture**
+  - Eliminated RLS vulnerabilities on public-facing tables
+  - Strengthened authentication requirements across data access
+  - Improved data isolation between different user contexts
+  - Enhanced admin privilege verification and enforcement
+
+- **Query Performance Optimization**
+  - Optimized database function performance with proper indexing
+  - Reduced query execution time through strategic index placement
+  - Enhanced foreign key relationship performance
+  - Improved full-text search capabilities with GIN indexes
+
+- **Development and Analysis Workflow**
+  - Integrated Gemini CLI for large codebase analysis
+  - Enhanced business logic understanding and optimization
+  - Improved aviation domain modeling and UX patterns
+  - Advanced tooling integration for comprehensive code analysis
+
+### Technical Details
+- **Security**: RLS policies, function hardening, injection prevention
+- **Performance**: Foreign key indexes, composite indexes, query optimization
+- **Analysis**: Gemini CLI integration, business domain understanding
+- **Database**: PostgreSQL security enhancements, performance tuning
+
+### Fixed
+- Database function security vulnerabilities with proper search_path settings
+- Missing RLS policies on public tables exposing unauthorized data access
+- Performance bottlenecks in foreign key relationship queries
+- Function signature mismatches in security enhancement implementations
+- SQL type casting issues in database verification queries
+
+- **Enhanced Purchase Order Management System** (21d8fc9)
+  - Advanced purchase order viewing, editing, and PDF generation capabilities
+  - Integrated shipping method management within company profiles
+  - Added Purchase Order completion modal with inventory creation workflow
+  - Enhanced purchase order editing with improved validation and user experience
+  - Comprehensive ship-via integration directly in company management
+
+- **Streamlined Component Architecture** (21d8fc9)
+  - Consolidated shipping management into CompanyDialog component
+  - Removed deprecated standalone Ship Via management page and dialog
+  - Enhanced CompanyDialog with integrated shipping configuration
+  - Added comprehensive purchase order completion handler function
+  - Updated project documentation with refined business requirements
+
+- **Enhanced Testing Infrastructure** (4bf1c76)
+  - Added comprehensive test suite for POCompletionModal component
+  - Enhanced CompanyDialog test coverage with shipping integration
+  - Improved Purchase Order tests with ship via details validation
+  - Removed deprecated ShipViaDialog test suite
+  - Updated social media integration to LinkedIn-only with proper URL
+
+### Migration Details
+- **critical_security_rls_fixes**: Enabled RLS on company_addresses, company_contacts, announcements
+- **critical_function_security_fixes**: Secured all custom functions with search_path constraints
+- **critical_performance_indexes**: Added missing foreign key and composite indexes
+- **optimize_rls_policies_performance**: Enhanced RLS policy query performance
+- **fix_remaining_function_security**: Completed function security hardening
+
+### Commit References
+- Database security and performance: Applied via Supabase MCP migrations
+- Purchase Order enhancements: 21d8fc9a18cea8ca4faca385252cd62cdd17bb87
+- Testing and UI refinements: 4bf1c766dd620b33e20a28f72d7b242733eeb77d
+
 ## [0.1.3] - 2025-07-02
 
 ### Added
