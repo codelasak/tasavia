@@ -26,7 +26,15 @@ const mockPoId = '12345';
 const mockMyCompanies = [{ my_company_id: '1', my_company_name: 'My Test Company', my_company_code: 'MTC' }];
 const mockExternalCompanies = [{ company_id: '2', company_name: 'Test Vendor', company_code: 'TV' }];
 const mockPartNumbers = [{ pn_id: '3', pn: 'PN-001', description: 'Test Part' }];
-const mockShipVia = [{ ship_via_id: '4', ship_company_name: 'Test Shipper', account_no: '123' }];
+const mockShipVia = [{ 
+  ship_via_id: '4', 
+  ship_company_name: 'Test Shipper', 
+  account_no: '123',
+  owner: 'Test Owner',
+  ship_model: 'GROUND',
+  predefined_company: 'DHL',
+  custom_company_name: null
+}];
 const mockPoItems = [
   {
     po_item_id: 'item-1',
@@ -98,7 +106,7 @@ describe('PurchaseOrderEditClientPage', () => {
               order: jest.fn().mockResolvedValue({ data: mockPartNumbers, error: null }),
             }),
           };
-        case 'my_ship_via':
+        case 'company_ship_via':
           return {
             select: jest.fn().mockReturnValue({
               order: jest.fn().mockResolvedValue({ data: mockShipVia, error: null }),

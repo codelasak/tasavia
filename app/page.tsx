@@ -32,9 +32,6 @@ import {
   Sparkles,
   Send,
   Linkedin,
-  Twitter,
-  Facebook,
-  Instagram,
   Phone as PhoneIcon
 } from 'lucide-react'
 
@@ -762,10 +759,7 @@ export default function HomePage() {
                 <h4 className="text-lg font-semibold text-white mb-4">Follow Us</h4>
                 <div className="flex space-x-4">
                   {[
-                    { name: 'LinkedIn', icon: Linkedin, url: '#' },
-                    { name: 'Twitter', icon: Twitter, url: '#' },
-                    { name: 'Facebook', icon: Facebook, url: '#' },
-                    { name: 'Instagram', icon: Instagram, url: '#' },
+                    { name: 'LinkedIn', icon: Linkedin, url: 'https://www.linkedin.com/company/tasavia/' },
                   ].map((social) => (
                     <a
                       key={social.name}
@@ -863,21 +857,9 @@ export default function HomePage() {
           </div>
           <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-6 mb-6 md:mb-0">
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
+              <a href="https://www.linkedin.com/company/tasavia/" className="text-slate-400 hover:text-white transition-colors">
                 <span className="sr-only">LinkedIn</span>
                 <Linkedin className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <span className="sr-only">Twitter</span>
-                <Twitter className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <span className="sr-only">Facebook</span>
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <span className="sr-only">Instagram</span>
-                <Instagram className="h-5 w-5" />
               </a>
             </div>
             <p className="text-sm text-slate-500">
