@@ -77,7 +77,7 @@ export default function InventoryPage() {
 
       if (error) throw error
       
-      setInventory(data || [])
+      setInventory(data as any || [])
       
       // Extract unique locations and conditions for filters
       const locationData = data?.map(item => item.location).filter(Boolean) || []

@@ -20,7 +20,7 @@ interface POItem {
   quantity: number
   unit_price: number
   condition: string | null
-  description: string
+  description: string | null
   pn_master_table: {
     pn: string
     description: string | null

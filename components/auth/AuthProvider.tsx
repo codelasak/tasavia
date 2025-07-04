@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { User } from '@/lib/auth'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
@@ -34,7 +34,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
     console.log("AuthProvider useEffect: Initializing auth state listener.");
@@ -90,25 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []) // Empty dependency array to run only once on mount
 
-  useEffect(() => {
-    console.log("AuthProvider: Redirect useEffect running. User:", user, "Loading:", loading, "Pathname:", pathname);
-    // Redirect logic
-    if (!loading) {
-      const isProtectedRoute = pathname.startsWith('/portal')
-      const isLoginPage = pathname === '/login'
-
-      if (isProtectedRoute && !user) {
-        console.log("AuthProvider: Redirecting unauthenticated user from protected route to /login");
-        router.replace('/login')
-      } else if (isLoginPage && user) {
-        console.log("AuthProvider: Redirecting authenticated user from /login to /portal/dashboard");
-        router.replace('/portal/dashboard')
-      } else if (pathname === '/portal' && user) {
-        console.log("AuthProvider: Redirecting authenticated user from /portal to /portal/dashboard");
-        router.replace('/portal/dashboard')
-      }
-    }
-  }, [user, loading, pathname, router])
+  // Note: Redirect logic has been moved to middleware.ts for better performance and reliability
 
   const handleSignOut = async () => {
     try {

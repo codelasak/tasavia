@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Edit, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { Database } from '@/lib/supabase/server'
+import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
 import { PartNumberDialog } from '@/components/part-numbers/PartNumberDialog'
 

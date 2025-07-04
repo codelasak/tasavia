@@ -173,6 +173,7 @@ export default function HomePage() {
                 width={140}
                 height={50}
                 className="h-12 w-auto"
+                style={{ width: "auto", height: "auto" }}
                 priority
               />
             </motion.div>

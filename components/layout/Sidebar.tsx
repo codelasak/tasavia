@@ -13,7 +13,9 @@ import {
   Home,
   ArrowLeft,
   Users,
-  Shield
+  Shield,
+  FileText,
+  Wrench
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth/AuthProvider'
@@ -27,6 +29,8 @@ const groupedNavigation = [
     items: [
       { name: 'Dashboard', href: '/portal/dashboard', icon: Home },
       { name: 'Purchase Orders', href: '/portal/purchase-orders', icon: ShoppingCart },
+      { name: 'Sales Orders', href: '/portal/sales-orders', icon: FileText },
+      { name: 'Repair Orders', href: '/portal/repair-orders', icon: Wrench },
       { name: 'Inventory', href: '/portal/inventory', icon: BarChart3 },
     ],
   },
@@ -93,8 +97,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       baseNav.push({
         label: 'Administration',
         items: [
-          { name: 'User Management', href: '/portal/admin/users', icon: Users },
-          { name: 'System Settings', href: '/portal/admin/settings', icon: Shield },
+          { name: 'User Management', href: '/portal/admin/users', icon: Users }
         ],
       });
     }
@@ -113,6 +116,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             width={120}
             height={40}
             className="h-10 w-auto"
+            style={{ width: "auto", height: "auto" }}
+            priority
           />
         </div>
         {/* Close button for mobile */}

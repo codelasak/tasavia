@@ -1,16 +1,36 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 
 // Server-side Supabase client with service role key
-const supabaseAdmin = createClient(
+const supabaseAdmin = createServerClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    cookies: {
+      getAll() {
+        return []
+      },
+      setAll(cookiesToSet) {
+        // No-op for service role client
+      },
+    },
+  }
 );
 
 // Regular client for auth verification
-const supabase = createClient(
+const supabase = createServerClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    cookies: {
+      getAll() {
+        return []
+      },
+      setAll(cookiesToSet) {
+        // No-op for API route client
+      },
+    },
+  }
 );
 
 export interface AuthenticatedUser {

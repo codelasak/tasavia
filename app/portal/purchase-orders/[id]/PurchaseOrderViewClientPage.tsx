@@ -16,11 +16,11 @@ interface PurchaseOrderDetails {
   po_number: string
   po_date: string
   status: string
-  total_amount: number
-  subtotal: number
-  freight_charge: number
-  misc_charge: number
-  vat_percentage: number
+  total_amount: number | null
+  subtotal: number | null
+  freight_charge: number | null
+  misc_charge: number | null
+  vat_percentage: number | null
   currency: string
   ship_to_company_name: string | null
   ship_to_address_details: string | null
@@ -47,7 +47,7 @@ interface PurchaseOrderDetails {
   }
   companies: {
     company_name: string
-    company_code: string
+    company_code: string | null
     company_addresses: Array<{
       address_line1: string
       address_line2: string | null
@@ -63,10 +63,10 @@ interface PurchaseOrderDetails {
   company_ship_via: {
     ship_company_name: string
     account_no: string
-    owner?: string
-    ship_model?: string
-    predefined_company?: string
-    custom_company_name?: string
+    owner?: string | null
+    ship_model?: string | null
+    predefined_company?: string | null
+    custom_company_name?: string | null
   } | null
   po_items: Array<{
     po_item_id: string
@@ -76,7 +76,7 @@ interface PurchaseOrderDetails {
     quantity: number
     unit_price: number
     condition: string | null
-    line_total: number
+    line_total: number | null
     pn_master_table: {
       pn: string
       description: string | null
@@ -102,7 +102,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
           *,
           my_companies(*),
           companies(*),
-          company_ship_via(*),
+          company_ship_via!ship_via_id(*),
           po_items(
             *,
             pn_master_table(pn, description)
@@ -259,7 +259,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
     )
   }
 
-  const vatAmount = purchaseOrder.subtotal * (purchaseOrder.vat_percentage / 100)
+  const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
 
   return (
     <div>
@@ -501,7 +501,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                     </div>
                     <div>
                       <div className="text-slate-500">Line Total</div>
-                      <div className="font-bold text-green-600">${item.line_total.toFixed(2)}</div>
+                      <div className="font-bold text-green-600">${(item.line_total || 0).toFixed(2)}</div>
                     </div>
                   </div>
                 </Card>
@@ -519,23 +519,23 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>${purchaseOrder.subtotal.toFixed(2)}</span>
+              <span>${(purchaseOrder.subtotal || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Freight/Forwarding:</span>
-              <span>${purchaseOrder.freight_charge.toFixed(2)}</span>
+              <span>${(purchaseOrder.freight_charge || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Misc Charge:</span>
-              <span>${purchaseOrder.misc_charge.toFixed(2)}</span>
+              <span>${(purchaseOrder.misc_charge || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>VAT ({purchaseOrder.vat_percentage}%):</span>
-              <span>${(purchaseOrder.subtotal * (purchaseOrder.vat_percentage / 100)).toFixed(2)}</span>
+              <span>VAT ({purchaseOrder.vat_percentage || 0}%):</span>
+              <span>${((purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)).toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg border-t pt-2">
               <span>Total NET ({purchaseOrder.currency}):</span>
-              <span>${purchaseOrder.total_amount.toFixed(2)}</span>
+              <span>${(purchaseOrder.total_amount || 0).toFixed(2)}</span>
             </div>
           </div>
         </CardContent>

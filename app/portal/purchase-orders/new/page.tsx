@@ -41,7 +41,7 @@ interface MyCompany {
 interface ExternalCompany {
   company_id: string
   company_name: string
-  company_code: string
+  company_code: string | null
   company_addresses: Array<{
     address_line1: string
     address_line2: string | null
@@ -65,17 +65,17 @@ interface ShipVia {
   ship_via_id: string
   ship_company_name: string
   account_no: string
-  owner?: string
-  ship_model?: string
-  predefined_company?: string
-  custom_company_name?: string
+  owner?: string | null
+  ship_model?: string | null
+  predefined_company?: string | null
+  custom_company_name?: string | null
 }
 
 const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
 const PAYMENT_TERM_OPTIONS = ['PRE-PAY', 'COD', 'NET5', 'NET10', 'NET15', 'NET30'];
 
 const poItemSchema = z.object({
-  pn_id: z.string().optional(),
+  pn_id: z.string().min(1, 'Part number is required'),
   description: z.string().min(1, 'Description is required'),
   sn: z.string().optional(),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
@@ -273,7 +273,7 @@ export default function NewPurchaseOrderPage() {
       const lineItems = data.items.map((item, index) => ({
         po_id: poData.po_id,
         line_number: index + 1,
-        pn_id: item.pn_id || null,
+        pn_id: item.pn_id,
         description: item.description,
         sn: item.sn || null,
         quantity: item.quantity,

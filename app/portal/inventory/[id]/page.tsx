@@ -55,7 +55,7 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
         .single()
 
       if (error) throw error
-      setItem(data)
+      setItem(data as any)
     } catch (error) {
       console.error('Error fetching inventory item:', error)
       toast.error('Failed to fetch inventory item')

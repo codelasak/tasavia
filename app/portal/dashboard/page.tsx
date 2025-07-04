@@ -46,7 +46,7 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
     // Calculate recent POs (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const recentPOs = posResult.data?.filter(po => new Date(po.created_at) >= thirtyDaysAgo).length || 0
+    const recentPOs = posResult.data?.filter(po => po.created_at && new Date(po.created_at) >= thirtyDaysAgo).length || 0
     
     // Calculate pending POs
     const pendingPOs = posResult.data?.filter(po => po.status === 'Draft' || po.status === 'Sent').length || 0

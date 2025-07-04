@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Edit, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { Database } from '@/lib/supabase/server'
+import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
 import { CompanyDialog } from '@/components/companies/CompanyDialog'
 
@@ -202,7 +202,7 @@ export default function CompaniesPage() {
           )}
         </CardContent>
       </Card>
-      <CompanyDialog open={dialogOpen} onClose={handleDialogClose} company={editingCompany} type="external_company" />
+      <CompanyDialog open={dialogOpen} onClose={handleDialogClose} company={editingCompany as any} type="external_company" />
     </div>
   )
 }

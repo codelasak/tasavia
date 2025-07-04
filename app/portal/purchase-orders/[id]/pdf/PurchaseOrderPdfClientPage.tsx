@@ -14,11 +14,11 @@ interface PurchaseOrderDetails {
   po_number: string
   po_date: string
   status: string
-  total_amount: number
-  subtotal: number
-  freight_charge: number
-  misc_charge: number
-  vat_percentage: number
+  total_amount: number | null
+  subtotal: number | null
+  freight_charge: number | null
+  misc_charge: number | null
+  vat_percentage: number | null
   currency: string
   ship_to_company_name: string | null
   ship_to_address_details: string | null
@@ -45,7 +45,7 @@ interface PurchaseOrderDetails {
   }
   companies: {
     company_name: string
-    company_code: string
+    company_code: string | null
     company_addresses: Array<{
       address_line1: string
       address_line2: string | null
@@ -61,10 +61,10 @@ interface PurchaseOrderDetails {
   company_ship_via: {
     ship_company_name: string
     account_no: string
-    owner?: string
-    ship_model?: string
-    predefined_company?: string
-    custom_company_name?: string
+    owner?: string | null
+    ship_model?: string | null
+    predefined_company?: string | null
+    custom_company_name?: string | null
   } | null
   po_items: Array<{
     po_item_id: string
@@ -74,7 +74,7 @@ interface PurchaseOrderDetails {
     quantity: number
     unit_price: number
     condition: string | null
-    line_total: number
+    line_total: number | null
     pn_master_table: {
       pn: string
       description: string | null
@@ -100,7 +100,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           *,
           my_companies(*),
           companies(*),
-          company_ship_via(*),
+          company_ship_via!ship_via_id(*),
           po_items(
             *,
             pn_master_table(pn, description)
@@ -204,7 +204,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
     )
   }
 
-  const vatAmount = purchaseOrder.subtotal * (purchaseOrder.vat_percentage / 100)
+  const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
 
   return (
     <div className="min-h-screen bg-white">
@@ -411,7 +411,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
                       ${item.unit_price.toFixed(2)}
                     </td>
                     <td className="border border-slate-300 px-3 py-2 text-sm text-right font-semibold">
-                      ${item.line_total.toFixed(2)}
+                      ${(item.line_total || 0).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -434,23 +434,23 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
               <tbody>
                 <tr>
                   <td className="py-1 text-sm">Subtotal:</td>
-                  <td className="py-1 text-sm text-right">${purchaseOrder.subtotal.toFixed(2)}</td>
+                  <td className="py-1 text-sm text-right">${(purchaseOrder.subtotal || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1 text-sm">Freight/Forwarding:</td>
-                  <td className="py-1 text-sm text-right">${purchaseOrder.freight_charge.toFixed(2)}</td>
+                  <td className="py-1 text-sm text-right">${(purchaseOrder.freight_charge || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1 text-sm">Misc Charge:</td>
-                  <td className="py-1 text-sm text-right">${purchaseOrder.misc_charge.toFixed(2)}</td>
+                  <td className="py-1 text-sm text-right">${(purchaseOrder.misc_charge || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 text-sm">VAT ({purchaseOrder.vat_percentage}%):</td>
+                  <td className="py-1 text-sm">VAT ({purchaseOrder.vat_percentage || 0}%):</td>
                   <td className="py-1 text-sm text-right">${vatAmount.toFixed(2)}</td>
                 </tr>
                 <tr className="border-t border-slate-300">
                   <td className="py-2 font-bold">Total NET ({purchaseOrder.currency}):</td>
-                  <td className="py-2 font-bold text-right text-lg">${purchaseOrder.total_amount.toFixed(2)}</td>
+                  <td className="py-2 font-bold text-right text-lg">${(purchaseOrder.total_amount || 0).toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Search, Edit, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { Database } from '@/lib/supabase/server'
+import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
 import { CompanyDialog } from '@/components/companies/CompanyDialog'
 
@@ -52,6 +52,7 @@ export default function CompaniesPage() {
 
   const fetchCompanies = async () => {
     try {
+      // First try to fetch with relations
       const { data, error } = await supabase
         .from('companies')
         .select(`
@@ -61,8 +62,27 @@ export default function CompaniesPage() {
         `)
         .order('company_name')
 
-      if (error) throw error
-      setCompanies(data || [])
+      if (error) {
+        console.error('Error fetching companies with relations:', error)
+        // Fallback: fetch companies without relations
+        const { data: companiesData, error: companiesError } = await supabase
+          .from('companies')
+          .select('*')
+          .order('company_name')
+
+        if (companiesError) throw companiesError
+        
+        // Set companies with empty arrays for addresses and contacts
+        const companiesWithEmptyRelations = (companiesData || []).map(company => ({
+          ...company,
+          company_addresses: [] as Database['public']['Tables']['company_addresses']['Row'][],
+          company_contacts: [] as Database['public']['Tables']['company_contacts']['Row'][]
+        }))
+        
+        setCompanies(companiesWithEmptyRelations as ExternalCompany[])
+      } else {
+        setCompanies((data || []) as ExternalCompany[])
+      }
     } catch (error) {
       console.error('Error fetching companies:', error)
       toast.error('Failed to fetch companies')
@@ -276,7 +296,7 @@ export default function CompaniesPage() {
       <CompanyDialog
         open={dialogOpen}
         onClose={handleDialogClose}
-        company={editingCompany}
+        company={editingCompany as any}
         type="external_company"
       />
     </div>

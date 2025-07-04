@@ -90,11 +90,11 @@ type CompanyAddress = {
 
 type ShipViaInfo = {
   ship_via_id?: string;
-  predefined_company?: 'DHL' | 'FEDEX' | 'UPS' | 'TNT' | 'ARAMEX' | 'DPD' | 'SCHENKER' | 'KUEHNE_NAGEL' | 'EXPEDITORS' | 'PANALPINA' | 'CUSTOM';
-  custom_company_name?: string;
+  predefined_company?: 'DHL' | 'FEDEX' | 'UPS' | 'TNT' | 'ARAMEX' | 'DPD' | 'SCHENKER' | 'KUEHNE_NAGEL' | 'EXPEDITORS' | 'PANALPINA' | 'CUSTOM' | null;
+  custom_company_name?: string | null;
   account_no: string;
-  owner?: string;
-  ship_model?: 'IMPORT' | 'THIRD_PARTY_EXPORT' | 'GROUND' | 'SEA' | 'AIRLINE';
+  owner?: string | null;
+  ship_model?: 'IMPORT' | 'THIRD_PARTY_EXPORT' | 'GROUND' | 'SEA' | 'AIRLINE' | null;
 };
 
 // Form data types
@@ -280,7 +280,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         country: address.country || undefined,
         zip_code: address.zip_code || undefined
       })) || [],
-      ship_via_info: [] // Will be loaded separately from company_ship_via table
+      ship_via_info: [] // Will be loaded separately from my_ship_via table
     };
   }
 
@@ -441,6 +441,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         
         if (isMyCompany(company)) {
           // Update existing my_company
+          if (!company.my_company_id) throw new Error('Company ID is required for update');
           const { error } = await supabase
             .from('my_companies')
             .update(companyData)
@@ -458,7 +459,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: contactsError } = await supabase
               .from('company_contacts')
-              .upsert(contactsToInsert);
+              .upsert(contactsToInsert as any);
               
             if (contactsError) throw contactsError;
           }
@@ -473,7 +474,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .upsert(addressesToInsert);
+              .upsert(addressesToInsert as any);
               
             if (addressesError) throw addressesError;
           }
@@ -499,7 +500,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: contactsError } = await supabase
               .from('company_contacts')
-              .insert(contactsToInsert);
+              .insert(contactsToInsert as any);
               
             if (contactsError) throw contactsError;
           }
@@ -514,7 +515,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .insert(addressesToInsert);
+              .insert(addressesToInsert as any);
               
             if (addressesError) throw addressesError;
           }
@@ -527,6 +528,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         
         if (isExternalCompany(company)) {
           // Update existing company
+          if (!company.company_id) throw new Error('Company ID is required for update');
           const { error } = await supabase
             .from('companies')
             .update({
@@ -548,7 +550,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: contactsError } = await supabase
               .from('company_contacts')
-              .upsert(contactsToInsert);
+              .upsert(contactsToInsert as any);
               
             if (contactsError) throw contactsError;
           }
@@ -563,7 +565,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .upsert(addressesToInsert);
+              .upsert(addressesToInsert as any);
               
             if (addressesError) throw addressesError;
           }
@@ -593,7 +595,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: shipViaError } = await supabase
               .from('company_ship_via')
-              .insert(shipViaToInsert);
+              .insert(shipViaToInsert as any);
             
             if (shipViaError) throw shipViaError;
           }
@@ -623,7 +625,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: contactsError } = await supabase
               .from('company_contacts')
-              .insert(contactsToInsert);
+              .insert(contactsToInsert as any);
               
             if (contactsError) throw contactsError;
           }
@@ -638,7 +640,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .insert(addressesToInsert);
+              .insert(addressesToInsert as any);
               
             if (addressesError) throw addressesError;
           }
@@ -658,7 +660,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             
             const { error: shipViaError } = await supabase
               .from('company_ship_via')
-              .insert(shipViaToInsert);
+              .insert(shipViaToInsert as any);
             
             if (shipViaError) throw shipViaError;
           }

@@ -40,7 +40,7 @@ interface MyCompany {
 interface ExternalCompany {
   company_id: string
   company_name: string
-  company_code: string
+  company_code: string | null
   company_addresses: Array<{
     address_line1: string
     address_line2: string | null
@@ -64,10 +64,10 @@ interface ShipVia {
   ship_via_id: string
   ship_company_name: string
   account_no: string
-  owner?: string
-  ship_model?: string
-  predefined_company?: string
-  custom_company_name?: string
+  owner?: string | null
+  ship_model?: string | null
+  predefined_company?: string | null
+  custom_company_name?: string | null
 }
 
 const poItemSchema = z.object({
@@ -394,7 +394,7 @@ export default function PurchaseOrderEditClientPage({ poId }: PurchaseOrderEditC
     const lineItems = data.items.map((item, index) => ({
       po_id: poId,
       line_number: index + 1,
-      pn_id: item.pn_id || null,
+      pn_id: item.pn_id,
       description: item.description,
       sn: item.sn || null,
       quantity: item.quantity,
