@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Search, Edit, Trash2 } from 'lucide-react'
+import { Search, Edit, Trash2, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
@@ -80,10 +80,24 @@ export default function PartNumbersList({ initialPartNumbers }: PartNumbersListP
   return (
     <Card>
       <CardHeader className="pt-4 pb-2">
-        <CardTitle>Part Numbers</CardTitle>
-        <CardDescription>
-          {partNumbers.length} part numbers • {filteredPartNumbers.length} shown
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Part Numbers</CardTitle>
+            <CardDescription>
+              {partNumbers.length} part numbers • {filteredPartNumbers.length} shown
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={() => {
+              setEditingPartNumber(null)
+              setDialogOpen(true)
+            }}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Part Number
+          </Button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
           <Input

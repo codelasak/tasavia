@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Search, Edit, Trash2 } from 'lucide-react'
+import { Search, Edit, Trash2, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
@@ -13,6 +13,7 @@ import { CompanyDialog } from '@/components/companies/CompanyDialog'
 type MyCompany = Database['public']['Tables']['my_companies']['Row'] & {
   company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
   company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
+  company_ship_via: Database['public']['Tables']['company_ship_via']['Row'][]
 }
 
 interface MyCompaniesListProps {
@@ -62,11 +63,18 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
         .select('*')
         .eq('company_ref_type', 'my_companies')
 
+      // Fetch shipping data separately
+      const { data: shipViaData } = await supabase
+        .from('company_ship_via')
+        .select('*')
+        .eq('company_ref_type', 'my_companies')
+
       // Combine the data
       const companiesWithRelations = companiesData?.map(company => ({
         ...company,
         company_addresses: addressData?.filter(addr => addr.company_id === company.my_company_id) || [],
-        company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || []
+        company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || [],
+        company_ship_via: shipViaData?.filter(ship => ship.company_id === company.my_company_id) || []
       })) || []
 
       setCompanies(companiesWithRelations)
@@ -138,10 +146,24 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Company List</CardTitle>
-        <CardDescription>
-          {companies.length} my companies • {filteredCompanies.length} shown
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Company List</CardTitle>
+            <CardDescription>
+              {companies.length} my companies • {filteredCompanies.length} shown
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={() => {
+              setEditingCompany(null)
+              setDialogOpen(true)
+            }}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Company
+          </Button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
           <Input placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
@@ -164,7 +186,7 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
                   </div>
                   <CardDescription className="text-xs">Code: {company.my_company_code}</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-2 text-xs text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="pt-2 text-xs text-slate-600 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <h4 className="font-semibold mb-1">Addresses</h4>
                     {company.company_addresses.length > 0 ? (
@@ -184,6 +206,20 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
                         ))}
                       </ul>
                     ) : <p>No contacts</p>}
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-1">Shipping Methods</h4>
+                    {company.company_ship_via.length > 0 ? (
+                      <ul className="space-y-1">
+                        {company.company_ship_via.map(ship => (
+                          <li key={ship.ship_via_id} className="flex items-center gap-1">
+                            <span className="text-blue-600 font-medium">{ship.ship_company_name}</span>
+                            <span className="text-slate-500">({ship.account_no})</span>
+                            {ship.ship_model && <span className="text-xs bg-slate-100 px-1 rounded">{ship.ship_model}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p>No shipping methods</p>}
                   </div>
                 </CardContent>
               </Card>

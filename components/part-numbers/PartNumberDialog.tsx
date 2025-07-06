@@ -1,27 +1,24 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase/client'
-import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
+import { Database } from '@/lib/supabase/database.types'
 
 type PartNumber = Database['public']['Tables']['pn_master_table']['Row']
-
-const partNumberSchema = z.object({
-  pn: z.string().min(1, 'Part number is required'),
-  description: z.string().optional(),
-  remarks: z.string().optional(),
-})
-
-type PartNumberFormValues = z.infer<typeof partNumberSchema>
 
 interface PartNumberDialogProps {
   open: boolean
@@ -29,9 +26,16 @@ interface PartNumberDialogProps {
   partNumber?: PartNumber | null
 }
 
+interface PartNumberFormData {
+  pn: string
+  description: string
+  remarks?: string
+}
+
 export function PartNumberDialog({ open, onClose, partNumber }: PartNumberDialogProps) {
-  const form = useForm<PartNumberFormValues>({
-    resolver: zodResolver(partNumberSchema),
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  const form = useForm<PartNumberFormData>({
     defaultValues: {
       pn: '',
       description: '',
@@ -39,109 +43,137 @@ export function PartNumberDialog({ open, onClose, partNumber }: PartNumberDialog
     }
   })
 
+  // Update form when partNumber changes or dialog opens
   useEffect(() => {
-    if (partNumber) {
+    if (open) {
       form.reset({
-        pn: partNumber.pn,
-        description: partNumber.description || '',
-        remarks: partNumber.remarks || '',
-      })
-    } else {
-      form.reset({
-        pn: '',
-        description: '',
-        remarks: '',
+        pn: partNumber?.pn || '',
+        description: partNumber?.description || '',
+        remarks: partNumber?.remarks || '',
       })
     }
-  }, [partNumber, form])
+  }, [open, partNumber, form])
 
-  const onSubmit = async (data: PartNumberFormValues) => {
+  const onSubmit = async (data: PartNumberFormData) => {
     try {
-      const submitData = {
-        ...data,
-        description: data.description || null,
-        remarks: data.remarks || null,
+      setIsSubmitting(true)
+      
+      // Validate required fields
+      if (!data.pn?.trim()) {
+        toast.error('Part number is required')
+        return
       }
-
+      if (!data.description?.trim()) {
+        toast.error('Description is required')
+        return
+      }
+      
       if (partNumber) {
+        // Update existing part number
         const { error } = await supabase
           .from('pn_master_table')
-          .update(submitData)
+          .update({
+            pn: data.pn.trim(),
+            description: data.description.trim(),
+            remarks: data.remarks?.trim() || null,
+          })
           .eq('pn_id', partNumber.pn_id)
-        if (error) throw error
+        
+        if (error) {
+          console.error('Update error:', error)
+          if (error.code === '23505') {
+            toast.error('Part number already exists')
+          } else {
+            toast.error(error.message || 'Failed to update part number')
+          }
+          return
+        }
         toast.success('Part number updated successfully')
       } else {
+        // Create new part number
         const { error } = await supabase
           .from('pn_master_table')
-          .insert(submitData)
-        if (error) throw error
+          .insert({
+            pn: data.pn.trim(),
+            description: data.description.trim(),
+            remarks: data.remarks?.trim() || null,
+          })
+        
+        if (error) {
+          console.error('Insert error:', error)
+          if (error.code === '23505') {
+            toast.error('Part number already exists')
+          } else {
+            toast.error(error.message || 'Failed to create part number')
+          }
+          return
+        }
         toast.success('Part number created successfully')
       }
-      onClose()
-    } catch (error: any) {
+      
+      handleClose()
+    } catch (error) {
       console.error('Error saving part number:', error)
-      if (error.code === '23505') {
-        toast.error('This part number already exists')
-      } else {
-        toast.error(error.message || 'Failed to save part number')
-      }
+      toast.error('An unexpected error occurred')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
+  const handleClose = () => {
+    form.reset()
+    onClose()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {partNumber ? 'Edit' : 'Add'} Part Number
-          </DialogTitle>
+          <DialogTitle>{partNumber ? 'Edit' : 'Add'} Part Number</DialogTitle>
           <DialogDescription>
-            {partNumber ? 'Update' : 'Create'} part number information.
+            {partNumber ? 'Update the part number details.' : 'Enter the details of the new part number.'}
           </DialogDescription>
         </DialogHeader>
-        
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label htmlFor="pn">Part Number</Label>
-            <Input
-              id="pn"
-              {...form.register('pn')}
-              className={form.formState.errors.pn ? 'border-red-500' : ''}
-              placeholder="Enter part number"
-            />
-            {form.formState.errors.pn && (
-              <div className="text-red-500 text-sm mt-1">
-                {form.formState.errors.pn.message}
-              </div>
-            )}
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="pn" className="text-right">
+                Part Number *
+              </Label>
+              <Input 
+                id="pn" 
+                className="col-span-3" 
+                {...form.register('pn', { required: 'Part number is required' })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Description *
+              </Label>
+              <Input 
+                id="description" 
+                className="col-span-3"
+                {...form.register('description', { required: 'Description is required' })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="remarks" className="text-right">
+                Remarks
+              </Label>
+              <Textarea 
+                id="remarks" 
+                className="col-span-3"
+                rows={3}
+                {...form.register('remarks')}
+              />
+            </div>
           </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              {...form.register('description')}
-              rows={3}
-              placeholder="Enter part description"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="remarks">Remarks</Label>
-            <Textarea
-              id="remarks"
-              {...form.register('remarks')}
-              rows={3}
-              placeholder="Enter any additional remarks"
-            />
-          </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Saving...' : partNumber ? 'Update' : 'Create'}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : partNumber ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
         </form>

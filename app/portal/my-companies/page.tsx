@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 type MyCompany = Database['public']['Tables']['my_companies']['Row'] & {
   company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
   company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
+  company_ship_via: Database['public']['Tables']['company_ship_via']['Row'][]
 }
 
 async function getMyCompanies() {
@@ -33,11 +34,18 @@ async function getMyCompanies() {
       .select('*')
       .eq('company_ref_type', 'my_companies')
 
+    // Fetch shipping data separately
+    const { data: shipViaData } = await supabase
+      .from('company_ship_via')
+      .select('*')
+      .eq('company_ref_type', 'my_companies')
+
     // Combine the data
     const companiesWithRelations = companiesData?.map(company => ({
       ...company,
       company_addresses: addressData?.filter(addr => addr.company_id === company.my_company_id) || [],
-      company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || []
+      company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || [],
+      company_ship_via: shipViaData?.filter(ship => ship.company_id === company.my_company_id) || []
     })) || []
 
     return companiesWithRelations

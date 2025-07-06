@@ -103,6 +103,7 @@ type MyCompanyFormData = {
   my_company_code: string;
   company_addresses: CompanyAddress[];
   company_contacts: CompanyContact[];
+  ship_via_info: ShipViaInfo[];
   // Add type discriminator
   formType: 'my_company';
 };
@@ -161,6 +162,14 @@ const myCompanySchema = z.object({
     country: z.string().optional(),
     zip_code: z.string().optional(),
     is_primary: z.boolean().nullable().default(false),
+  })).optional().default([]),
+  ship_via_info: z.array(z.object({
+    ship_via_id: z.string().optional(),
+    predefined_company: z.enum(['DHL', 'FEDEX', 'UPS', 'TNT', 'ARAMEX', 'DPD', 'SCHENKER', 'KUEHNE_NAGEL', 'EXPEDITORS', 'PANALPINA', 'CUSTOM']).optional(),
+    custom_company_name: z.string().optional(),
+    account_no: z.string().min(1, 'Account number is required'),
+    owner: z.string().optional(),
+    ship_model: z.enum(['IMPORT', 'THIRD_PARTY_EXPORT', 'GROUND', 'SEA', 'AIRLINE']).optional(),
   })).optional().default([]),
   formType: z.literal('my_company'),
 });
@@ -257,7 +266,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         email: contact.email || undefined,
         phone: contact.phone || undefined,
         role: contact.role || undefined
-      })) || []
+      })) || [],
+      ship_via_info: [] // Will be loaded separately from company_ship_via table
     };
   }
 
@@ -398,8 +408,14 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             phone: contact.phone || undefined,
             role: contact.role || undefined
           })) || [],
+          ship_via_info: [],
           formType: 'my_company'
         });
+        
+        // Load ship-via data for my company
+        if (myCompanyData.my_company_id) {
+          loadShipViaData(myCompanyData.my_company_id, 'my_companies');
+        }
       } else {
         const companyData = company as CompanyDB;
         form.reset({
@@ -435,9 +451,28 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
 
   const onSubmit = async (formData: FormData) => {
     try {
+      // Validate required fields before submission
+      if (isMyCompanyFormData(formData)) {
+        if (!formData.my_company_name?.trim()) {
+          toast.error('Company name is required');
+          setActiveTab('basic');
+          return;
+        }
+        if (!formData.my_company_code?.trim()) {
+          toast.error('Company code is required');
+          setActiveTab('basic');
+          return;
+        }
+      } else if (isExternalCompanyFormData(formData)) {
+        if (!formData.company_name?.trim()) {
+          toast.error('Company name is required');
+          setActiveTab('basic');
+          return;
+        }
+      }
       if (isMyCompanyFormData(formData)) {
         // Handle My Company form submission
-        const { formType, company_addresses, company_contacts, ...companyData } = formData;
+        const { formType, company_addresses, company_contacts, ship_via_info, ...companyData } = formData;
         
         if (isMyCompany(company)) {
           // Update existing my_company
@@ -466,17 +501,62 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           
           // Handle company addresses
           if (company_addresses.length > 0) {
+            // First, delete existing addresses
+            const { error: deleteAddressError } = await supabase
+              .from('company_addresses')
+              .delete()
+              .eq('company_id', company.my_company_id)
+              .eq('company_ref_type', 'my_companies');
+            
+            if (deleteAddressError) throw deleteAddressError;
+            
+            // Then insert new addresses
             const addressesToInsert = company_addresses.map(address => ({
-              ...address,
               company_id: company.my_company_id,
-              company_ref_type: 'my_companies'
+              company_ref_type: 'my_companies',
+              address_line1: address.address_line1,
+              address_line2: address.address_line2 || null,
+              city: address.city || null,
+              zip_code: address.zip_code || null,
+              country: address.country || null,
+              is_primary: address.is_primary || false
             }));
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .upsert(addressesToInsert as any);
+              .insert(addressesToInsert);
               
             if (addressesError) throw addressesError;
+          }
+          
+          // Handle ship-via data
+          if (ship_via_info.length > 0) {
+            // First, delete existing ship-via records
+            const { error: deleteShipViaError } = await supabase
+              .from('company_ship_via')
+              .delete()
+              .eq('company_id', company.my_company_id)
+              .eq('company_ref_type', 'my_companies');
+            
+            if (deleteShipViaError) throw deleteShipViaError;
+            
+            // Then insert new ones
+            const shipViaToInsert = ship_via_info.map(shipVia => ({
+              company_id: company.my_company_id,
+              company_ref_type: 'my_companies',
+              ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
+              predefined_company: shipVia.predefined_company,
+              custom_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : null,
+              account_no: shipVia.account_no,
+              owner: shipVia.owner || null,
+              ship_model: shipVia.ship_model || null
+            }));
+            
+            const { error: shipViaError } = await supabase
+              .from('company_ship_via')
+              .insert(shipViaToInsert as any);
+            
+            if (shipViaError) throw shipViaError;
           }
           
           toast.success('My Company updated successfully');
@@ -508,16 +588,41 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           // Handle company addresses
           if (company_addresses.length > 0) {
             const addressesToInsert = company_addresses.map(address => ({
-              ...address,
               company_id: newCompany.my_company_id,
-              company_ref_type: 'my_companies'
+              company_ref_type: 'my_companies',
+              address_line1: address.address_line1,
+              address_line2: address.address_line2 || null,
+              city: address.city || null,
+              zip_code: address.zip_code || null,
+              country: address.country || null,
+              is_primary: address.is_primary || false
             }));
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .insert(addressesToInsert as any);
+              .insert(addressesToInsert);
               
             if (addressesError) throw addressesError;
+          }
+          
+          // Handle ship-via data for new my company
+          if (ship_via_info.length > 0) {
+            const shipViaToInsert = ship_via_info.map(shipVia => ({
+              company_id: newCompany.my_company_id,
+              company_ref_type: 'my_companies',
+              ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
+              predefined_company: shipVia.predefined_company,
+              custom_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : null,
+              account_no: shipVia.account_no,
+              owner: shipVia.owner || null,
+              ship_model: shipVia.ship_model || null
+            }));
+            
+            const { error: shipViaError } = await supabase
+              .from('company_ship_via')
+              .insert(shipViaToInsert as any);
+            
+            if (shipViaError) throw shipViaError;
           }
           
           toast.success('My Company created successfully');
@@ -542,30 +647,59 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           
           // Handle company contacts
           if (company_contacts.length > 0) {
+            // First, delete existing contacts
+            const { error: deleteContactsError } = await supabase
+              .from('company_contacts')
+              .delete()
+              .eq('company_id', company.company_id)
+              .eq('company_ref_type', 'companies');
+            
+            if (deleteContactsError) throw deleteContactsError;
+            
+            // Then insert new contacts
             const contactsToInsert = company_contacts.map(contact => ({
-              ...contact,
               company_id: company.company_id,
-              company_ref_type: 'companies'
+              company_ref_type: 'companies',
+              contact_name: contact.contact_name,
+              email: contact.email || null,
+              phone: contact.phone || null,
+              role: contact.role || null,
+              is_primary: contact.is_primary || false
             }));
             
             const { error: contactsError } = await supabase
               .from('company_contacts')
-              .upsert(contactsToInsert as any);
+              .insert(contactsToInsert);
               
             if (contactsError) throw contactsError;
           }
           
           // Handle company addresses
           if (company_addresses.length > 0) {
+            // First, delete existing addresses
+            const { error: deleteAddressError } = await supabase
+              .from('company_addresses')
+              .delete()
+              .eq('company_id', company.company_id)
+              .eq('company_ref_type', 'companies');
+            
+            if (deleteAddressError) throw deleteAddressError;
+            
+            // Then insert new addresses
             const addressesToInsert = company_addresses.map(address => ({
-              ...address,
               company_id: company.company_id,
-              company_ref_type: 'companies'
+              company_ref_type: 'companies',
+              address_line1: address.address_line1,
+              address_line2: address.address_line2 || null,
+              city: address.city || null,
+              zip_code: address.zip_code || null,
+              country: address.country || null,
+              is_primary: address.is_primary || false
             }));
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
-              .upsert(addressesToInsert as any);
+              .insert(addressesToInsert);
               
             if (addressesError) throw addressesError;
           }
@@ -694,7 +828,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="contacts">Contacts</TabsTrigger>
               <TabsTrigger value="addresses">Addresses</TabsTrigger>
-              {!isMyCompanyType && <TabsTrigger value="shipping">Shipping</TabsTrigger>}
+              <TabsTrigger value="shipping">Shipping</TabsTrigger>
             </TabsList>
             
             <TabsContent value="basic" className="space-y-4">
@@ -813,8 +947,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               </div>
             </TabsContent>
 
-            {!isMyCompanyType && (
-              <TabsContent value="shipping" className="space-y-4">
+            <TabsContent value="shipping" className="space-y-4">
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium flex items-center gap-2">
                     <Truck className="h-5 w-5" />
@@ -904,7 +1037,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                   </Button>
                 </div>
               </TabsContent>
-            )}
           </Tabs>
 
           <DialogFooter>
