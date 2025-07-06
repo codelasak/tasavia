@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/eshagh/Desktop/webCode/tasavia/logs/.100d434156ff8674f6bd2a9edbfafae4bc0c061e-audit.json",
+    "files": [
+        {
+            "date": 1751831313451,
+            "name": "/Users/eshagh/Desktop/webCode/tasavia/logs/mcp-puppeteer-2025-07-06.log",
+            "hash": "a392b391b886e071667bfa302a46e47184ef92765f0454054b584baf3c003573"
+        },
+        {
+            "date": 1751836585464,
+            "name": "/Users/eshagh/Desktop/webCode/tasavia/logs/mcp-puppeteer-2025-07-07.log",
+            "hash": "f0a0a73cbac3e9eb7f9060d7dc41d9f6071ca5c021d77d627423ff1297b7999c"
+        }
+    ],
+    "hashType": "sha256"
+}
