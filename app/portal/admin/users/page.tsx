@@ -4,10 +4,20 @@ import UsersList from './users-list'
 export const dynamic = 'force-dynamic'
 
 // Server-side Supabase client with service role key for admin operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Handle missing environment variables gracefully to prevent SSR crashes
+function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !serviceKey) {
+    console.warn('Missing Supabase environment variables - admin functions will be limited');
+    return null;
+  }
+  
+  return createClient(url, serviceKey);
+}
+
+const supabaseAdmin = createSupabaseAdminClient();
 
 interface AdminUser {
   id: string;
