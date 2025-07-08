@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -86,88 +86,14 @@ interface PurchaseOrderDetails {
 
 interface PurchaseOrderViewClientPageProps {
   poId: string
+  initialPurchaseOrder: PurchaseOrderDetails
 }
 
-export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewClientPageProps) {
+export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder }: PurchaseOrderViewClientPageProps) {
   const router = useRouter()
-  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(initialPurchaseOrder)
 
-  const fetchPurchaseOrder = useCallback(async (id: string) => {
-    try {
-      // First fetch the purchase order with basic company info
-      const { data: poData, error: poError } = await supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          my_companies(*),
-          companies(*),
-          company_ship_via!ship_via_id(*),
-          po_items(
-            *,
-            pn_master_table(pn, description)
-          )
-        `)
-        .eq('po_id', id)
-        .single()
-      
-      if (poError) throw poError
 
-      // Fetch my company addresses and contacts
-      const { data: myCompanyAddresses } = await supabase
-        .from('company_addresses')
-        .select('*')
-        .eq('company_id', poData.my_companies.my_company_id)
-        .eq('company_ref_type', 'my_companies')
-
-      const { data: myCompanyContacts } = await supabase
-        .from('company_contacts')
-        .select('*')
-        .eq('company_id', poData.my_companies.my_company_id)
-        .eq('company_ref_type', 'my_companies')
-
-      // Fetch vendor company addresses and contacts
-      const { data: vendorAddresses } = await supabase
-        .from('company_addresses')
-        .select('*')
-        .eq('company_id', poData.companies.company_id)
-        .eq('company_ref_type', 'companies')
-
-      const { data: vendorContacts } = await supabase
-        .from('company_contacts')
-        .select('*')
-        .eq('company_id', poData.companies.company_id)
-        .eq('company_ref_type', 'companies')
-
-      // Combine the data
-      const enrichedData = {
-        ...poData,
-        my_companies: {
-          ...poData.my_companies,
-          company_addresses: myCompanyAddresses || [],
-          company_contacts: myCompanyContacts || []
-        },
-        companies: {
-          ...poData.companies,
-          company_addresses: vendorAddresses || [],
-          company_contacts: vendorContacts || []
-        }
-      }
-      
-      setPurchaseOrder(enrichedData)
-    } catch (error) {
-      console.error('Failed to fetch purchase order:', error)
-      setPurchaseOrder(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (poId) {
-      fetchPurchaseOrder(poId)
-    }
-  }, [poId, fetchPurchaseOrder])
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -229,26 +155,21 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
 
       toast.success('Purchase order deleted successfully')
       router.push('/portal/purchase-orders')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting purchase order:', error)
       
-      // Handle specific error cases
-      if (error.code === '23503') {
+      // Handle specific error cases with proper type checking
+      const errorObj = error as { code?: string; message?: string }
+      if (errorObj?.code === '23503') {
         toast.error('Cannot delete purchase order: It is referenced by other records')
-      } else if (error.message?.includes('foreign key')) {
+      } else if (errorObj?.message?.includes('foreign key')) {
         toast.error('Cannot delete purchase order: It is referenced in other records')
+      } else if (errorObj?.message) {
+        toast.error(errorObj.message)
       } else {
-        toast.error(error.message || 'Failed to delete purchase order')
+        toast.error('Failed to delete purchase order')
       }
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-slate-500">Loading purchase order...</div>
-      </div>
-    )
   }
 
   if (!purchaseOrder) {
@@ -259,7 +180,9 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
     )
   }
 
+
   const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
+  const hasShipToInfo = !!(purchaseOrder.ship_to_company_name?.trim() || purchaseOrder.ship_to_address_details?.trim())
 
   return (
     <div>
@@ -314,13 +237,13 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid gap-6 ${hasShipToInfo ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
               <div>
                 <h4 className="font-semibold text-slate-900 mb-2">From (My Company)</h4>
                 <div className="text-sm text-slate-600 space-y-1">
                   <div className="font-medium">{purchaseOrder.my_companies.my_company_name}</div>
                   <div>{purchaseOrder.my_companies.my_company_code}</div>
-                  {purchaseOrder.my_companies.company_addresses.length > 0 && (
+                  {purchaseOrder.my_companies?.company_addresses?.length > 0 && (
                     <>
                       {purchaseOrder.my_companies.company_addresses.map((addr, idx) => (
                         <div key={idx}>
@@ -337,7 +260,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                       ))}
                     </>
                   )}
-                  {purchaseOrder.my_companies.company_contacts.length > 0 && (
+                  {purchaseOrder.my_companies?.company_contacts?.length > 0 && (
                     <>
                       {purchaseOrder.my_companies.company_contacts.map((contact, idx) => (
                         <div key={idx}>
@@ -355,7 +278,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                 <div className="text-sm text-slate-600 space-y-1">
                   <div className="font-medium">{purchaseOrder.companies.company_name}</div>
                   <div>{purchaseOrder.companies.company_code}</div>
-                  {purchaseOrder.companies.company_addresses.length > 0 && (
+                  {purchaseOrder.companies?.company_addresses?.length > 0 && (
                     <>
                       {purchaseOrder.companies.company_addresses.map((addr, idx) => (
                         <div key={idx}>
@@ -372,7 +295,7 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                       ))}
                     </>
                   )}
-                  {purchaseOrder.companies.company_contacts.length > 0 && (
+                  {purchaseOrder.companies?.company_contacts?.length > 0 && (
                     <>
                       {purchaseOrder.companies.company_contacts.map((contact, idx) => (
                         <div key={idx}>
@@ -384,37 +307,34 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
                   )}
                 </div>
               </div>
+
+              {/* Ship To Information - Integrated */}
+              {hasShipToInfo && (
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-2">Ship To / Consignee</h4>
+                  <div className="text-sm text-slate-600 space-y-1">
+                    {purchaseOrder.ship_to_company_name?.trim() && (
+                      <div className="font-medium">{purchaseOrder.ship_to_company_name}</div>
+                    )}
+                    {purchaseOrder.ship_to_address_details?.trim() && (
+                      <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
+                    )}
+                    {purchaseOrder.ship_to_contact_name?.trim() && (
+                      <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
+                    )}
+                    {purchaseOrder.ship_to_contact_phone?.trim() && (
+                      <div>📞 {purchaseOrder.ship_to_contact_phone}</div>
+                    )}
+                    {purchaseOrder.ship_to_contact_email?.trim() && (
+                      <div>✉️ {purchaseOrder.ship_to_contact_email}</div>
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Ship To Information */}
-      {(purchaseOrder.ship_to_company_name || purchaseOrder.ship_to_address_details) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ship To / Consignee</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-slate-600 space-y-1">
-              {purchaseOrder.ship_to_company_name && (
-                <div className="font-medium">{purchaseOrder.ship_to_company_name}</div>
-              )}
-              {purchaseOrder.ship_to_address_details && (
-                <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
-              )}
-              {purchaseOrder.ship_to_contact_name && (
-                <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
-              )}
-              {purchaseOrder.ship_to_contact_phone && (
-                <div>📞 {purchaseOrder.ship_to_contact_phone}</div>
-              )}
-              {purchaseOrder.ship_to_contact_email && (
-                <div>✉️ {purchaseOrder.ship_to_contact_email}</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Additional Details */}
       <Card>
@@ -510,36 +430,62 @@ export default function PurchaseOrderViewClientPage({ poId }: PurchaseOrderViewC
         </CardContent>
       </Card>
 
-      {/* Cost Summary */}
+      {/* Cost Summary with Traceability */}
       <Card>
         <CardHeader>
           <CardTitle>Cost Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>${(purchaseOrder.subtotal || 0).toFixed(2)}</span>
+          <div className="flex gap-8">
+            {/* Left Column: Traceability Notice & Authorized Sign */}
+            <div className="flex-1 space-y-4">
+              {/* Traceability Notice */}
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm font-medium text-slate-900">
+                All material must be traced to a certificated operator. Any material not traced to an operator must be pre-approved prior to shipment.
+              </div>
+              
+              {/* Authorized Signature Box */}
+              <div>
+                <div className="text-sm font-semibold text-slate-900 mb-2">Authorized Sign:</div>
+                <div className="border border-slate-300 rounded h-20 bg-gray-50 flex items-center justify-center">
+                  <img 
+                    src="/signature.png" 
+                    alt="Signature" 
+                    className="max-h-12 max-w-full object-contain opacity-80"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span>Freight/Forwarding:</span>
-              <span>${(purchaseOrder.freight_charge || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Misc Charge:</span>
-              <span>${(purchaseOrder.misc_charge || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>VAT ({purchaseOrder.vat_percentage || 0}%):</span>
-              <span>${((purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-lg border-t pt-2">
-              <span>Total NET ({purchaseOrder.currency}):</span>
-              <span>${(purchaseOrder.total_amount || 0).toFixed(2)}</span>
+            
+            {/* Right Column: Cost Summary */}
+            <div className="w-80">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>${(purchaseOrder.subtotal || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Freight/Forwarding:</span>
+                  <span>${(purchaseOrder.freight_charge || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Misc Charge:</span>
+                  <span>${(purchaseOrder.misc_charge || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>VAT ({purchaseOrder.vat_percentage || 0}%):</span>
+                  <span>${((purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg border-t pt-2">
+                  <span>Total NET ({purchaseOrder.currency}):</span>
+                  <span>${(purchaseOrder.total_amount || 0).toFixed(2)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
     </div>
   </div>
 );

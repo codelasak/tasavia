@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Download, Printer } from 'lucide-react'
@@ -84,89 +84,12 @@ interface PurchaseOrderDetails {
 
 interface PurchaseOrderPdfClientPageProps {
   poId: string
+  initialPurchaseOrder: PurchaseOrderDetails
 }
 
-export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfClientPageProps) {
+export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder }: PurchaseOrderPdfClientPageProps) {
   const router = useRouter()
-  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchPurchaseOrder = useCallback(async (id: string) => {
-    try {
-      // First fetch the purchase order with basic company info
-      const { data: poData, error: poError } = await supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          my_companies(*),
-          companies(*),
-          company_ship_via!ship_via_id(*),
-          po_items(
-            *,
-            pn_master_table(pn, description)
-          )
-        `)
-        .eq('po_id', id)
-        .single()
-      
-      if (poError) throw poError
-
-      // Fetch my company addresses and contacts
-      const { data: myCompanyAddresses } = await supabase
-        .from('company_addresses')
-        .select('*')
-        .eq('company_id', poData.my_companies.my_company_id)
-        .eq('company_ref_type', 'my_companies')
-
-      const { data: myCompanyContacts } = await supabase
-        .from('company_contacts')
-        .select('*')
-        .eq('company_id', poData.my_companies.my_company_id)
-        .eq('company_ref_type', 'my_companies')
-
-      // Fetch vendor company addresses and contacts
-      const { data: vendorAddresses } = await supabase
-        .from('company_addresses')
-        .select('*')
-        .eq('company_id', poData.companies.company_id)
-        .eq('company_ref_type', 'companies')
-
-      const { data: vendorContacts } = await supabase
-        .from('company_contacts')
-        .select('*')
-        .eq('company_id', poData.companies.company_id)
-        .eq('company_ref_type', 'companies')
-
-      // Combine the data
-      const enrichedData = {
-        ...poData,
-        my_companies: {
-          ...poData.my_companies,
-          company_addresses: myCompanyAddresses || [],
-          company_contacts: myCompanyContacts || []
-        },
-        companies: {
-          ...poData.companies,
-          company_addresses: vendorAddresses || [],
-          company_contacts: vendorContacts || []
-        }
-      }
-      
-      setPurchaseOrder(enrichedData)
-    } catch (error) {
-      console.error('Error fetching purchase order:', error)
-      toast.error('Failed to fetch purchase order')
-      router.push('/portal/purchase-orders')
-    } finally {
-      setLoading(false)
-    }
-  }, [router])
-
-  useEffect(() => {
-    if (poId) {
-      fetchPurchaseOrder(poId)
-    }
-  }, [fetchPurchaseOrder, poId])
+  const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(initialPurchaseOrder)
 
   useEffect(() => {
     // Add PDF print mode class to html element when component mounts
@@ -188,14 +111,6 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
     window.print()
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-slate-500">Loading purchase order...</div>
-      </div>
-    )
-  }
-
   if (!purchaseOrder) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -204,7 +119,9 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
     )
   }
 
+
   const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
+  const hasShipToInfo = !!(purchaseOrder.ship_to_company_name?.trim() || purchaseOrder.ship_to_address_details?.trim())
 
   return (
     <div className="min-h-screen bg-white">
@@ -249,14 +166,14 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           </div>
         </div>
 
-        {/* Company Information */}
-        <div className="grid grid-cols-2 gap-8 mb-8">
+        {/* Company Information - Dynamic Layout */}
+        <div className={`grid gap-6 mb-8 ${hasShipToInfo ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <div>
             <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">FROM:</h3>
             <div className="space-y-1 text-sm">
               <div className="font-semibold">{purchaseOrder.my_companies.my_company_name}</div>
               <div>{purchaseOrder.my_companies.my_company_code}</div>
-              {purchaseOrder.my_companies.company_addresses.length > 0 && (
+              {purchaseOrder.my_companies?.company_addresses?.length > 0 && (
                 <>
                   {purchaseOrder.my_companies.company_addresses.map((addr, idx) => (
                     <div key={idx}>
@@ -273,7 +190,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
                   ))}
                 </>
               )}
-              {purchaseOrder.my_companies.company_contacts.length > 0 && (
+              {purchaseOrder.my_companies?.company_contacts?.length > 0 && (
                 <>
                   {purchaseOrder.my_companies.company_contacts.map((contact, idx) => (
                     <div key={idx}>
@@ -291,7 +208,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
             <div className="space-y-1 text-sm">
               <div className="font-semibold">{purchaseOrder.companies.company_name}</div>
               <div>{purchaseOrder.companies.company_code}</div>
-              {purchaseOrder.companies.company_addresses.length > 0 && (
+              {purchaseOrder.companies?.company_addresses?.length > 0 && (
                 <>
                   {purchaseOrder.companies.company_addresses.map((addr, idx) => (
                     <div key={idx}>
@@ -308,7 +225,7 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
                   ))}
                 </>
               )}
-              {purchaseOrder.companies.company_contacts.length > 0 && (
+              {purchaseOrder.companies?.company_contacts?.length > 0 && (
                 <>
                   {purchaseOrder.companies.company_contacts.map((contact, idx) => (
                     <div key={idx}>
@@ -320,31 +237,31 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
               )}
             </div>
           </div>
-        </div>
 
-        {/* Ship To Information */}
-        {(purchaseOrder.ship_to_company_name || purchaseOrder.ship_to_address_details) && (
-          <div className="mb-8">
-            <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">SHIP TO / CONSIGNEE:</h3>
-            <div className="space-y-1 text-sm">
-              {purchaseOrder.ship_to_company_name && (
-                <div className="font-semibold">{purchaseOrder.ship_to_company_name}</div>
-              )}
-              {purchaseOrder.ship_to_address_details && (
-                <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
-              )}
-              {purchaseOrder.ship_to_contact_name && (
-                <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
-              )}
-              {purchaseOrder.ship_to_contact_phone && (
-                <div>Tel: {purchaseOrder.ship_to_contact_phone}</div>
-              )}
-              {purchaseOrder.ship_to_contact_email && (
-                <div>Email: {purchaseOrder.ship_to_contact_email}</div>
-              )}
+          {/* Ship To Information - Integrated */}
+          {hasShipToInfo && (
+            <div>
+              <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">SHIP TO:</h3>
+              <div className="space-y-1 text-sm">
+                {purchaseOrder.ship_to_company_name?.trim() && (
+                  <div className="font-semibold">{purchaseOrder.ship_to_company_name}</div>
+                )}
+                {purchaseOrder.ship_to_address_details?.trim() && (
+                  <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
+                )}
+                {purchaseOrder.ship_to_contact_name?.trim() && (
+                  <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
+                )}
+                {purchaseOrder.ship_to_contact_phone?.trim() && (
+                  <div>Tel: {purchaseOrder.ship_to_contact_phone}</div>
+                )}
+                {purchaseOrder.ship_to_contact_email?.trim() && (
+                  <div>Email: {purchaseOrder.ship_to_contact_email}</div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Additional Details */}
         <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
@@ -419,34 +336,49 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           </table>
         </div>
 
-        {/* Traceability Notice */}
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
-          
-          <div className="text-sm font-medium text-slate-900">
-            All material must be traced to a certificated operator. Any material not traced to an operator must be pre-approved prior to shipment.
+        {/* Cost Summary with Traceability */}
+        <div className="flex gap-8 mb-8">
+          {/* Left Column: Traceability Notice & Authorized Sign */}
+          <div className="flex-1 space-y-4">
+            {/* Traceability Notice */}
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm font-medium text-slate-900">
+              All material must be traced to a certificated operator. Any material not traced to an operator must be pre-approved prior to shipment.
+            </div>
+            
+            {/* Authorized Signature Box */}
+            <div>
+              <div className="text-sm font-semibold text-slate-900 mb-2">Authorized Sign:</div>
+              <div className="border border-slate-300 rounded h-20 bg-gray-50 flex items-center justify-center">
+                <Image 
+                  src="/signature.png" 
+                  alt="Signature" 
+                  width={120}
+                  height={48}
+                  className="max-h-12 max-w-full object-contain opacity-80"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Cost Summary */}
-        <div className="flex justify-end mb-8">
-          <div className="w-full max-w-xs sm:max-w-md md:w-80 overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
+          
+          {/* Right Column: Cost Summary */}
+          <div className="w-80">
+            <table className="w-full text-sm">
               <tbody>
                 <tr>
-                  <td className="py-1 text-sm">Subtotal:</td>
-                  <td className="py-1 text-sm text-right">${(purchaseOrder.subtotal || 0).toFixed(2)}</td>
+                  <td className="py-1">Subtotal:</td>
+                  <td className="py-1 text-right">${(purchaseOrder.subtotal || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 text-sm">Freight/Forwarding:</td>
-                  <td className="py-1 text-sm text-right">${(purchaseOrder.freight_charge || 0).toFixed(2)}</td>
+                  <td className="py-1">Freight/Forwarding:</td>
+                  <td className="py-1 text-right">${(purchaseOrder.freight_charge || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 text-sm">Misc Charge:</td>
-                  <td className="py-1 text-sm text-right">${(purchaseOrder.misc_charge || 0).toFixed(2)}</td>
+                  <td className="py-1">Misc Charge:</td>
+                  <td className="py-1 text-right">${(purchaseOrder.misc_charge || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 text-sm">VAT ({purchaseOrder.vat_percentage || 0}%):</td>
-                  <td className="py-1 text-sm text-right">${vatAmount.toFixed(2)}</td>
+                  <td className="py-1">VAT ({purchaseOrder.vat_percentage || 0}%):</td>
+                  <td className="py-1 text-right">${vatAmount.toFixed(2)}</td>
                 </tr>
                 <tr className="border-t border-slate-300">
                   <td className="py-2 font-bold">Total NET ({purchaseOrder.currency}):</td>
@@ -457,26 +389,6 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           </div>
         </div>
 
-        {/* Signature and Confirmation Section */}
-        <div className="grid grid-cols-2 gap-8 mb-8">
-          <div>
-            <h3 className="font-bold text-slate-900 mb-4 border-b pb-1">AUTHORIZED SIGNATURE:</h3>
-            <div className="border border-slate-300 h-20 mb-2"></div>
-            <div className="text-sm text-slate-600">
-              <div>Name: _________________________</div>
-              <div className="mt-2">Date: _________________________</div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-bold text-slate-900 mb-4 border-b pb-1">CONFIRMATION:</h3>
-            <div className="border border-slate-300 h-20 mb-2"></div>
-            <div className="text-sm text-slate-600">
-              <div>Confirmed By: ___________________</div>
-              <div className="mt-2">Date: _________________________</div>
-            </div>
-          </div>
-        </div>
 
         {/* Remarks */}
         {purchaseOrder.remarks_1 && (
@@ -487,9 +399,14 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
         )}
 
         {/* Footer */}
-        <div className="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-200">
-          <div>Purchase Order generated on {format(new Date(), 'MMMM dd, yyyy HH:mm')}</div>
-          <div className="mt-1">Status: {purchaseOrder.status}</div>
+        <div className="flex justify-between items-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-200">
+          <div>
+            <div>Purchase Order generated on {format(new Date(), 'MMMM dd, yyyy HH:mm')}</div>
+            <div className="mt-1">Status: {purchaseOrder.status}</div>
+          </div>
+          <div className="text-right manual-page-number">
+            <div className="font-medium">Page 1 of 1</div>
+          </div>
         </div>
       </div>
 
@@ -508,6 +425,11 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           @page {
             margin: 0.5in;
             size: A4;
+            @bottom-right {
+              content: "Page " counter(page) " of " counter(pages);
+              font-size: 10px;
+              color: #6b7280;
+            }
           }
           
           .print\\:p-0 {
@@ -516,6 +438,11 @@ export default function PurchaseOrderPdfClientPage({ poId }: PurchaseOrderPdfCli
           
           .print\\:max-w-none {
             max-width: none !important;
+          }
+          
+          /* Hide manual page number in footer when printing since CSS will handle it */
+          .manual-page-number {
+            display: none !important;
           }
         }
       `}</style>
