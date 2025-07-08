@@ -511,16 +511,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             if (deleteAddressError) throw deleteAddressError;
             
             // Then insert new addresses
-            const addressesToInsert = company_addresses.map(address => ({
-              company_id: company.my_company_id,
-              company_ref_type: 'my_companies',
-              address_line1: address.address_line1,
-              address_line2: address.address_line2 || null,
-              city: address.city || null,
-              zip_code: address.zip_code || null,
-              country: address.country || null,
-              is_primary: address.is_primary || false
-            }));
+            const addressesToInsert = company_addresses
+              .filter(address => company.my_company_id && address.address_line1) // Only process if company_id and address_line1 exist
+              .map(address => ({
+                company_id: company.my_company_id!,
+                company_ref_type: 'my_companies',
+                address_line1: address.address_line1!,
+                address_line2: address.address_line2 || null,
+                city: address.city || null,
+                zip_code: address.zip_code || null,
+                country: address.country || null,
+                is_primary: address.is_primary || false
+              }));
             
             const { error: addressesError } = await supabase
               .from('company_addresses')
@@ -657,15 +659,17 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             if (deleteContactsError) throw deleteContactsError;
             
             // Then insert new contacts
-            const contactsToInsert = company_contacts.map(contact => ({
-              company_id: company.company_id,
-              company_ref_type: 'companies',
-              contact_name: contact.contact_name,
-              email: contact.email || null,
-              phone: contact.phone || null,
-              role: contact.role || null,
-              is_primary: contact.is_primary || false
-            }));
+            const contactsToInsert = company_contacts
+              .filter(contact => company.company_id && contact.contact_name) // Only process if company_id and contact_name exist
+              .map(contact => ({
+                company_id: company.company_id!,
+                company_ref_type: 'companies',
+                contact_name: contact.contact_name!,
+                email: contact.email || null,
+                phone: contact.phone || null,
+                role: contact.role || null,
+                is_primary: contact.is_primary || false
+              }));
             
             const { error: contactsError } = await supabase
               .from('company_contacts')
@@ -686,16 +690,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             if (deleteAddressError) throw deleteAddressError;
             
             // Then insert new addresses
-            const addressesToInsert = company_addresses.map(address => ({
-              company_id: company.company_id,
-              company_ref_type: 'companies',
-              address_line1: address.address_line1,
-              address_line2: address.address_line2 || null,
-              city: address.city || null,
-              zip_code: address.zip_code || null,
-              country: address.country || null,
-              is_primary: address.is_primary || false
-            }));
+            const addressesToInsert = company_addresses
+              .filter(address => company.company_id && address.address_line1) // Only process if company_id and address_line1 exist
+              .map(address => ({
+                company_id: company.company_id!,
+                company_ref_type: 'companies',
+                address_line1: address.address_line1!,
+                address_line2: address.address_line2 || null,
+                city: address.city || null,
+                zip_code: address.zip_code || null,
+                country: address.country || null,
+                is_primary: address.is_primary || false
+              }));
             
             const { error: addressesError } = await supabase
               .from('company_addresses')

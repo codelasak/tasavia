@@ -14,16 +14,16 @@ interface SalesOrderDetails {
   sales_order_id: string
   invoice_number: string
   customer_po_number: string | null
-  sales_date: string
-  status: string
-  sub_total: number
-  total_net: number
-  currency: string
+  sales_date: string | null
+  status: string | null
+  sub_total: number | null
+  total_net: number | null
+  currency: string | null
   payment_terms: string | null
   tracking_number: string | null
   remarks: string | null
-  created_at: string
-  updated_at: string
+  created_at: string | null
+  updated_at: string | null
   my_companies: {
     my_company_name: string
     my_company_code: string
@@ -31,22 +31,22 @@ interface SalesOrderDetails {
   }
   companies: {
     company_name: string
-    company_code: string
+    company_code: string | null
   }
   terms_and_conditions: {
     title: string
-    version: string
+    version: string | null
   } | null
   sales_order_items: Array<{
     sales_order_item_id: string
     line_number: number
     unit_price: number
-    line_total: number
+    line_total: number | null
     inventory: {
       inventory_id: string
       serial_number: string | null
       condition: string | null
-      quantity: number
+      quantity: number | null
       traceability_source: string | null
       traceable_to: string | null
       last_certified_agency: string | null
@@ -180,12 +180,12 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle>Status</CardTitle>
-              <Badge className={getStatusBadge(salesOrder.status)}>
-                {salesOrder.status}
+              <Badge className={getStatusBadge(salesOrder.status || 'Unknown')}>
+                {salesOrder.status || 'Unknown'}
               </Badge>
             </div>
             <div className="flex gap-2">
-              {getStatusActions(salesOrder.status).map((action) => (
+              {getStatusActions(salesOrder.status || 'Unknown').map((action) => (
                 <Button
                   key={action.status}
                   variant={action.variant as any}
@@ -216,7 +216,9 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
             </div>
             <div>
               <div className="text-slate-500 text-sm">Sales Date</div>
-              <div className="font-medium">{format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy')}</div>
+              <div className="font-medium">
+                {salesOrder.sales_date ? format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy') : 'N/A'}
+              </div>
             </div>
             {salesOrder.customer_po_number && (
               <div>
@@ -301,13 +303,13 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
                         <span className="text-slate-500">S/N:</span> {item.inventory.serial_number || 'N/A'}
                       </div>
                       <div>
-                        <span className="text-slate-500">Qty:</span> {item.inventory.quantity}
+                        <span className="text-slate-500">Qty:</span> {item.inventory.quantity || 0}
                       </div>
                       <div>
                         <span className="text-slate-500">Unit Price:</span> ${item.unit_price.toFixed(2)}
                       </div>
                       <div>
-                        <span className="text-slate-500">Line Total:</span> <b>${item.line_total.toFixed(2)}</b>
+                        <span className="text-slate-500">Line Total:</span> <b>${(item.line_total || 0).toFixed(2)}</b>
                       </div>
                     </div>
                     
@@ -346,11 +348,11 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>${salesOrder.sub_total.toFixed(2)}</span>
+              <span>${(salesOrder.sub_total || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg border-t pt-2">
-              <span>Total NET ({salesOrder.currency}):</span>
-              <span>${salesOrder.total_net.toFixed(2)}</span>
+              <span>Total NET ({salesOrder.currency || 'USD'}):</span>
+              <span>${(salesOrder.total_net || 0).toFixed(2)}</span>
             </div>
           </div>
         </CardContent>
@@ -378,11 +380,11 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-slate-500">Created</div>
-                <div>{format(new Date(salesOrder.created_at), 'PPP')}</div>
+                <div>{salesOrder.created_at ? format(new Date(salesOrder.created_at), 'PPP') : 'N/A'}</div>
               </div>
               <div>
                 <div className="text-slate-500">Last Updated</div>
-                <div>{format(new Date(salesOrder.updated_at), 'PPP')}</div>
+                <div>{salesOrder.updated_at ? format(new Date(salesOrder.updated_at), 'PPP') : 'N/A'}</div>
               </div>
             </div>
           </div>

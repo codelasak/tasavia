@@ -8,45 +8,10 @@ import { format } from 'date-fns'
 interface ATA106Data {
   sales_order_id: string
   invoice_number: string
-  sales_date: string
-  my_companies: {
-    my_company_name: string
-    my_company_code: string
-    address_line_1: string | null
-    address_line_2: string | null
-    city: string | null
-    state: string | null
-    postal_code: string | null
-    country: string | null
-    phone: string | null
-    email: string | null
-  }
-  companies: {
-    company_name: string
-    company_code: string
-    address_line_1: string | null
-    address_line_2: string | null
-    city: string | null
-    state: string | null
-    postal_code: string | null
-    country: string | null
-  }
-  sales_order_items: Array<{
-    line_number: number
-    inventory: {
-      serial_number: string | null
-      condition: string | null
-      quantity: number
-      traceability_source: string | null
-      traceable_to: string | null
-      last_certified_agency: string | null
-      part_status_certification: string | null
-      pn_master_table: {
-        pn: string
-        description: string | null
-      }
-    }
-  }>
+  sales_date: string | null
+  my_companies: any
+  companies: any
+  sales_order_items: any[]
 }
 
 interface ATA106ClientPageProps {
@@ -133,7 +98,7 @@ export default function ATA106ClientPage({ salesOrder }: ATA106ClientPageProps) 
             </h3>
             <div className="space-y-2 text-sm">
               <div><strong>Form Number:</strong> ATA106-{salesOrder.invoice_number}</div>
-              <div><strong>Date Issued:</strong> {format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy')}</div>
+              <div><strong>Date Issued:</strong> {salesOrder.sales_date ? format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy') : 'N/A'}</div>
               <div><strong>Reference:</strong> Invoice {salesOrder.invoice_number}</div>
             </div>
           </div>
@@ -144,7 +109,7 @@ export default function ATA106ClientPage({ salesOrder }: ATA106ClientPageProps) 
             </h3>
             <div className="space-y-2 text-sm">
               <div><strong>Transfer Type:</strong> Sale</div>
-              <div><strong>Transfer Date:</strong> {format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy')}</div>
+              <div><strong>Transfer Date:</strong> {salesOrder.sales_date ? format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy') : 'N/A'}</div>
               <div><strong>Number of Items:</strong> {traceableItems.length}</div>
             </div>
           </div>
@@ -160,8 +125,7 @@ export default function ATA106ClientPage({ salesOrder }: ATA106ClientPageProps) 
               <div className="font-semibold">{salesOrder.my_companies.my_company_name}</div>
               <div>Code: {salesOrder.my_companies.my_company_code}</div>
               <div>{formatAddress(salesOrder.my_companies)}</div>
-              {salesOrder.my_companies.phone && <div>Tel: {salesOrder.my_companies.phone}</div>}
-              {salesOrder.my_companies.email && <div>Email: {salesOrder.my_companies.email}</div>}
+              {/* Contact info not available in current schema */}
             </div>
           </div>
 

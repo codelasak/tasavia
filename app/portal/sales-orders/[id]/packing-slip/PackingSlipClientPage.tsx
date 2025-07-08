@@ -9,8 +9,8 @@ interface PackingSlipData {
   sales_order_id: string
   invoice_number: string
   customer_po_number: string | null
-  sales_date: string
-  status: string
+  sales_date: string | null
+  status: string | null
   tracking_number: string | null
   my_companies: {
     my_company_name: string
@@ -26,7 +26,7 @@ interface PackingSlipData {
   }
   companies: {
     company_name: string
-    company_code: string
+    company_code: string | null
     address_line_1: string | null
     address_line_2: string | null
     city: string | null
@@ -39,7 +39,7 @@ interface PackingSlipData {
     inventory: {
       serial_number: string | null
       condition: string | null
-      quantity: number
+      quantity: number | null
       pn_master_table: {
         pn: string
         description: string | null
@@ -95,7 +95,7 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
             <h1 className="text-3xl font-bold text-slate-900 mb-2">PACKING SLIP</h1>
             <div className="text-slate-600">
               <div className="font-mono font-bold text-lg">PS-{salesOrder.invoice_number}</div>
-              <div>Ship Date: {format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy')}</div>
+              <div>Ship Date: {salesOrder.sales_date ? format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy') : 'N/A'}</div>
               <div>Invoice: {salesOrder.invoice_number}</div>
               {salesOrder.customer_po_number && (
                 <div>Customer PO: {salesOrder.customer_po_number}</div>
@@ -127,7 +127,9 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
           <div className="bg-slate-50 p-4 rounded border-2 border-slate-300">
             <div className="font-semibold text-slate-900 mb-2 text-lg">Ship To:</div>
             <div className="font-bold text-lg">{salesOrder.companies.company_name}</div>
-            <div className="text-slate-600">({salesOrder.companies.company_code})</div>
+            {salesOrder.companies.company_code && (
+              <div className="text-slate-600">({salesOrder.companies.company_code})</div>
+            )}
             <div className="text-slate-600 whitespace-pre-line mt-2">
               {formatAddress(salesOrder.companies)}
             </div>
@@ -164,7 +166,7 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
                     {item.inventory.serial_number || 'N/A'}
                   </td>
                   <td className="border border-slate-400 p-3 text-center font-bold text-lg">
-                    {item.inventory.quantity}
+                    {item.inventory.quantity || 0}
                   </td>
                   <td className="border border-slate-400 p-3 font-medium">
                     {item.inventory.condition || 'N/A'}
@@ -186,7 +188,7 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
               <div>
                 <div className="font-semibold text-slate-900">Total Quantity:</div>
                 <div className="text-lg font-bold">
-                  {salesOrder.sales_order_items.reduce((sum, item) => sum + item.inventory.quantity, 0)}
+                  {salesOrder.sales_order_items.reduce((sum, item) => sum + (item.inventory.quantity || 0), 0)}
                 </div>
               </div>
             </div>
