@@ -169,7 +169,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden md:block h-full min-h-screen">
+      <div className="hidden md:block fixed left-0 top-0 h-screen w-64 z-30">
         {sidebarContent}
       </div>
       {/* Mobile drawer */}

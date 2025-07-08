@@ -1,0 +1,45 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`UI Consistency Snapshots Companies List Snapshots should match snapshot for external companies list empty: external-companies-list-empty 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List0 external companies • 0 shownAdd Comp</div>`;
+
+exports[`UI Consistency Snapshots Companies List Snapshots should match snapshot for external companies list with data: external-companies-list-with-data 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List1 external companies • 1 shownAdd Comp</div>`;
+
+exports[`UI Consistency Snapshots Companies List Snapshots should match snapshot for my companies list empty: my-companies-list-empty 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List0 my companies • 0 shownAdd CompanyNo </div>`;
+
+exports[`UI Consistency Snapshots Companies List Snapshots should match snapshot for my companies list with data: my-companies-list-with-data 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List1 my companies • 1 shownAdd CompanyMy </div>`;
+
+exports[`UI Consistency Snapshots Company Dialog Snapshots should match snapshot for closed dialog: company-dialog-closed 1`] = `null`;
+
+exports[`UI Consistency Snapshots Company Dialog Snapshots should match snapshot for editing external company dialog: external-company-dialog-edit 1`] = `null`;
+
+exports[`UI Consistency Snapshots Company Dialog Snapshots should match snapshot for editing my company dialog: my-company-dialog-edit 1`] = `null`;
+
+exports[`UI Consistency Snapshots Company Dialog Snapshots should match snapshot for new external company dialog: external-company-dialog-new 1`] = `null`;
+
+exports[`UI Consistency Snapshots Company Dialog Snapshots should match snapshot for new my company dialog: my-company-dialog-new 1`] = `null`;
+
+exports[`UI Consistency Snapshots Component States Snapshots should match snapshot for companies list with multiple shipping methods: companies-list-multiple-shipping 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List1 external companies • 1 shownAdd Comp</div>`;
+
+exports[`UI Consistency Snapshots Component States Snapshots should match snapshot for company with no contacts or addresses: companies-list-minimal-data 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List1 external companies • 1 shownAdd Comp</div>`;
+
+exports[`UI Consistency Snapshots Component States Snapshots should match snapshot for mixed company types: companies-list-mixed-types 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List3 external companies • 3 shownAdd Comp</div>`;
+
+exports[`UI Consistency Snapshots Edge Cases Snapshots should match snapshot for special characters in part numbers: part-numbers-list-special-chars 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Part Numbers1 part numbers • 1 shownAdd Part Numbe</div>`;
+
+exports[`UI Consistency Snapshots Edge Cases Snapshots should match snapshot for very long company names: companies-list-long-names 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List1 external companies • 1 shownAdd Comp</div>`;
+
+exports[`UI Consistency Snapshots Part Number Dialog Snapshots should match snapshot for closed part number dialog: part-number-dialog-closed 1`] = `null`;
+
+exports[`UI Consistency Snapshots Part Number Dialog Snapshots should match snapshot for editing part number dialog: part-number-dialog-edit 1`] = `null`;
+
+exports[`UI Consistency Snapshots Part Number Dialog Snapshots should match snapshot for new part number dialog: part-number-dialog-new 1`] = `null`;
+
+exports[`UI Consistency Snapshots Part Numbers List Snapshots should match snapshot for part numbers list empty: part-numbers-list-empty 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Part Numbers0 part numbers • 0 shownAdd Part Numbe</div>`;
+
+exports[`UI Consistency Snapshots Part Numbers List Snapshots should match snapshot for part numbers list with data: part-numbers-list-with-data 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Part Numbers2 part numbers • 2 shownAdd Part Numbe</div>`;
+
+exports[`UI Consistency Snapshots Part Numbers List Snapshots should match snapshot for part numbers with long descriptions: part-numbers-list-long-text 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Part Numbers1 part numbers • 1 shownAdd Part Numbe</div>`;
+
+exports[`UI Consistency Snapshots Responsive Layout Snapshots should match snapshot for mobile layout: part-numbers-list-mobile 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Part Numbers2 part numbers • 2 shownAdd Part Numbe</div>`;
+
+exports[`UI Consistency Snapshots Responsive Layout Snapshots should match snapshot for wide screen layout: companies-list-wide-screen 1`] = `<div class="rounded-lg border bg-card text-card-foreground shadow-sm">Company List1 external companies • 1 shownAdd Comp</div>`;

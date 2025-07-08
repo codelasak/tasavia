@@ -87,7 +87,7 @@ describe('CompanyDialog', () => {
     expect(screen.getByRole('tab', { name: 'Shipping' })).toBeInTheDocument();
   });
 
-  it('renders the dialog for my company without shipping tab', async () => {
+  it('renders the dialog for my company with shipping tab', async () => {
     render(<CompanyDialog {...mockProps} type="my_company" />);
 
     await waitFor(() => {
@@ -97,7 +97,7 @@ describe('CompanyDialog', () => {
     expect(screen.getByRole('tab', { name: 'Basic Info' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Contacts' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Addresses' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Shipping' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Shipping' })).toBeInTheDocument();
   });
 
   it('does not render when closed', () => {
