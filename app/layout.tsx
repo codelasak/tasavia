@@ -14,6 +14,11 @@ export const metadata: Metadata = {
   description: 'ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.',
   keywords: 'aviation, aircraft, teardown, maintenance, repair, components, parts, technical services',
   authors: [{ name: 'TASAVIA' }],
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
   openGraph: {
     title: 'TASAVIA - Aviation Technical & Commercial Services',
     description: 'ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.',
