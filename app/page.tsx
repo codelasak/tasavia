@@ -170,10 +170,9 @@ export default function HomePage() {
               <Image
                 src="/logo.png"
                 alt="TASAVIA"
-                width={140}
-                height={50}
-                className="h-12 w-auto"
-                style={{ width: "auto", height: "auto" }}
+                width={110}
+                height={36}
+                className="h-12 w-36"
                 priority
               />
             </motion.div>
