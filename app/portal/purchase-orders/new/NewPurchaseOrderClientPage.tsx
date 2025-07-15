@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
 
 interface MyCompany {
   my_company_id: string
@@ -116,6 +117,7 @@ export default function NewPurchaseOrderClientPage({
 }: NewPurchaseOrderClientPageProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const { addPurchaseOrder } = usePurchaseOrdersContext()
 
   // Auto-select current user in Prepared By field
   useEffect(() => {
@@ -131,7 +133,7 @@ export default function NewPurchaseOrderClientPage({
           const userName = accountData?.name || user.email || 'Current User'
           form.setValue('prepared_by_name', userName)
         } catch (error) {
-          console.error('Error fetching user name:', error)
+          // Error fetching user name
           form.setValue('prepared_by_name', user.email || 'Current User')
         }
       }
@@ -267,10 +269,31 @@ export default function NewPurchaseOrderClientPage({
         throw new Error(`Failed to create line items: ${itemsError.message}`)
       }
 
+      // Add the new PO to the global context so it appears in the list immediately
+      const newPOForList = {
+        po_id: poData.po_id,
+        po_number: poData.po_number,
+        po_date: poData.po_date,
+        status: poData.status,
+        total_amount: poData.total_amount || 0,
+        my_companies: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
+          my_company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
+          my_company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
+        } : null,
+        companies: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
+          company_name: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
+          company_code: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
+        } : null,
+        created_at: poData.created_at || new Date().toISOString()
+      }
+      
+      addPurchaseOrder(newPOForList)
       toast.success('Purchase order created successfully')
+      
+      // Redirect to purchase orders list
       router.push('/portal/purchase-orders')
     } catch (error: unknown) {
-      console.error('Error creating purchase order:', error)
+      // Error creating purchase order
       const errorMessage = error instanceof Error ? error.message : 'Failed to create purchase order'
       toast.error(errorMessage)
     }
@@ -294,9 +317,9 @@ export default function NewPurchaseOrderClientPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" onClick={() => router.back()}>
+        <Button variant="ghost" onClick={() => router.push('/portal/purchase-orders')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Back to List
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Create Purchase Order</h1>

@@ -29,7 +29,7 @@ async function fetchPurchaseOrder(poId: string) {
       .single()
     
     if (poError) {
-      console.error('PO Fetch Error:', poError)
+      // PO fetch error
       return null
     }
 
@@ -76,7 +76,7 @@ async function fetchPurchaseOrder(poId: string) {
     
     return enrichedData
   } catch (error) {
-    console.error('Failed to fetch purchase order:', error)
+    // Failed to fetch purchase order
     return null
   }
 }

@@ -12,7 +12,7 @@ interface PurchaseOrderEditPageProps {
 
 async function getPurchaseOrderData(poId: string) {
   try {
-    console.error('🔍 Fetching PO data for ID:', poId)
+    // Fetching PO data
     
     // Fetch purchase order data
     const { data: poData, error: poError } = await supabase
@@ -22,15 +22,11 @@ async function getPurchaseOrderData(poId: string) {
       .single()
 
     if (poError) {
-      console.error('❌ PO Fetch Error:', poError)
+      // PO fetch error
       return null
     }
     
-    console.error('✅ PO Data fetched:', {
-      po_id: poData.po_id,
-      po_number: poData.po_number,
-      ship_to_company_name: poData.ship_to_company_name
-    })
+    // PO data fetched successfully
 
     // Fetch line items
     const { data: itemsData, error: itemsError } = await supabase
@@ -47,21 +43,18 @@ async function getPurchaseOrderData(poId: string) {
       .order('line_number')
 
     if (itemsError) {
-      console.error('❌ PO Items Fetch Error:', itemsError)
+      // PO items fetch error
       return null
     }
     
-    console.error('✅ Items Data fetched:', {
-      itemsCount: itemsData?.length || 0,
-      firstItem: itemsData?.[0]
-    })
+    // Items data fetched successfully
 
     return {
       purchaseOrder: poData,
       items: itemsData || []
     }
   } catch (error) {
-    console.error('Error fetching purchase order:', error)
+    // Error fetching purchase order
     return null
   }
 }

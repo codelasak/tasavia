@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Edit, FileText, Printer, Trash2 } from 'lucide-react'
+import { ArrowLeft, Edit, FileText, Printer, Trash2, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -92,6 +92,7 @@ interface PurchaseOrderViewClientPageProps {
 export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder }: PurchaseOrderViewClientPageProps) {
   const router = useRouter()
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(initialPurchaseOrder)
+  const [isDeleting, setIsDeleting] = useState(false)
 
 
 
@@ -122,7 +123,7 @@ export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder
         .limit(1)
 
       if (inventoryCheckError) {
-        console.error('Error checking inventory references:', inventoryCheckError)
+        // Error checking inventory references
         throw new Error('Failed to check purchase order references')
       }
 
@@ -138,7 +139,7 @@ export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder
         .eq('po_id', purchaseOrder.po_id)
 
       if (itemsDeleteError) {
-        console.error('Error deleting PO items:', itemsDeleteError)
+        // Error deleting PO items
         throw itemsDeleteError
       }
 
@@ -149,14 +150,15 @@ export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder
         .eq('po_id', purchaseOrder.po_id)
 
       if (poDeleteError) {
-        console.error('Error deleting purchase order:', poDeleteError)
+        // Error deleting purchase order
         throw poDeleteError
       }
 
       toast.success('Purchase order deleted successfully')
+      setIsDeleting(false)
       router.push('/portal/purchase-orders')
     } catch (error: unknown) {
-      console.error('Error deleting purchase order:', error)
+      // Error deleting purchase order
       
       // Handle specific error cases with proper type checking
       const errorObj = error as { code?: string; message?: string }
@@ -189,7 +191,7 @@ export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => router.back()}>
+            <Button variant="ghost" onClick={() => router.push('/portal/purchase-orders')}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>

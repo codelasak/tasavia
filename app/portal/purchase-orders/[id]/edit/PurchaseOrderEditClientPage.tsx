@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import POCompletionModal from '@/components/purchase-orders/POCompletionModal'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
 
 interface MyCompany {
   my_company_id: string
@@ -122,6 +123,7 @@ export default function PurchaseOrderEditClientPage({
 }: PurchaseOrderEditClientPageProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const { updatePurchaseOrder: updatePOInContext } = usePurchaseOrdersContext()
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<string>('')
   const [currentPoNumber, setCurrentPoNumber] = useState<string>(initialPurchaseOrder?.po_number || '')
@@ -149,15 +151,11 @@ export default function PurchaseOrderEditClientPage({
 
   // Initialize form with pre-fetched data
   useEffect(() => {
-    console.error('🔄 Form initialization data:', { 
-      initialPurchaseOrder: !!initialPurchaseOrder, 
-      initialItems: initialItems?.length || 0,
-      poData: initialPurchaseOrder
-    })
+    // Form initialization started
     
     if (initialPurchaseOrder) {
       const formattedItems = (initialItems || []).map(item => {
-        console.error('📦 Formatting item:', item)
+        // Processing item
         return {
           po_item_id: item.po_item_id,
           pn_id: item.pn_id || item.pn_master_table?.pn_id || '',
@@ -169,7 +167,7 @@ export default function PurchaseOrderEditClientPage({
         }
       })
       
-      console.error('✅ Formatted items:', formattedItems)
+      // Items formatted successfully
       
       // Ensure at least one item exists for the form
       const itemsToSet = formattedItems.length > 0 ? formattedItems : [{
@@ -181,11 +179,7 @@ export default function PurchaseOrderEditClientPage({
         condition: '',
       }]
       
-      console.error('🚀 Resetting form with:', {
-        my_company_id: initialPurchaseOrder.my_company_id,
-        vendor_company_id: initialPurchaseOrder.vendor_company_id,
-        itemsCount: itemsToSet.length
-      })
+      // Resetting form with initial data
       
       // Reset the entire form with all data to ensure useFieldArray updates properly
       form.reset({
@@ -207,9 +201,9 @@ export default function PurchaseOrderEditClientPage({
       })
       
       setCurrentPoNumber(initialPurchaseOrder.po_number)
-      console.error('✅ Form reset complete')
+      // Form reset complete
     } else {
-      console.error('❌ No initialPurchaseOrder data available')
+      // No initial data available
     }
   }, [initialPurchaseOrder, initialItems, form])
 
@@ -227,7 +221,7 @@ export default function PurchaseOrderEditClientPage({
           const userName = accountData?.name || user.email || 'Current User'
           form.setValue('prepared_by_name', userName)
         } catch (error) {
-          console.error('Error fetching user name:', error)
+          // Error fetching user name
           form.setValue('prepared_by_name', user.email || 'Current User')
         }
       }
@@ -285,7 +279,7 @@ export default function PurchaseOrderEditClientPage({
       router.push(`/portal/purchase-orders/${poId}`)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
-      console.error('Error completing purchase order:', errorMessage)
+      toast.error('Failed to complete purchase order')
       toast.error(`Completion failed: ${errorMessage}`)
       throw error
     }
@@ -293,25 +287,21 @@ export default function PurchaseOrderEditClientPage({
 
   const updatePurchaseOrder = async (data: PurchaseOrderFormValues) => {
     try {
-      console.error('🔄 Starting PO update...')
+      // Starting purchase order update
       const subtotal = calculateSubtotal()
       const total = calculateTotal()
-      console.error('💰 Calculated totals:', { subtotal, total })
+      // Totals calculated
 
     // Get ship-to company information if selected
     let shipToData = {}
-    console.error('🚢 Processing ship-to selection:', {
-      ship_to_company_id: data.ship_to_company_id,
-      ship_to_company_type: data.ship_to_company_type,
-      hasSelection: !!(data.ship_to_company_id && data.ship_to_company_type)
-    })
+    // Processing ship-to selection
     
     if (data.ship_to_company_id && data.ship_to_company_type) {
       const shipToCompany = data.ship_to_company_type === 'my_company' 
         ? myCompanies.find(c => c.my_company_id === data.ship_to_company_id)
         : externalCompanies.find(c => c.company_id === data.ship_to_company_id)
       
-      console.error('🏢 Found ship-to company:', shipToCompany)
+      // Ship-to company found
       
       if (shipToCompany) {
         const companyName = 'my_company_name' in shipToCompany 
@@ -328,17 +318,17 @@ export default function PurchaseOrderEditClientPage({
           ship_to_contact_phone: contact?.phone || null,
           ship_to_contact_email: contact?.email || null,
         }
-        console.error('✅ Ship-to data prepared:', shipToData)
+        // Ship-to data prepared
       }
     } else {
       // IMPORTANT: Don't clear existing ship-to fields if no new selection is made
       // This preserves existing ship-to information in the database
-      console.error('🔄 No new ship-to selection - preserving existing data')
+      // Preserving existing ship-to data
       // shipToData remains empty, so existing ship-to fields won't be updated
     }
 
     // Update the purchase order
-    console.error('📝 Updating PO in database...')
+    // Updating purchase order in database
     const { error: poUpdateError } = await supabase
       .from('purchase_orders')
       .update({
@@ -361,13 +351,13 @@ export default function PurchaseOrderEditClientPage({
       .eq('po_id', poId)
 
     if (poUpdateError) {
-      console.error('❌ PO update failed:', poUpdateError)
+      // Purchase order update failed
       throw new Error(`Failed to update purchase order: ${poUpdateError.message}`)
     }
-    console.error('✅ PO updated successfully')
+    // Purchase order updated successfully
 
     // Delete existing line items
-    console.error('🗑️ Deleting existing line items for PO:', poId)
+    // Deleting existing line items
     const { data: deletedItems, error: deleteError } = await supabase
       .from('po_items')
       .delete()
@@ -375,18 +365,10 @@ export default function PurchaseOrderEditClientPage({
       .select()
 
     if (deleteError) {
-      console.error('❌ Delete items failed:', {
-        error: deleteError,
-        poId,
-        errorCode: deleteError.code,
-        errorMessage: deleteError.message
-      })
+      // Failed to delete existing items
       throw new Error(`Failed to delete existing line items: ${deleteError.message}`)
     }
-    console.error('✅ Items deleted successfully:', {
-      deletedCount: deletedItems?.length || 0,
-      deletedItems
-    })
+    // Existing items deleted successfully
 
     // Create new line items
     const lineItems = data.items.map((item, index) => ({
@@ -401,10 +383,7 @@ export default function PurchaseOrderEditClientPage({
     }))
 
 
-    console.error('➕ Inserting new line items:', {
-      itemCount: lineItems.length,
-      lineItems
-    })
+    // Inserting new line items
     
     const { data: insertedItems, error: itemsError } = await supabase
       .from('po_items')
@@ -412,20 +391,32 @@ export default function PurchaseOrderEditClientPage({
       .select()
 
     if (itemsError) {
-      console.error('❌ Insert items failed:', {
-        error: itemsError,
-        lineItems,
-        errorCode: itemsError.code,
-        errorMessage: itemsError.message
-      })
+      // Failed to insert new items
       throw new Error(`Failed to insert new line items: ${itemsError.message}`)
     }
-    console.error('✅ Items inserted successfully:', {
-      insertedCount: insertedItems?.length || 0,
-      insertedItems
-    })
+    // Items inserted successfully
+
+    // Update the global context with the updated PO
+    const updatedPOForList = {
+      po_id: poId,
+      po_number: currentPoNumber,
+      po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
+      status: data.status,
+      total_amount: calculateTotal(),
+      my_companies: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
+        my_company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
+        my_company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
+      } : null,
+      companies: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
+        company_name: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
+        company_code: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
+      } : null,
+      created_at: initialPurchaseOrder?.created_at || new Date().toISOString()
+    }
+    
+    updatePOInContext(updatedPOForList)
   } catch (error) {
-    console.error('💥 UpdatePurchaseOrder failed:', error)
+    // Update purchase order failed
     throw error
   }
 
@@ -433,19 +424,15 @@ export default function PurchaseOrderEditClientPage({
 
   const onSubmit = async (data: PurchaseOrderFormValues) => {
     try {
-      console.error('🚀 Form submission started', {
-        formData: data,
-        hasErrors: Object.keys(form.formState.errors).length > 0,
-        errors: form.formState.errors
-      })
+      // Form submission started
       
       if (Object.keys(form.formState.errors).length > 0) {
-        console.error('❌ Form has validation errors:', form.formState.errors)
+        // Form has validation errors
         toast.error('Please fix form validation errors before submitting')
         return
       }
       
-      console.error('✅ Form validation passed, starting update...')
+      // Form validation passed, starting update
       
       // Add timeout wrapper to prevent infinite hanging
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -457,16 +444,22 @@ export default function PurchaseOrderEditClientPage({
         timeoutPromise
       ])
       
-      console.error('🎉 Update completed successfully')
+      // Update completed successfully
       toast.success('Purchase order updated successfully')
-      router.push(`/portal/purchase-orders/${poId}`)
+      
+      // Show success message with options
+      const viewUpdated = confirm(
+        `Purchase order updated successfully!\n\nWould you like to view the updated purchase order?`
+      )
+      
+      if (viewUpdated) {
+        router.push(`/portal/purchase-orders/${poId}`)
+      } else {
+        router.push('/portal/purchase-orders')
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
-      console.error('💥 Form submission failed:', {
-        error,
-        errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      })
+      // Form submission failed
       toast.error(`Update failed: ${errorMessage}`)
     }
   }
@@ -490,9 +483,9 @@ export default function PurchaseOrderEditClientPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" onClick={() => router.back()}>
+        <Button variant="ghost" onClick={() => router.push('/portal/purchase-orders')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Back to List
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Edit Purchase Order</h1>        </div>

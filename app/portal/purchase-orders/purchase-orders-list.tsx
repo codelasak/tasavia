@@ -11,6 +11,7 @@ import Link from 'next/link'
 import * as dateFns from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
 
 interface PurchaseOrder {
   po_id: string
@@ -29,15 +30,17 @@ interface PurchaseOrder {
   created_at: string
 }
 
-interface PurchaseOrdersListProps {
-  initialPurchaseOrders: PurchaseOrder[]
-}
-
-export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOrdersListProps) {
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders)
-  const [filteredPOs, setFilteredPOs] = useState<PurchaseOrder[]>(initialPurchaseOrders)
+export default function PurchaseOrdersList() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [filteredPOs, setFilteredPOs] = useState<PurchaseOrder[]>([])
+
+  // Use context for global PO state management
+  const {
+    purchaseOrders,
+    deletePurchaseOrder,
+    isOptimistic
+  } = usePurchaseOrdersContext()
 
   useEffect(() => {
     let filtered = purchaseOrders.filter(po =>
@@ -70,58 +73,49 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
     }
 
     try {
-      // First check if there are any references to this PO in inventory
-      const { data: inventoryReferences, error: inventoryCheckError } = await supabase
-        .from('inventory')
-        .select('inventory_id')
-        .eq('po_id_original', po.po_id)
-        .limit(1)
+      // Use context delete for immediate UI feedback
+      await deletePurchaseOrder(po.po_id, async () => {
+        // First check if there are any references to this PO in inventory
+        const { data: inventoryReferences, error: inventoryCheckError } = await supabase
+          .from('inventory')
+          .select('inventory_id')
+          .eq('po_id_original', po.po_id)
+          .limit(1)
 
-      if (inventoryCheckError) {
-        console.error('Error checking inventory references:', inventoryCheckError)
-        throw new Error('Failed to check purchase order references')
-      }
+        if (inventoryCheckError) {
+          throw new Error('Failed to check purchase order references')
+        }
 
-      if (inventoryReferences && inventoryReferences.length > 0) {
-        toast.error('Cannot delete purchase order: It is referenced in inventory records')
-        return
-      }
+        if (inventoryReferences && inventoryReferences.length > 0) {
+          throw new Error('Cannot delete purchase order: It is referenced in inventory records')
+        }
 
-      // Delete PO items first (due to foreign key constraint)
-      const { error: itemsDeleteError } = await supabase
-        .from('po_items')
-        .delete()
-        .eq('po_id', po.po_id)
+        // Delete PO items first (due to foreign key constraint)
+        const { error: itemsDeleteError } = await supabase
+          .from('po_items')
+          .delete()
+          .eq('po_id', po.po_id)
 
-      if (itemsDeleteError) {
-        console.error('Error deleting PO items:', itemsDeleteError)
-        throw itemsDeleteError
-      }
+        if (itemsDeleteError) {
+          throw itemsDeleteError
+        }
 
-      // Then delete the purchase order
-      const { error: poDeleteError } = await supabase
-        .from('purchase_orders')
-        .delete()
-        .eq('po_id', po.po_id)
+        // Then delete the purchase order
+        const { error: poDeleteError } = await supabase
+          .from('purchase_orders')
+          .delete()
+          .eq('po_id', po.po_id)
 
-      if (poDeleteError) {
-        console.error('Error deleting purchase order:', poDeleteError)
-        throw poDeleteError
-      }
-
-      // Update the local state to remove the deleted PO
-      setPurchaseOrders(current => current.filter(p => p.po_id !== po.po_id))
-      toast.success('Purchase order deleted successfully')
+        if (poDeleteError) {
+          throw poDeleteError
+        }
+      })
     } catch (error: any) {
-      console.error('Error deleting purchase order:', error)
-      
       // Handle specific error cases
-      if (error.code === '23503') {
-        toast.error('Cannot delete purchase order: It is referenced by other records')
-      } else if (error.message?.includes('foreign key')) {
+      if (error.message.includes('referenced')) {
+        toast.error(error.message)
+      } else if (error.message.includes('foreign key')) {
         toast.error('Cannot delete purchase order: It is referenced in other records')
-      } else {
-        toast.error(error.message || 'Failed to delete purchase order')
       }
     }
   }
@@ -129,10 +123,15 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Purchase Order List</CardTitle>
-        <CardDescription>
-          {purchaseOrders.length} purchase orders • {filteredPOs.length} shown
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Purchase Order List</CardTitle>
+            <CardDescription>
+              {purchaseOrders.length} purchase orders • {filteredPOs.length} shown
+            </CardDescription>
+          </div>
+
+        </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-4 sm:gap-0 pt-2 pb-2">
           <div className="relative w-full sm:w-auto flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
@@ -229,8 +228,11 @@ export default function PurchaseOrdersList({ initialPurchaseOrders }: PurchaseOr
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className={`flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 ${
+                          isOptimistic(po.po_id) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         onClick={() => handleDelete(po)}
+                        disabled={isOptimistic(po.po_id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -75,7 +75,7 @@ export default function POCompletionModal({
         .eq('po_id', poId)
 
       if (error) {
-        console.error('Error fetching PO items:', error)
+        // Error fetching PO items
         toast.error('Failed to load PO items preview')
         return
       }
@@ -89,7 +89,7 @@ export default function POCompletionModal({
       }))
       setPreviewItems(transformedItems)
     } catch (error) {
-      console.error('Error fetching preview:', error)
+      // Error fetching preview
       toast.error('Failed to load preview')
     } finally {
       setFetchingPreview(false)
@@ -105,13 +105,13 @@ export default function POCompletionModal({
         .limit(1)
 
       if (error) {
-        console.error('Error checking existing inventory:', error)
+        // Error checking existing inventory
         return
       }
 
       setInventoryExists(data && data.length > 0)
     } catch (error) {
-      console.error('Error checking inventory:', error)
+      // Error checking inventory
     }
   }
 
@@ -121,7 +121,7 @@ export default function POCompletionModal({
       await onConfirm()
       onClose()
     } catch (error) {
-      console.error('Error confirming PO completion:', error)
+      // Error confirming PO completion
     } finally {
       setLoading(false)
     }
