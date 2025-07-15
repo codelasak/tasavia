@@ -38,53 +38,90 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     console.log("AuthProvider useEffect: Initializing auth state listener.");
 
+    let isMounted = true;
+    let lastUserId: string | null = null;
+
     // Listen for auth changes, this is the primary source of truth for client-side session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthProvider: Auth state changed!");
       console.log("Event:", event);
       console.log("Session:", session);
 
+      // Prevent race conditions by checking if component is still mounted
+      if (!isMounted) return;
+
       if (session?.user) {
+        // Prevent unnecessary API calls if it's the same user
+        if (lastUserId === session.user.id && event !== 'SIGNED_IN') {
+          console.log("AuthProvider: Same user, skipping account data fetch");
+          setLoading(false);
+          return;
+        }
+
+        lastUserId = session.user.id;
+
         try {
-          // Get additional user data from accounts table
-          const { data: accountData, error } = await supabase
-            .from('accounts')
-            .select('phone_number, name')
-            .eq('id', session.user.id)
-            .single();
+          // Use API route for better error handling and consistency
+          const response = await fetch('/api/user/profile', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          });
 
-          if (error && error.code !== 'PGRST116') {
-            console.warn('Error fetching account data:', error);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && isMounted) {
+              const currentUser: User = {
+                id: session.user.id,
+                email: session.user.email || undefined,
+                phone: session.user.phone || result.profile?.account?.phone_number || undefined,
+                created_at: session.user.created_at || '',
+                auth_method: session.user.phone || result.profile?.account?.phone_number ? 'phone' : 'email'
+              };
+              setUser(currentUser);
+            }
+          } else {
+            // Fallback to basic user data if API call fails
+            if (isMounted) {
+              const currentUser: User = {
+                id: session.user.id,
+                email: session.user.email || undefined,
+                phone: session.user.phone || undefined,
+                created_at: session.user.created_at || '',
+                auth_method: session.user.email ? 'email' : 'phone'
+              };
+              setUser(currentUser);
+            }
           }
-
-          const currentUser: User = {
-            id: session.user.id,
-            email: session.user.email || undefined,
-            phone: session.user.phone || accountData?.phone_number || undefined,
-            created_at: session.user.created_at || '',
-            auth_method: session.user.phone || accountData?.phone_number ? 'phone' : 'email'
-          }
-          setUser(currentUser)
         } catch (error) {
-          console.error('Error processing user data:', error);
+          console.error('Error fetching user profile:', error);
           // Fallback to basic user data
-          const currentUser: User = {
-            id: session.user.id,
-            email: session.user.email || undefined,
-            phone: session.user.phone || undefined,
-            created_at: session.user.created_at || '',
-            auth_method: session.user.email ? 'email' : 'phone'
+          if (isMounted) {
+            const currentUser: User = {
+              id: session.user.id,
+              email: session.user.email || undefined,
+              phone: session.user.phone || undefined,
+              created_at: session.user.created_at || '',
+              auth_method: session.user.email ? 'email' : 'phone'
+            };
+            setUser(currentUser);
           }
-          setUser(currentUser)
         }
       } else {
-        setUser(null)
+        lastUserId = null;
+        if (isMounted) {
+          setUser(null);
+        }
       }
-      setLoading(false) // Always set loading to false once an event is received
+      
+      if (isMounted) {
+        setLoading(false);
+      }
     })
 
     return () => {
       console.log("AuthProvider: Cleaning up auth state listener.");
+      isMounted = false;
       subscription?.unsubscribe()
     }
   }, []) // Empty dependency array to run only once on mount

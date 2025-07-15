@@ -43,6 +43,7 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
   const [filteredOrders, setFilteredOrders] = useState<SalesOrder[]>(initialSalesOrders)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
 
   useEffect(() => {
     let filtered = salesOrders.filter(order =>
@@ -62,18 +63,25 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
     if (!confirm(`Are you sure you want to delete sales order ${order.invoice_number}?`)) return
 
     try {
+      setDeleteLoading(order.sales_order_id)
+      
       const { error } = await supabase
         .from('sales_orders')
         .delete()
         .eq('sales_order_id', order.sales_order_id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Delete sales order error:', error)
+        throw new Error(error.message || 'Failed to delete sales order')
+      }
       
       setSalesOrders(salesOrders.filter(o => o.sales_order_id !== order.sales_order_id))
       toast.success('Sales order deleted successfully')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting sales order:', error)
-      toast.error('Failed to delete sales order')
+      toast.error(error.message || 'Failed to delete sales order')
+    } finally {
+      setDeleteLoading(null)
     }
   }
 
@@ -198,8 +206,13 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
                           size="icon" 
                           className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDelete(order)}
+                          disabled={deleteLoading === order.sales_order_id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {deleteLoading === order.sales_order_id ? (
+                            <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </div>

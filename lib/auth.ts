@@ -1,4 +1,5 @@
 import { supabase } from './supabase/client'
+import { apiClient, ApiError } from './api-client'
 
 // Utility function to normalize phone numbers for consistent lookup
 function normalizePhoneNumber(phoneNumber: string): { withPlus: string; withoutPlus: string } {
@@ -361,27 +362,15 @@ export const auth = {
     // List all users (admin view)
     listUsers: async (page = 1, perPage = 50) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch(`/api/admin/users?page=${page}&perPage=${perPage}`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to fetch users');
-        }
-
+        const result = await apiClient.get(`/api/admin/users?page=${page}&perPage=${perPage}`);
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('List users error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('List users error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to fetch users' };
       }
     },
 
@@ -393,39 +382,17 @@ export const auth = {
       try {
         console.log('Updating user status for:', userId, 'to:', status);
         
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          throw new Error('Session error: ' + sessionError.message);
-        }
+        const result = await apiClient.patch(`/api/admin/users/${userId}`, { status });
         
-        if (!session?.access_token) {
-          console.error('No session or access token found');
-          throw new Error('Not authenticated - no session');
-        }
-
-        console.log('Making API request to update user status...');
-        const response = await fetch(`/api/admin/users/${userId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ status })
-        });
-
-        console.log('Response status:', response.status);
-        const result = await response.json();
-        console.log('Response result:', result);
-        
-        if (!response.ok) {
-          throw new Error(result.error || `Failed to update user status (${response.status})`);
-        }
-
+        console.log('Update user status result:', result);
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('Update user status error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('Update user status error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to update user status' };
       }
     },
 
@@ -435,58 +402,30 @@ export const auth = {
       methods: 'email_only' | 'phone_only' | 'both'
     ) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch(`/api/admin/users/${userId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ allowedLoginMethods: methods })
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to update login methods');
-        }
-
+        const result = await apiClient.patch(`/api/admin/users/${userId}`, { allowedLoginMethods: methods });
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('Toggle login methods error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('Toggle login methods error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to update login methods' };
       }
     },
 
     // Delete user
     deleteUser: async (userId: string) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch(`/api/admin/users/${userId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to delete user');
-        }
-
+        const result = await apiClient.delete(`/api/admin/users/${userId}`);
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('Delete user error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('Delete user error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to delete user' };
       }
     }
   },
@@ -496,90 +435,48 @@ export const auth = {
     // Get current user's full profile
     getProfile: async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch('/api/user/profile', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to fetch profile');
-        }
-
+        const result = await apiClient.get('/api/user/profile');
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('Get profile error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('Get profile error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to fetch profile' };
       }
     },
 
     // Update current user's profile
     updateProfile: async (data: { name?: string; phone?: string }) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch('/api/user/profile', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to update profile');
-        }
-
+        const result = await apiClient.patch('/api/user/profile', data);
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('Update profile error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('Update profile error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to update profile' };
       }
     },
 
     // Change password
     changePassword: async (currentPassword: string, newPassword: string) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
-
-        const response = await fetch('/api/user/password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            currentPassword,
-            newPassword
-          })
+        const result = await apiClient.post('/api/user/password', {
+          currentPassword,
+          newPassword
         });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to change password');
-        }
-
         return result;
-      } catch (error: any) {
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.error('Change password error:', error.message);
+          return { success: false, error: error.message };
+        }
         console.error('Change password error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Failed to change password' };
       }
     }
   }

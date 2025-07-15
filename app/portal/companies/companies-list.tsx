@@ -26,6 +26,9 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<ExternalCompany | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const lowercasedTerm = searchTerm.toLowerCase()
@@ -43,13 +46,19 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
 
   const fetchCompanies = async () => {
     try {
+      setLoading(true)
+      setError(null)
+      
       // Fetch companies first
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('*')
         .order('company_name')
 
-      if (companiesError) throw companiesError
+      if (companiesError) {
+        console.error('Fetch companies error:', companiesError)
+        throw new Error(companiesError.message || 'Failed to fetch companies')
+      }
 
       // Fetch addresses separately
       const { data: addressData } = await supabase
@@ -78,9 +87,13 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
       })) || []
 
       setCompanies(companiesWithRelations)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching companies:', error)
-      toast.error('Failed to fetch companies')
+      const errorMessage = error.message || 'Failed to fetch companies'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -93,6 +106,8 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
     if (!confirm(`Are you sure you want to delete ${company.company_name}?`)) return
 
     try {
+      setDeleteLoading(company.company_id)
+      
       // Check for references in purchase_orders as vendor
       const { data: vendorPOs, error: vendorPOError } = await supabase
         .from('purchase_orders')
@@ -100,7 +115,11 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
         .eq('vendor_company_id', company.company_id)
         .limit(1)
 
-      if (vendorPOError) throw new Error('Failed to check vendor PO references')
+      if (vendorPOError) {
+        console.error('Vendor PO check error:', vendorPOError)
+        throw new Error(vendorPOError.message || 'Failed to check vendor PO references')
+      }
+      
       if (vendorPOs && vendorPOs.length > 0) {
         toast.error('Cannot delete company: It is referenced as a vendor in existing purchase orders.')
         return
@@ -113,7 +132,11 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
         .eq('ship_via_id', company.company_id)
         .limit(1)
 
-      if (shipViaPOError) throw new Error('Failed to check ship via PO references')
+      if (shipViaPOError) {
+        console.error('Ship via PO check error:', shipViaPOError)
+        throw new Error(shipViaPOError.message || 'Failed to check ship via PO references')
+      }
+      
       if (shipViaPOs && shipViaPOs.length > 0) {
         toast.error('Cannot delete company: It is referenced as a shipping company in existing purchase orders.')
         return
@@ -125,13 +148,18 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
         .delete()
         .eq('company_id', company.company_id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Delete company error:', error)
+        throw new Error(error.message || 'Failed to delete company')
+      }
       
       setCompanies(companies.filter(c => c.company_id !== company.company_id))
       toast.success('Company deleted successfully')
     } catch (error: any) {
       console.error('Error deleting company:', error)
       toast.error(error.message || 'Failed to delete company')
+    } finally {
+      setDeleteLoading(null)
     }
   }
 
@@ -168,7 +196,20 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
         </div>
       </CardHeader>
       <CardContent>
-        {filteredCompanies.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="inline-block h-8 w-8 animate-spin border-4 border-current border-t-transparent rounded-full" />
+            <div className="mt-2 text-slate-500">Loading companies...</div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-8">
+            <div className="text-red-600 mb-2">Error loading companies</div>
+            <div className="text-sm text-slate-500 mb-4">{error}</div>
+            <Button variant="outline" onClick={fetchCompanies}>
+              Try Again
+            </Button>
+          </div>
+        ) : filteredCompanies.length === 0 ? (
           <div className="text-center py-8 text-slate-500">No companies found</div>
         ) : (
           <div className="space-y-3">
@@ -178,8 +219,16 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{company.company_name}</CardTitle>
                     <div className="flex space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(company)}><Edit className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(company)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(company)} disabled={deleteLoading === company.company_id}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(company)} disabled={deleteLoading === company.company_id}>
+                        {deleteLoading === company.company_id ? (
+                          <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
                   <CardDescription className="text-xs">Code: {company.company_code} | Type: {company.company_type}</CardDescription>

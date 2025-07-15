@@ -44,6 +44,9 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [locations, setLocations] = useState<string[]>([])
   const [conditions, setConditions] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Extract unique locations and conditions for filters
@@ -78,6 +81,9 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
 
   const fetchInventory = async () => {
     try {
+      setLoading(true)
+      setError(null)
+      
       const { data, error } = await supabase
         .from('inventory')
         .select(`
@@ -86,12 +92,19 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
         `)
         .order('updated_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Fetch inventory error:', error)
+        throw new Error(error.message || 'Failed to fetch inventory')
+      }
       
       setInventory(data as any || [])
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching inventory:', error)
-      toast.error('Failed to fetch inventory')
+      const errorMessage = error.message || 'Failed to fetch inventory'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -104,18 +117,25 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
     if (!confirm(`Are you sure you want to delete this inventory item?`)) return
 
     try {
+      setDeleteLoading(item.inventory_id)
+      
       const { error } = await supabase
         .from('inventory')
         .delete()
         .eq('inventory_id', item.inventory_id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Delete inventory error:', error)
+        throw new Error(error.message || 'Failed to delete inventory item')
+      }
       
       setInventory(inventory.filter(i => i.inventory_id !== item.inventory_id))
       toast.success('Inventory item deleted successfully')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting inventory item:', error)
-      toast.error('Failed to delete inventory item')
+      toast.error(error.message || 'Failed to delete inventory item')
+    } finally {
+      setDeleteLoading(null)
     }
   }
 
@@ -230,7 +250,13 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          onClick={() => handleEdit(item)}
+                          disabled={deleteLoading === item.inventory_id}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -238,8 +264,13 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                           size="icon" 
                           className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDelete(item)}
+                          disabled={deleteLoading === item.inventory_id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {deleteLoading === item.inventory_id ? (
+                            <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </div>

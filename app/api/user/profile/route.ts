@@ -53,13 +53,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user role
-    const { data: roleData } = await supabase
+    const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select(`
         roles!inner(role_name, description)
       `)
       .eq('user_id', user.id)
       .single();
+
+    if (roleError && roleError.code !== 'PGRST116') {
+      console.error('Role data fetch error:', roleError);
+    }
 
     const profile = {
       id: user.id,
@@ -100,6 +104,14 @@ export async function PATCH(request: NextRequest) {
     const { name, phone } = body;
     
     console.log('Profile update request for user:', user.id, { name, phone });
+
+    // Validate name if provided
+    if (name !== undefined && (typeof name !== 'string' || name.length > 100)) {
+      return NextResponse.json(
+        { error: 'Name must be a string with maximum 100 characters' },
+        { status: 400 }
+      );
+    }
 
     // Validate phone format if provided
     if (phone && !/^\+[1-9]\d{1,14}$/.test(phone)) {

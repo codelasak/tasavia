@@ -67,19 +67,27 @@ export async function GET(request: NextRequest) {
 
     // Get account data for all users
     const userIds = authUsers.users.map(u => u.id);
-    const { data: accountsData } = await supabaseAdmin
+    const { data: accountsData, error: accountsError } = await supabaseAdmin
       .from('accounts')
       .select('*')
       .in('id', userIds);
 
+    if (accountsError) {
+      console.error('Accounts data fetch error:', accountsError);
+    }
+
     // Get role data for all users
-    const { data: userRolesData } = await supabaseAdmin
+    const { data: userRolesData, error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .select(`
         user_id,
         roles!inner(role_name, description)
       `)
       .in('user_id', userIds);
+
+    if (rolesError) {
+      console.error('User roles data fetch error:', rolesError);
+    }
 
     // Merge auth, account, and role data
     const users = authUsers.users.map(user => {
@@ -127,6 +135,38 @@ export async function POST(request: NextRequest) {
     if (!email || !phone || !password) {
       return NextResponse.json(
         { error: 'Email, phone, and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'Please provide a valid email address' },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone format
+    if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
+      return NextResponse.json(
+        { error: 'Please provide a valid phone number in international format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate role if provided
+    if (role && !['user', 'admin', 'super_admin'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Invalid role. Must be user, admin, or super_admin' },
+        { status: 400 }
+      );
+    }
+
+    // Validate login methods
+    if (allowedLoginMethods && !['email_only', 'phone_only', 'both'].includes(allowedLoginMethods)) {
+      return NextResponse.json(
+        { error: 'Invalid login methods. Must be email_only, phone_only, or both' },
         { status: 400 }
       );
     }

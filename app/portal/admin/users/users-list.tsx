@@ -67,12 +67,14 @@ export default function UsersList({ initialUsers }: UserListProps) {
       const result = await auth.admin.listUsers(1, 50);
       
       if (result.success) {
-        setUsers(result.users);
+        setUsers((result as any).users || []);
       } else {
-        toast.error('Failed to load users: ' + result.error);
+        console.error('Load users error:', result.error);
+        throw new Error(result.error || 'Failed to load users');
       }
     } catch (error: any) {
-      toast.error('Error loading users: ' + error.message);
+      console.error('Error loading users:', error);
+      toast.error(error.message || 'Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -187,9 +189,14 @@ export default function UsersList({ initialUsers }: UserListProps) {
     if (!editingUser) return;
     
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Session error: ' + sessionError.message);
+      }
+      
       if (!session?.access_token) {
-        throw new Error('Not authenticated');
+        throw new Error('Not authenticated - please sign in again');
       }
 
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
@@ -206,17 +213,30 @@ export default function UsersList({ initialUsers }: UserListProps) {
         })
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || `Server error: ${response.status}`;
+        } catch {
+          errorMessage = `Server error: ${response.status} - ${errorText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
       const result = await response.json();
       
-      if (response.ok && result.success) {
+      if (result.success) {
         toast.success('User updated successfully');
         loadUsers();
         setEditingUser(null);
       } else {
-        toast.error('Failed to update user: ' + (result.error || 'Unknown error'));
+        throw new Error(result.error || 'Update failed');
       }
     } catch (error: any) {
-      toast.error('Error updating user: ' + error.message);
+      console.error('Edit user error:', error);
+      toast.error(error.message || 'Failed to update user');
     }
   };
 

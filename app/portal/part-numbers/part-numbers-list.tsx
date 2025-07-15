@@ -22,6 +22,8 @@ export default function PartNumbersList({ initialPartNumbers }: PartNumbersListP
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPartNumber, setEditingPartNumber] = useState<PartNumber | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
 
   useEffect(() => {
     const filtered = partNumbers.filter(pn =>
@@ -41,33 +43,48 @@ export default function PartNumbersList({ initialPartNumbers }: PartNumbersListP
     if (!confirm(`Are you sure you want to delete part number ${partNumber.pn}?`)) return
 
     try {
+      setDeleteLoading(partNumber.pn_id)
+      
       const { error } = await supabase
         .from('pn_master_table')
         .delete()
         .eq('pn_id', partNumber.pn_id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Delete error:', error)
+        throw new Error(error.message || 'Failed to delete part number')
+      }
       
       setPartNumbers(partNumbers.filter(pn => pn.pn_id !== partNumber.pn_id))
       toast.success('Part number deleted successfully')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting part number:', error)
-      toast.error('Failed to delete part number')
+      toast.error(error.message || 'Failed to delete part number')
+    } finally {
+      setDeleteLoading(null)
     }
   }
 
   const fetchPartNumbers = async () => {
     try {
+      setLoading(true)
+      
       const { data, error } = await supabase
         .from('pn_master_table')
         .select('*')
         .order('pn')
 
-      if (error) throw error
+      if (error) {
+        console.error('Fetch error:', error)
+        throw new Error(error.message || 'Failed to fetch part numbers')
+      }
+      
       setPartNumbers(data || [])
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching part numbers:', error)
-      toast.error('Failed to fetch part numbers')
+      toast.error(error.message || 'Failed to fetch part numbers')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -138,11 +155,25 @@ export default function PartNumbersList({ initialPartNumbers }: PartNumbersListP
                       <div className="text-xs text-slate-400 line-clamp-2">{partNumber.remarks}</div>
                     )}
                     <div className="flex gap-2 mt-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(partNumber)}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleEdit(partNumber)}
+                        disabled={deleteLoading === partNumber.pn_id}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(partNumber)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDelete(partNumber)}
+                        disabled={deleteLoading === partNumber.pn_id}
+                      >
+                        {deleteLoading === partNumber.pn_id ? (
+                          <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>

@@ -53,10 +53,11 @@ export function ProfileForm() {
       const result = await auth.profile.getProfile();
       
       if (result.success) {
-        setProfileData(result.profile);
+        const profile = (result as any).profile;
+        setProfileData(profile);
         setFormData({
-          name: result.profile.account?.name || '',
-          phone: result.profile.account?.phone_number || ''
+          name: profile.account?.name || '',
+          phone: profile.account?.phone_number || ''
         });
       } else {
         setError(result.error || 'Failed to load profile');
