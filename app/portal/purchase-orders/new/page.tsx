@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import NewPurchaseOrderClientPage from './NewPurchaseOrderClientPage'
 
 export const dynamic = 'force-dynamic'
 
 async function getFormData() {
+  const supabase = createSupabaseServer()
   const [myCompaniesResult, companiesResult, partNumbersResult, shipViaResult] = await Promise.all([
     supabase.from('my_companies').select('*').order('my_company_name'),
     supabase.from('companies').select('*').order('company_name'),
@@ -28,24 +29,24 @@ async function getFormData() {
 
   // Fetch addresses and contacts separately
   const [myCompanyAddresses, myCompanyContacts, companyAddresses, companyContacts] = await Promise.all([
-    supabase.from('company_addresses').select('*').eq('company_ref_type', 'my_companies'),
-    supabase.from('company_contacts').select('*').eq('company_ref_type', 'my_companies'),
-    supabase.from('company_addresses').select('*').eq('company_ref_type', 'companies'),
-    supabase.from('company_contacts').select('*').eq('company_ref_type', 'companies')
+    supabase.from('company_addresses').select('*').eq('company_ref_type', 'my_companies' as any),
+    supabase.from('company_contacts').select('*').eq('company_ref_type', 'my_companies' as any),
+    supabase.from('company_addresses').select('*').eq('company_ref_type', 'companies' as any),
+    supabase.from('company_contacts').select('*').eq('company_ref_type', 'companies' as any)
   ])
 
   // Combine my companies with their addresses and contacts
   const enrichedMyCompanies = myCompaniesResult.data?.map(company => ({
-    ...company,
-    company_addresses: myCompanyAddresses.data?.filter(addr => addr.company_id === company.my_company_id) || [],
-    company_contacts: myCompanyContacts.data?.filter(contact => contact.company_id === company.my_company_id) || []
+    ...(company as any),
+    company_addresses: myCompanyAddresses.data?.filter(addr => (addr as any).company_id === (company as any).my_company_id) || [],
+    company_contacts: myCompanyContacts.data?.filter(contact => (contact as any).company_id === (company as any).my_company_id) || []
   })) || []
 
   // Combine external companies with their addresses and contacts
   const enrichedExternalCompanies = companiesResult.data?.map(company => ({
-    ...company,
-    company_addresses: companyAddresses.data?.filter(addr => addr.company_id === company.company_id) || [],
-    company_contacts: companyContacts.data?.filter(contact => contact.company_id === company.company_id) || []
+    ...(company as any),
+    company_addresses: companyAddresses.data?.filter(addr => (addr as any).company_id === (company as any).company_id) || [],
+    company_contacts: companyContacts.data?.filter(contact => (contact as any).company_id === (company as any).company_id) || []
   })) || []
 
   return {
@@ -63,8 +64,8 @@ export default async function NewPurchaseOrderPage() {
     <NewPurchaseOrderClientPage
       myCompanies={formData.myCompanies}
       externalCompanies={formData.externalCompanies}
-      partNumbers={formData.partNumbers}
-      shipViaList={formData.shipViaList}
+      partNumbers={formData.partNumbers as any}
+      shipViaList={formData.shipViaList as any}
     />
   )
 }

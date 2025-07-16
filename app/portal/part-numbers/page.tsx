@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { Database } from '@/lib/supabase/database.types'
 import PartNumbersList from './part-numbers-list'
 
@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic'
 type PartNumber = Database['public']['Tables']['pn_master_table']['Row']
 
 async function getPartNumbers() {
+  const supabase = createSupabaseServer()
   const { data, error } = await supabase
     .from('pn_master_table')
     .select('*')
@@ -16,7 +17,7 @@ async function getPartNumbers() {
     console.error('Error fetching part numbers:', error)
     return []
   }
-  return (data as PartNumber[]) || []
+  return (data as any) || []
 }
 
 export default async function PartNumbersPage() {

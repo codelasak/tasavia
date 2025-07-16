@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import RepairOrdersList from './repair-orders-list'
 
 export const dynamic = 'force-dynamic'
@@ -32,6 +32,7 @@ interface RepairOrder {
 }
 
 async function getRepairOrders() {
+  const supabase = createSupabaseServer()
   try {
     const { data, error } = await supabase
       .from('repair_orders')
@@ -50,7 +51,7 @@ async function getRepairOrders() {
 
     if (error) throw error
     
-    return (data as RepairOrder[]) || []
+    return (data as any) || []
   } catch (error) {
     console.error('Error fetching repair orders:', error)
     return []

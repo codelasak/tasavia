@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import NewSalesOrderClientPage from './NewSalesOrderClientPage'
 
 export const dynamic = 'force-dynamic'
 
 async function getFormData() {
+  const supabase = createSupabaseServer()
   const [myCompaniesResult, customersResult, inventoryResult, termsResult] = await Promise.all([
     supabase.from('my_companies').select('*').order('my_company_name'),
     supabase.from('companies').select('*, customer_number').order('company_name'),
@@ -12,9 +13,9 @@ async function getFormData() {
         *,
         pn_master_table(pn, description)
       `)
-      .in('status', ['Available'])
+      .in('status', ['Available'] as any)
       .order('pn_master_table(pn)'),
-    supabase.from('terms_and_conditions').select('*').eq('is_active', true).order('title')
+    supabase.from('terms_and_conditions').select('*').eq('is_active', true as any).order('title')
   ])
 
   if (myCompaniesResult.error) throw myCompaniesResult.error
@@ -23,10 +24,10 @@ async function getFormData() {
   if (termsResult.error) throw termsResult.error
 
   return {
-    myCompanies: myCompaniesResult.data || [],
-    customers: customersResult.data || [],
-    inventoryItems: inventoryResult.data || [],
-    termsAndConditions: termsResult.data || [],
+    myCompanies: (myCompaniesResult.data || []) as any,
+    customers: (customersResult.data || []) as any,
+    inventoryItems: (inventoryResult.data || []) as any,
+    termsAndConditions: (termsResult.data || []) as any,
   }
 }
 

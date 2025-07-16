@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import ATA106ClientPage from './ATA106ClientPage'
 
@@ -11,6 +11,7 @@ interface ATA106PageProps {
 }
 
 async function fetchSalesOrder(id: string) {
+  const supabase = createSupabaseServer()
   try {
     const { data, error } = await supabase
       .from('sales_orders')
@@ -26,7 +27,7 @@ async function fetchSalesOrder(id: string) {
           )
         )
       `)
-      .eq('sales_order_id', id)
+      .eq('sales_order_id', id as any)
       .single()
 
     if (error) throw error
@@ -44,5 +45,5 @@ export default async function ATA106Page({ params }: ATA106PageProps) {
     notFound()
   }
 
-  return <ATA106ClientPage salesOrder={salesOrder} />
+  return <ATA106ClientPage salesOrder={salesOrder as any} />
 }

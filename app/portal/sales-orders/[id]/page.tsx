@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import SalesOrderViewClientPage from './SalesOrderViewClientPage'
 
@@ -11,6 +11,7 @@ interface SalesOrderViewPageProps {
 }
 
 async function fetchSalesOrder(id: string) {
+  const supabase = createSupabaseServer()
   try {
     const { data, error } = await supabase
       .from('sales_orders')
@@ -27,7 +28,7 @@ async function fetchSalesOrder(id: string) {
           )
         )
       `)
-      .eq('sales_order_id', id)
+      .eq('sales_order_id', id as any)
       .single()
 
     if (error) throw error
@@ -45,5 +46,5 @@ export default async function SalesOrderViewPage({ params }: SalesOrderViewPageP
     notFound()
   }
 
-  return <SalesOrderViewClientPage salesOrder={salesOrder} />
+  return <SalesOrderViewClientPage salesOrder={salesOrder as any} />
 }

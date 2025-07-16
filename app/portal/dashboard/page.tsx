@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, Package, ShoppingCart, BarChart3, DollarSign, TrendingUp } from 'lucide-react'
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
 import { redirect } from 'next/navigation'
 
@@ -14,6 +14,7 @@ interface DashboardStats {
 }
 
 export default async function DashboardPage() {
+  const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -26,6 +27,7 @@ export default async function DashboardPage() {
 }
 
 async function fetchDashboardStats(): Promise<DashboardStats> {
+  const supabase = createSupabaseServer()
   try {
     // Get companies count (my companies + external companies)
     const [myCompaniesResult, companiesResult, partsResult, posResult, inventoryResult] = await Promise.all([
@@ -41,15 +43,15 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
     const totalPOs = posResult.data?.length || 0
     
     // Calculate inventory value
-    const totalInventoryValue = inventoryResult.data?.reduce((sum, item) => sum + (item.total_value || 0), 0) || 0
+    const totalInventoryValue = inventoryResult.data?.reduce((sum, item: any) => sum + (item.total_value || 0), 0) || 0
     
     // Calculate recent POs (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const recentPOs = posResult.data?.filter(po => po.created_at && new Date(po.created_at) >= thirtyDaysAgo).length || 0
+    const recentPOs = posResult.data?.filter((po: any) => po.created_at && new Date(po.created_at) >= thirtyDaysAgo).length || 0
     
     // Calculate pending POs
-    const pendingPOs = posResult.data?.filter(po => po.status === 'Draft' || po.status === 'Sent').length || 0
+    const pendingPOs = posResult.data?.filter((po: any) => po.status === 'Draft' || po.status === 'Sent').length || 0
 
     return {
       totalCompanies,

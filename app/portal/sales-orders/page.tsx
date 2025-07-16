@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import SalesOrdersList from './sales-orders-list'
 
 export const dynamic = 'force-dynamic'
 
 async function getSalesOrders() {
+  const supabase = createSupabaseServer()
   const { data, error } = await supabase
     .from('sales_orders')
     .select(`

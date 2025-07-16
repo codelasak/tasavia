@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import PurchaseOrderViewClientPage from './PurchaseOrderViewClientPage'
 
@@ -11,6 +11,7 @@ interface PurchaseOrderPageProps {
 }
 
 async function fetchPurchaseOrder(poId: string) {
+  const supabase = createSupabaseServer()
   try {
     // First fetch the purchase order with basic company info
     const { data: poData, error: poError } = await supabase
@@ -25,7 +26,7 @@ async function fetchPurchaseOrder(poId: string) {
           pn_master_table(pn, description)
         )
       `)
-      .eq('po_id', poId)
+      .eq('po_id', poId as any)
       .single()
     
     if (poError) {
@@ -33,42 +34,45 @@ async function fetchPurchaseOrder(poId: string) {
       return null
     }
 
+    // Cast poData to any to avoid type issues
+    const poDataAny = poData as any
+
     // Fetch my company addresses and contacts
     const { data: myCompanyAddresses } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_id', poData.my_companies.my_company_id)
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_id', poDataAny.my_companies.my_company_id as any)
+      .eq('company_ref_type', 'my_companies' as any)
 
     const { data: myCompanyContacts } = await supabase
       .from('company_contacts')
       .select('*')
-      .eq('company_id', poData.my_companies.my_company_id)
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_id', poDataAny.my_companies.my_company_id as any)
+      .eq('company_ref_type', 'my_companies' as any)
 
     // Fetch vendor company addresses and contacts
     const { data: vendorAddresses } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_id', poData.companies.company_id)
-      .eq('company_ref_type', 'companies')
+      .eq('company_id', poDataAny.companies.company_id as any)
+      .eq('company_ref_type', 'companies' as any)
 
     const { data: vendorContacts } = await supabase
       .from('company_contacts')
       .select('*')
-      .eq('company_id', poData.companies.company_id)
-      .eq('company_ref_type', 'companies')
+      .eq('company_id', poDataAny.companies.company_id as any)
+      .eq('company_ref_type', 'companies' as any)
 
     // Combine the data
     const enrichedData = {
-      ...poData,
+      ...poDataAny,
       my_companies: {
-        ...poData.my_companies,
+        ...poDataAny.my_companies,
         company_addresses: myCompanyAddresses || [],
         company_contacts: myCompanyContacts || []
       },
       companies: {
-        ...poData.companies,
+        ...poDataAny.companies,
         company_addresses: vendorAddresses || [],
         company_contacts: vendorContacts || []
       }

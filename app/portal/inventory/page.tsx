@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import InventoryList from './inventory-list'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +24,7 @@ interface InventoryItem {
 
 async function getInventory() {
   try {
+    const supabase = createSupabaseServer()
     const { data, error } = await supabase
       .from('inventory')
       .select(`
@@ -34,7 +35,7 @@ async function getInventory() {
 
     if (error) throw error
     
-    return (data as InventoryItem[]) || []
+    return (data as any) || []
   } catch (error) {
     console.error('Error fetching inventory:', error)
     return []

@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: 'TASAVIA - Aviation Technical & Commercial Services',
   description: 'ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.',
   keywords: 'aviation, aircraft, teardown, maintenance, repair, components, parts, technical services',

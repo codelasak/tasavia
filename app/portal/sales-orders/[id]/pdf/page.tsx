@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import SalesOrderPDFClientPage from './SalesOrderPDFClientPage'
 
@@ -12,6 +12,7 @@ interface InvoicePDFPageProps {
 
 // Generate invoice number in T25XXX format
 async function generateInvoiceNumber() {
+  const supabase = createSupabaseServer()
   const year = new Date().getFullYear().toString().slice(-2) // Get last 2 digits of year
   
   try {
@@ -37,8 +38,9 @@ async function generateInvoiceNumber() {
       let highestCounter = 0
       
       existingInvoices.forEach(invoice => {
-        if (invoice.invoice_number && invoice.invoice_number.startsWith(`T${year}`)) {
-          const counterPart = invoice.invoice_number.slice(-3) // Get last 3 characters
+        const invoiceAny = invoice as any
+        if (invoiceAny.invoice_number && invoiceAny.invoice_number.startsWith(`T${year}`)) {
+          const counterPart = invoiceAny.invoice_number.slice(-3) // Get last 3 characters
           const counterNum = parseInt(counterPart, 10)
           if (!isNaN(counterNum) && counterNum > highestCounter) {
             highestCounter = counterNum
@@ -64,6 +66,7 @@ async function generateInvoiceNumber() {
 }
 
 async function fetchSalesOrderData(id: string) {
+  const supabase = createSupabaseServer()
   try {
     // First fetch the sales order with basic company info
     const { data: soData, error: soError } = await supabase
@@ -81,68 +84,69 @@ async function fetchSalesOrderData(id: string) {
           )
         )
       `)
-      .eq('sales_order_id', id)
+      .eq('sales_order_id', id as any)
       .single()
 
     if (soError) throw soError
 
     // Generate new invoice number if not exists or is empty
-    if (soData && (!soData.invoice_number || soData.invoice_number.trim() === '')) {
+    const soDataAny = soData as any
+    if (soDataAny && (!soDataAny.invoice_number || soDataAny.invoice_number.trim() === '')) {
       console.log('Generating new invoice number for sales order:', id)
       const newInvoiceNumber = await generateInvoiceNumber()
       console.log('New invoice number generated:', newInvoiceNumber)
       
       const { error: updateError } = await supabase
         .from('sales_orders')
-        .update({ invoice_number: newInvoiceNumber })
-        .eq('sales_order_id', id)
+        .update({ invoice_number: newInvoiceNumber } as any)
+        .eq('sales_order_id', id as any)
       
       if (updateError) {
         console.error('Error updating invoice number:', updateError)
       } else {
         console.log('Invoice number updated successfully')
-        soData.invoice_number = newInvoiceNumber
+        soDataAny.invoice_number = newInvoiceNumber
       }
     } else {
-      console.log('Using existing invoice number:', soData.invoice_number)
+      console.log('Using existing invoice number:', soDataAny.invoice_number)
     }
 
     // Fetch my company addresses and contacts
     const { data: myCompanyAddresses } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_id', soData.my_companies.my_company_id)
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_id', soDataAny.my_companies.my_company_id as any)
+      .eq('company_ref_type', 'my_companies' as any)
 
     const { data: myCompanyContacts } = await supabase
       .from('company_contacts')
       .select('*')
-      .eq('company_id', soData.my_companies.my_company_id)
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_id', soDataAny.my_companies.my_company_id as any)
+      .eq('company_ref_type', 'my_companies' as any)
 
     // Fetch customer company addresses and contacts
     const { data: customerAddresses } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_id', soData.companies.company_id)
-      .eq('company_ref_type', 'companies')
+      .eq('company_id', soDataAny.companies.company_id as any)
+      .eq('company_ref_type', 'companies' as any)
 
     const { data: customerContacts } = await supabase
       .from('company_contacts')
       .select('*')
-      .eq('company_id', soData.companies.company_id)
-      .eq('company_ref_type', 'companies')
+      .eq('company_id', soDataAny.companies.company_id as any)
+      .eq('company_ref_type', 'companies' as any)
 
     // Combine the data
     const enrichedData = {
-      ...soData,
+      ...soDataAny,
       my_companies: {
-        ...soData.my_companies,
+        ...soDataAny.my_companies,
         company_addresses: myCompanyAddresses || [],
         company_contacts: myCompanyContacts || []
       },
       companies: {
-        ...soData.companies,
+        ...soDataAny.companies,
         company_addresses: customerAddresses || [],
         company_contacts: customerContacts || []
       }

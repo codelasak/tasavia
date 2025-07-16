@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { supabase } from '@/lib/supabase/server'
+import { createSupabaseServer } from '@/lib/supabase/server'
 import { Database } from '@/lib/supabase/database.types'
 import MyCompaniesList from './my-companies-list'
 
@@ -13,6 +13,7 @@ type MyCompany = Database['public']['Tables']['my_companies']['Row'] & {
 }
 
 async function getMyCompanies() {
+  const supabase = createSupabaseServer()
   try {
     // Fetch my companies first
     const { data: companiesData, error: companiesError } = await supabase
@@ -26,26 +27,26 @@ async function getMyCompanies() {
     const { data: addressData } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_ref_type', 'my_companies' as any)
 
     // Fetch contacts separately 
     const { data: contactData } = await supabase
       .from('company_contacts') 
       .select('*')
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_ref_type', 'my_companies' as any)
 
     // Fetch shipping data separately
     const { data: shipViaData } = await supabase
       .from('company_ship_via')
       .select('*')
-      .eq('company_ref_type', 'my_companies')
+      .eq('company_ref_type', 'my_companies' as any)
 
     // Combine the data
-    const companiesWithRelations = companiesData?.map(company => ({
+    const companiesWithRelations = companiesData?.map((company: any) => ({
       ...company,
-      company_addresses: addressData?.filter(addr => addr.company_id === company.my_company_id) || [],
-      company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || [],
-      company_ship_via: shipViaData?.filter(ship => ship.company_id === company.my_company_id) || []
+      company_addresses: addressData?.filter((addr: any) => addr.company_id === company.my_company_id) || [],
+      company_contacts: contactData?.filter((contact: any) => contact.company_id === company.my_company_id) || [],
+      company_ship_via: shipViaData?.filter((ship: any) => ship.company_id === company.my_company_id) || []
     })) || []
 
     return companiesWithRelations
