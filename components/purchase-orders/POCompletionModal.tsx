@@ -12,7 +12,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Loader2, Package, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2, Package, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -34,6 +35,7 @@ interface POCompletionModalProps {
   poId: string
   poNumber: string
   currentStatus: string
+  isCompleting?: boolean
 }
 
 export default function POCompletionModal({
@@ -42,15 +44,21 @@ export default function POCompletionModal({
   onConfirm,
   poId,
   poNumber,
-  currentStatus
+  currentStatus,
+  isCompleting = false
 }: POCompletionModalProps) {
   const [loading, setLoading] = useState(false)
   const [previewItems, setPreviewItems] = useState<POItem[]>([])
   const [fetchingPreview, setFetchingPreview] = useState(false)
   const [inventoryExists, setInventoryExists] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen && currentStatus !== 'Completed') {
+      // Clear previous errors when opening modal
+      setError(null)
+      setErrorDetails(null)
       fetchPreview()
       checkExistingInventory()
     }
@@ -58,6 +66,9 @@ export default function POCompletionModal({
 
   const fetchPreview = async () => {
     setFetchingPreview(true)
+    setError(null)
+    setErrorDetails(null)
+    
     try {
       // Get PO items that would be created as inventory
       const { data: poItems, error } = await supabase
@@ -75,7 +86,9 @@ export default function POCompletionModal({
         .eq('po_id', poId)
 
       if (error) {
-        // Error fetching PO items
+        console.error('Error fetching PO items for preview:', error)
+        setError('Failed to load PO items preview')
+        setErrorDetails(`Database error: ${error.message}`)
         toast.error('Failed to load PO items preview')
         return
       }
@@ -89,7 +102,10 @@ export default function POCompletionModal({
       }))
       setPreviewItems(transformedItems)
     } catch (error) {
-      // Error fetching preview
+      console.error('Unexpected error fetching preview:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      setError('Failed to load preview')
+      setErrorDetails(errorMessage)
       toast.error('Failed to load preview')
     } finally {
       setFetchingPreview(false)
@@ -105,23 +121,51 @@ export default function POCompletionModal({
         .limit(1)
 
       if (error) {
-        // Error checking existing inventory
+        console.error('Error checking existing inventory:', error)
+        // Don't show error to user for this check, it's not critical
         return
       }
 
       setInventoryExists(data && data.length > 0)
     } catch (error) {
-      // Error checking inventory
+      console.error('Unexpected error checking inventory:', error)
+      // Don't show error to user for this check, it's not critical
     }
   }
 
   const handleConfirm = async () => {
     setLoading(true)
+    setError(null)
+    setErrorDetails(null)
+    
     try {
       await onConfirm()
       onClose()
     } catch (error) {
-      // Error confirming PO completion
+      console.error('Error confirming PO completion:', error)
+      
+      // Extract detailed error information
+      let errorMessage = 'Failed to complete purchase order'
+      let details = null
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // Try to parse additional error details if it's a structured error
+        try {
+          const errorData = JSON.parse(error.message)
+          if (errorData.error) {
+            errorMessage = errorData.error
+            details = errorData.details || errorData.hint || errorData.code
+          }
+        } catch {
+          // Error message is not JSON, use as is
+        }
+      }
+      
+      setError(errorMessage)
+      setErrorDetails(details)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -161,18 +205,32 @@ export default function POCompletionModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {error && (
+            <Alert className="border-red-200 bg-red-50">
+              <XCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">
+                <div className="font-medium">{error}</div>
+                {errorDetails && (
+                  <div className="text-sm text-red-600 mt-1">
+                    {errorDetails}
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {inventoryExists && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <span className="font-medium text-orange-800">
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <div className="font-medium">
                   Inventory items already exist for this PO
-                </span>
-              </div>
-              <p className="text-sm text-orange-700 mt-1">
-                This purchase order has already been processed and inventory items have been created.
-              </p>
-            </div>
+                </div>
+                <div className="text-sm text-orange-700 mt-1">
+                  This purchase order has already been processed and inventory items have been created.
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {fetchingPreview ? (
@@ -253,14 +311,14 @@ export default function POCompletionModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button variant="outline" onClick={onClose} disabled={loading || isCompleting}>
             Cancel
           </Button>
           <Button 
             onClick={handleConfirm} 
-            disabled={loading || fetchingPreview || inventoryExists}
+            disabled={loading || isCompleting || fetchingPreview || inventoryExists}
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {(loading || isCompleting) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {inventoryExists ? 'Already Processed' : 'Complete & Create Inventory'}
           </Button>
         </DialogFooter>

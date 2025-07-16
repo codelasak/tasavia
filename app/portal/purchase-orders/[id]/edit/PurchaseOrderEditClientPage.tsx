@@ -127,6 +127,7 @@ export default function PurchaseOrderEditClientPage({
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<string>('')
   const [currentPoNumber, setCurrentPoNumber] = useState<string>(initialPurchaseOrder?.po_number || '')
+  const [isCompleting, setIsCompleting] = useState(false)
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -265,23 +266,124 @@ export default function PurchaseOrderEditClientPage({
 
   const handlePOCompletion = async () => {
     try {
+      setIsCompleting(true)
+      
       // First update the status to completed
       form.setValue('status', 'Completed')
       
       // Save the form to update the PO status
       const formData = form.getValues()
+      console.log('Updating PO status to Completed for:', poId)
       await updatePurchaseOrder(formData)
       
-      toast.success('Purchase order completed successfully! Inventory items have been created automatically.')
+      // Call the Edge Function to create inventory items
+      console.log('Calling po-completion-handler Edge Function for PO:', poId)
+      const { data: result, error: edgeFunctionError } = await supabase.functions.invoke('po-completion-handler', {
+        body: {
+          po_id: poId,
+          action: 'complete_po'
+        }
+      })
+      
+      console.log('Edge Function response:', { result, edgeFunctionError })
+      
+      if (edgeFunctionError) {
+        console.error('Edge Function error:', edgeFunctionError)
+        
+        // Create detailed error message
+        let errorMessage = 'Failed to call Edge Function'
+        let errorDetails = null
+        
+        if (edgeFunctionError.message) {
+          errorMessage = edgeFunctionError.message
+        }
+        
+        // Check if it's a network or authentication error
+        if (edgeFunctionError.status === 401) {
+          errorMessage = 'Authentication failed. Please log in again.'
+        } else if (edgeFunctionError.status === 403) {
+          errorMessage = 'Permission denied. You do not have access to complete this operation.'
+        } else if (edgeFunctionError.status >= 500) {
+          errorMessage = 'Server error occurred. Please try again later.'
+          errorDetails = `Status: ${edgeFunctionError.status}`
+        }
+        
+        const finalError = new Error(JSON.stringify({
+          error: errorMessage,
+          details: errorDetails,
+          code: edgeFunctionError.status,
+          originalError: edgeFunctionError
+        }))
+        
+        throw finalError
+      }
+      
+      if (!result?.success) {
+        console.error('Edge Function returned failure:', result)
+        
+        // Handle specific error cases
+        if (result?.code === 'INVENTORY_CREATION_FAILED' && result?.error && result.error.includes('already exist')) {
+          toast.success('Purchase order completed successfully! Inventory items already exist for this order.')
+        } else {
+          // Create detailed error for modal display
+          let errorMessage = result?.error || 'Failed to create inventory items'
+          let errorDetails = null
+          
+          if (result?.code) {
+            errorDetails = `Error code: ${result.code}`
+            if (result?.details) {
+              errorDetails += ` - ${result.details}`
+            }
+          }
+          
+          const finalError = new Error(JSON.stringify({
+            error: errorMessage,
+            details: errorDetails,
+            code: result?.code,
+            created_count: result?.created_count
+          }))
+          
+          throw finalError
+        }
+      } else {
+        console.log(`Successfully completed PO and created ${result.created_count} inventory items`)
+        const successMessage = result.po_number 
+          ? `Purchase order ${result.po_number} completed successfully! ${result.created_count} inventory items created.`
+          : `Purchase order completed successfully! ${result.created_count} inventory items created.`
+        
+        toast.success(successMessage)
+      }
       
       // Close modal and navigate back
       setShowCompletionModal(false)
       router.push(`/portal/purchase-orders/${poId}`)
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
-      toast.error('Failed to complete purchase order')
+      console.error('Error in handlePOCompletion:', error)
+      
+      let errorMessage = 'Failed to complete purchase order'
+      let errorDetails = null
+      
+      if (error instanceof Error) {
+        // Try to parse structured error message
+        try {
+          const errorData = JSON.parse(error.message)
+          errorMessage = errorData.error || errorMessage
+          errorDetails = errorData.details
+        } catch {
+          // Use raw error message if not JSON
+          errorMessage = error.message
+        }
+      }
+      
+      // Show user-friendly error message
       toast.error(`Completion failed: ${errorMessage}`)
+      if (errorDetails) {
+        console.error('Additional error details:', errorDetails)
+      }
+      
       throw error
+    } finally {
+      setIsCompleting(false)
     }
   }
 
@@ -358,7 +460,7 @@ export default function PurchaseOrderEditClientPage({
 
     // Delete existing line items
     // Deleting existing line items
-    const { data: deletedItems, error: deleteError } = await supabase
+    const { error: deleteError } = await supabase
       .from('po_items')
       .delete()
       .eq('po_id', poId)
@@ -385,7 +487,7 @@ export default function PurchaseOrderEditClientPage({
 
     // Inserting new line items
     
-    const { data: insertedItems, error: itemsError } = await supabase
+    const { error: itemsError } = await supabase
       .from('po_items')
       .insert(lineItems)
       .select()
@@ -1153,6 +1255,7 @@ export default function PurchaseOrderEditClientPage({
         poId={poId}
         poNumber={currentPoNumber}
         currentStatus={form.watch('status')}
+        isCompleting={isCompleting}
       />
     </div>
   )
