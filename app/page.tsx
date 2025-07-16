@@ -711,12 +711,6 @@ export default function HomePage() {
                             rfq@tasavia.com
                           </a>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <Phone className="h-5 w-5 text-slate-400" />
-                          <a href="tel:+902122016000" className="text-slate-400 hover:text-blue-400 transition-colors">
-                            +90 212 201 6000
-                          </a>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -740,12 +734,6 @@ export default function HomePage() {
                           <Mail className="h-5 w-5 text-slate-400" />
                           <a href="mailto:info@tasavia.com" className="text-blue-400 hover:text-blue-300 transition-colors">
                             info@tasavia.com
-                          </a>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <Phone className="h-5 w-5 text-slate-400" />
-                          <a href="tel:+17135551234" className="text-slate-400 hover:text-blue-400 transition-colors">
-                            +1 (713) 555-1234
                           </a>
                         </div>
                       </div>
@@ -801,14 +789,7 @@ export default function HomePage() {
                 <Mail className="mr-2 h-5 w-5" />
                 Request a Quote
               </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="bg-transparent border-2 border-white text-white hover:bg-white/10 font-medium px-8 py-6 text-base"
-              >
-                <Phone className="mr-2 h-5 w-5" />
-                Call Us Now
-              </Button>
+
             </div>
           </motion.div>
         </div>
