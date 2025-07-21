@@ -15,17 +15,35 @@ const supabaseAdmin = createClient(
 
 async function verifyUser(authHeader: string | null) {
   if (!authHeader?.startsWith('Bearer ')) {
+    console.warn('Missing or invalid Authorization header format');
     return null;
   }
 
   const token = authHeader.substring(7);
   
+  if (!token || token.trim() === '') {
+    console.warn('Empty or invalid token');
+    return null;
+  }
+  
   try {
+    console.log('Verifying user token...');
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
+    
+    if (error) {
+      console.error('Token verification error:', error.message);
+      return null;
+    }
+    
+    if (!user) {
+      console.warn('Token verification returned no user');
+      return null;
+    }
+    
+    console.log(`User verified successfully: ${user.id}`);
     return user;
   } catch (error) {
-    console.error('User verification error:', error);
+    console.error('User verification exception:', error);
     return null;
   }
 }
@@ -35,13 +53,22 @@ export async function GET(request: NextRequest) {
     console.log('GET /api/user/profile - Fetching user profile');
     
     const authHeader = request.headers.get('authorization');
+    console.log('Authorization header present:', !!authHeader);
+    
     const user = await verifyUser(authHeader);
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error('User verification failed, returning 401');
+      return NextResponse.json({ 
+        success: false,
+        error: 'Unauthorized - Invalid or expired token' 
+      }, { status: 401 });
     }
 
+    console.log(`Fetching profile data for user: ${user.id}`);
+
     // Get account data
+    console.log('Fetching account data...');
     const { data: accountData, error: accountError } = await supabase
       .from('accounts')
       .select('*')
@@ -50,9 +77,15 @@ export async function GET(request: NextRequest) {
 
     if (accountError) {
       console.error('Account data fetch error:', accountError);
+      if (accountError.code === 'PGRST116') {
+        console.warn('No account record found for user');
+      }
+    } else {
+      console.log('Account data fetched successfully');
     }
 
     // Get user role
+    console.log('Fetching user role...');
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select(`
@@ -63,6 +96,10 @@ export async function GET(request: NextRequest) {
 
     if (roleError && roleError.code !== 'PGRST116') {
       console.error('Role data fetch error:', roleError);
+    } else if (roleError?.code === 'PGRST116') {
+      console.log('No role assigned to user, using default');
+    } else {
+      console.log('User role fetched successfully');
     }
 
     const profile = {
@@ -75,6 +112,7 @@ export async function GET(request: NextRequest) {
       role: roleData?.roles || { role_name: 'user', description: 'Regular user' }
     };
 
+    console.log('Profile response prepared successfully');
     return NextResponse.json({ 
       success: true, 
       profile 

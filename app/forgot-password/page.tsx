@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,34 @@ import { supabase } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
+
+  // Handle error parameters from reset password page
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      switch (errorParam) {
+        case 'expired-link':
+          setError('Your reset link has expired. Please request a new password reset.');
+          break;
+        case 'recovery-failed':
+          setError('Password reset failed. Please try requesting a new reset link.');
+          break;
+        default:
+          setError('There was an issue with your password reset. Please try again.');
+      }
+      
+      // Clear the error parameter from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      router.replace(url.pathname);
+    }
+  }, [searchParams, router]);
 
   // Countdown timer for resend button
   useEffect(() => {

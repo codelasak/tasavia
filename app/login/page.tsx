@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { auth } from "@/lib/auth";
+import { authDebug } from "@/lib/auth-debug";
 import { PhoneAuthForm } from "@/components/auth/PhoneAuthForm";
 import { OTPVerificationForm } from "@/components/auth/OTPVerificationForm";
 
@@ -24,6 +25,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockTimeRemaining, setBlockTimeRemaining] = useState(0);
   
   // Phone auth state
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -60,22 +64,80 @@ export default function LoginPage() {
     }
   }, [successMessage]);
 
+  // Handle block timer countdown
+  useEffect(() => {
+    if (blockTimeRemaining > 0) {
+      const timer = setTimeout(() => {
+        setBlockTimeRemaining(prev => {
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            setIsBlocked(false);
+            setAttemptCount(0);
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [blockTimeRemaining]);
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if user is currently blocked
+    if (isBlocked) {
+      setEmailError(`Too many failed attempts. Please wait ${blockTimeRemaining} seconds before trying again.`);
+      return;
+    }
+
     setEmailSubmitting(true);
     setEmailError("");
 
-    console.log("Attempting login with email:", email);
+    const currentAttempt = attemptCount + 1;
+    authDebug.info('login', `Login attempt ${currentAttempt}`, { email: email.substring(0, 5) + '*****' });
 
-    const { error, user: signedInUser } = await auth.signIn(email, password);
-    setEmailSubmitting(false);
+    try {
+      // Exponential backoff: 0s, 1s, 2s, 4s, 8s delays
+      if (attemptCount > 0) {
+        const delay = Math.min(Math.pow(2, attemptCount - 1) * 1000, 8000);
+        authDebug.debug('login', `Applying exponential backoff: ${delay}ms delay`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
 
-    if (error) {
-      console.error("Login error:", error);
-      setEmailError(error);
-    } else {
-      console.log("Login successful! User:", signedInUser);
-      router.replace("/portal/dashboard");
+      const { error, user: signedInUser } = await auth.signIn(email, password);
+
+      if (error) {
+        const newAttemptCount = attemptCount + 1;
+        setAttemptCount(newAttemptCount);
+        
+        authDebug.trackLoginAttempt(email, false, newAttemptCount, error);
+        
+        // Block account after 5 failed attempts
+        if (newAttemptCount >= 5) {
+          setIsBlocked(true);
+          setBlockTimeRemaining(60); // 60 second block
+          authDebug.warn('login', 'Account temporarily blocked due to too many failed attempts', { email: email.substring(0, 5) + '*****' });
+          setEmailError("Too many failed login attempts. Your account has been temporarily blocked for 60 seconds. Please check your credentials and try again later.");
+        } else {
+          const attemptsLeft = 5 - newAttemptCount;
+          const nextDelay = Math.min(Math.pow(2, newAttemptCount) * 1000, 8000);
+          setEmailError(`${error}. ${attemptsLeft} attempts remaining. Next attempt will have a ${nextDelay/1000}s delay.`);
+        }
+      } else {
+        authDebug.trackLoginAttempt(email, true, currentAttempt);
+        authDebug.info('login', 'Login successful', { userId: signedInUser?.id });
+        // Reset attempt counter on successful login
+        setAttemptCount(0);
+        setIsBlocked(false);
+        setBlockTimeRemaining(0);
+        router.replace("/portal/dashboard");
+      }
+    } catch (err: any) {
+      authDebug.error('login', 'Login exception', err);
+      setEmailError("An unexpected error occurred. Please try again.");
+    } finally {
+      setEmailSubmitting(false);
     }
   };
 
@@ -236,21 +298,33 @@ export default function LoginPage() {
               )}
               <motion.button
                 type="submit"
-                className="w-full py-2 px-4 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-500 shadow-lg hover:from-cyan-500 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 transition-all text-lg tracking-wide mt-2"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                disabled={emailSubmitting}
+                className={`w-full py-2 px-4 rounded-lg font-semibold text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 transition-all text-lg tracking-wide mt-2 ${
+                  isBlocked 
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-cyan-500 hover:to-blue-600'
+                }`}
+                whileHover={!isBlocked && !emailSubmitting ? { scale: 1.03 } : {}}
+                whileTap={!isBlocked && !emailSubmitting ? { scale: 0.97 } : {}}
+                disabled={emailSubmitting || isBlocked}
               >
-                {emailSubmitting ? (
+                {isBlocked ? (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="inline-block"
                   >
-                    Logging in...
+                    Blocked ({blockTimeRemaining}s)
+                  </motion.span>
+                ) : emailSubmitting ? (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="inline-block"
+                  >
+                    {attemptCount > 0 ? `Logging in... (${Math.min(Math.pow(2, attemptCount - 1), 8)}s delay)` : 'Logging in...'}
                   </motion.span>
                 ) : (
-                  "Login with Email"
+                  `Login with Email ${attemptCount > 0 ? `(${5 - attemptCount} attempts left)` : ''}`
                 )}
               </motion.button>
             </form>

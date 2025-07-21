@@ -572,11 +572,34 @@ export default function PurchaseOrderEditClientPage({
     ? myCompanies.find(c => c.my_company_id === form.watch('ship_to_company_id'))
     : externalCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
   
-  // Filter Ship Via options based on selected my company
-  const filteredShipViaList = selectedMyCompany 
+  // Filter Ship Via options based on Ship-To company (if selected), otherwise fallback to My Company
+  const getShipViaFilterCompany = () => {
+    // Priority: Ship-To company first, then My Company as fallback
+    if (selectedShipToCompany) {
+      const companyName = 'my_company_name' in selectedShipToCompany 
+        ? selectedShipToCompany.my_company_name 
+        : selectedShipToCompany.company_name
+      const companyCode = 'my_company_code' in selectedShipToCompany 
+        ? selectedShipToCompany.my_company_code 
+        : selectedShipToCompany.company_code
+      return { name: companyName, code: companyCode }
+    }
+    
+    if (selectedMyCompany) {
+      return { 
+        name: selectedMyCompany.my_company_name, 
+        code: selectedMyCompany.my_company_code 
+      }
+    }
+    
+    return null
+  }
+  
+  const filterCompany = getShipViaFilterCompany()
+  const filteredShipViaList = filterCompany
     ? shipViaList.filter(shipVia => 
-        shipVia.owner === selectedMyCompany.my_company_name || 
-        shipVia.owner === selectedMyCompany.my_company_code ||
+        shipVia.owner === filterCompany.name || 
+        shipVia.owner === filterCompany.code ||
         !shipVia.owner
       )
     : shipViaList
@@ -790,6 +813,8 @@ export default function PurchaseOrderEditClientPage({
                   onValueChange={(value) => {
                     form.setValue('ship_to_company_type', value as 'my_company' | 'external_company')
                     form.setValue('ship_to_company_id', '')
+                    // Clear Ship Via selection when Ship-To company type changes
+                    form.setValue('ship_via_id', '')
                   }}
                 >
                   <SelectTrigger>
@@ -806,7 +831,11 @@ export default function PurchaseOrderEditClientPage({
                 <Label>Ship To Company</Label>
                 <Select
                   value={form.watch('ship_to_company_id') || ''}
-                  onValueChange={(value) => form.setValue('ship_to_company_id', value)}
+                  onValueChange={(value) => {
+                    form.setValue('ship_to_company_id', value)
+                    // Clear Ship Via selection when Ship-To company changes
+                    form.setValue('ship_via_id', '')
+                  }}
                   disabled={!form.watch('ship_to_company_type')}
                 >
                   <SelectTrigger>
@@ -910,7 +939,14 @@ export default function PurchaseOrderEditClientPage({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="ship_via_id">Ship Via</Label>
+                <Label htmlFor="ship_via_id">
+                  Ship Via
+                  {filterCompany && (
+                    <span className="text-xs text-slate-500 ml-1">
+                      (for {filterCompany.name})
+                    </span>
+                  )}
+                </Label>
                 <Select
                   value={form.watch('ship_via_id')}
                   onValueChange={(value) => form.setValue('ship_via_id', value)}

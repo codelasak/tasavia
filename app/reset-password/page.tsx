@@ -39,116 +39,111 @@ export default function ResetPasswordPage() {
     setIsMounted(true);
   }, []);
 
-  // Handle password recovery flow
+  // Handle password recovery flow - simplified and more robust
   useEffect(() => {
     const handlePasswordRecovery = async () => {
-      // Debug: Log all URL parameters
-      console.log('All URL parameters:', Object.fromEntries(searchParams.entries()));
+      console.log('Reset password: Initializing recovery flow');
       
-      // Check for different possible parameter combinations
-      const tokenHash = searchParams.get('token_hash');
-      const token = searchParams.get('token');
-      const code = searchParams.get('code');
-      const type = searchParams.get('type');
-      const accessToken = searchParams.get('access_token');
-      const refreshToken = searchParams.get('refresh_token');
+      // Get all relevant URL parameters
+      const params = {
+        code: searchParams.get('code'),
+        tokenHash: searchParams.get('token_hash'),
+        type: searchParams.get('type'),
+        accessToken: searchParams.get('access_token'),
+        refreshToken: searchParams.get('refresh_token')
+      };
       
-      console.log('Parameters found:', { tokenHash, token, code, type, accessToken, refreshToken });
+      console.log('Reset password: Parameters present:', Object.keys(params).filter(key => params[key as keyof typeof params]));
       
-      // Try different verification methods based on what's available
-      if (code) {
-        try {
-          console.log('Attempting code exchange for session with code:', code);
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      try {
+        // Prioritized verification methods - try in order of reliability
+        let sessionEstablished = false;
+
+        // Method 1: Code exchange (most reliable)
+        if (params.code) {
+          console.log('Reset password: Attempting code exchange');
+          const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
           
-          if (error) {
-            console.error('Code exchange failed:', error);
-            setError('Invalid or expired reset link. Please request a new password reset.');
-            setTimeout(() => router.push('/forgot-password'), 3000);
-            return;
-          }
-          
-          console.log('Code exchange successful:', data);
-          if (data.session) {
-            console.log('Session established, setting ready to true');
+          if (!error && data.session) {
+            console.log('Reset password: Code exchange successful');
             setIsSessionReady(true);
+            sessionEstablished = true;
           } else {
-            console.log('Code exchange returned no session');
-            setError('Failed to establish session. Please request a new password reset.');
-            setTimeout(() => router.push('/forgot-password'), 3000);
+            console.warn('Reset password: Code exchange failed:', error?.message);
           }
-        } catch (err) {
-          console.error('Code exchange error:', err);
-          setError('Failed to process reset link. Please try again.');
-          setTimeout(() => router.push('/forgot-password'), 3000);
         }
-      } else if (tokenHash && type === 'recovery') {
-        try {
-          console.log('Attempting token_hash verification...');
+
+        // Method 2: Token hash verification
+        if (!sessionEstablished && params.tokenHash && params.type === 'recovery') {
+          console.log('Reset password: Attempting token hash verification');
           const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
+            token_hash: params.tokenHash,
             type: 'recovery'
           });
           
-          if (error) {
-            console.error('Token hash verification failed:', error);
-            setError('Invalid or expired reset link. Please request a new password reset.');
-            setTimeout(() => router.push('/forgot-password'), 3000);
-            return;
+          if (!error) {
+            console.log('Reset password: Token hash verification successful');
+            setIsSessionReady(true);
+            sessionEstablished = true;
+          } else {
+            console.warn('Reset password: Token hash verification failed:', error?.message);
           }
-          
-          setIsSessionReady(true);
-        } catch (err) {
-          console.error('Password recovery error:', err);
-          setError('Failed to process reset link. Please try again.');
-          setTimeout(() => router.push('/forgot-password'), 3000);
         }
-      } else if (accessToken && refreshToken) {
-        try {
-          console.log('Attempting session setup with tokens...');
+
+        // Method 3: Direct session setup
+        if (!sessionEstablished && params.accessToken && params.refreshToken) {
+          console.log('Reset password: Attempting direct session setup');
           const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
+            access_token: params.accessToken,
+            refresh_token: params.refreshToken
           });
           
-          if (error) {
-            console.error('Session setup failed:', error);
-            setError('Invalid or expired reset link. Please request a new password reset.');
-            setTimeout(() => router.push('/forgot-password'), 3000);
-            return;
+          if (!error) {
+            console.log('Reset password: Direct session setup successful');
+            setIsSessionReady(true);
+            sessionEstablished = true;
+          } else {
+            console.warn('Reset password: Direct session setup failed:', error?.message);
           }
-          
-          setIsSessionReady(true);
-        } catch (err) {
-          console.error('Session setup error:', err);
-          setError('Failed to process reset link. Please try again.');
-          setTimeout(() => router.push('/forgot-password'), 3000);
         }
-      } else {
-        // Check if there's already a valid session (maybe Supabase set it automatically)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          console.log('Found existing session');
-          setIsSessionReady(true);
-        } else {
-          console.log('No valid parameters or session found, redirecting...');
-          // Wait a bit longer before redirecting to allow for any async auth processes
+
+        // Method 4: Check for existing session
+        if (!sessionEstablished) {
+          console.log('Reset password: Checking for existing session');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log('Reset password: Found existing valid session');
+            setIsSessionReady(true);
+            sessionEstablished = true;
+          }
+        }
+
+        // If no method worked, show error and redirect
+        if (!sessionEstablished) {
+          console.error('Reset password: All verification methods failed');
+          setError('Invalid or expired reset link. Please request a new password reset.');
           setTimeout(() => {
-            router.push('/forgot-password');
-          }, 2000);
+            router.push('/forgot-password?error=expired-link');
+          }, 3000);
         }
+
+      } catch (error: any) {
+        console.error('Reset password: Recovery flow failed:', error);
+        setError('Failed to process reset link. Please try requesting a new password reset.');
+        setTimeout(() => {
+          router.push('/forgot-password?error=recovery-failed');
+        }, 3000);
       }
     };
 
-    // Also listen for auth state changes
+    // Listen for auth state changes as backup verification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Reset page auth state change:', event, session ? 'has session' : 'no session');
-        console.log('Current isSessionReady state:', isSessionReady);
-        if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
-          console.log('Setting session ready to true from auth state change');
+        console.log('Reset password: Auth state change -', event, session ? 'session present' : 'no session');
+        
+        if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session && !isSessionReady) {
+          console.log('Reset password: Session established via auth state change');
           setIsSessionReady(true);
-          console.log('Session ready state should now be true');
         }
       }
     );
@@ -176,87 +171,66 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted! Starting password reset...');
+    console.log('Reset password: Form submission started');
     setError("");
     setIsLoading(true);
 
     try {
-      console.log('Checking session ready state:', isSessionReady);
-      // Check if session is ready
+      // Validation checks
       if (!isSessionReady) {
         throw new Error('Session not ready. Please click the reset link from your email again.');
       }
 
-      console.log('Session ready - proceeding with validation...');
-
-      // Validation
-      console.log('Checking password field:', formData.password ? 'has password' : 'no password');
       if (!formData.password.trim()) {
         throw new Error('Password is required');
       }
       
-      console.log('Checking password match...');
       if (formData.password !== formData.confirmPassword) {
         throw new Error('Passwords do not match');
       }
 
-      console.log('Checking password validity:', isPasswordValid);
       if (!isPasswordValid) {
         throw new Error('Password does not meet security requirements');
       }
 
-      console.log('All validations passed - proceeding to session check...');
+      console.log('Reset password: All validations passed, updating password');
 
-      // Check current session before updating with timeout
-      const getSessionWithTimeout = () => {
-        return Promise.race([
-          supabase.auth.getSession(),
-          new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Session check timeout')), 5000);
-          })
-        ]);
-      };
-
-      const sessionResult = await getSessionWithTimeout() as any;
-      const { data: sessionData } = sessionResult;
-      console.log('Current session before update:', sessionData.session ? 'valid session' : 'no session');
+      // Verify session is still valid before proceeding
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (!sessionData.session) {
-        throw new Error('Session expired. Please click the reset link from your email again.');
+      if (sessionError || !session) {
+        throw new Error('Session has expired. Please request a new password reset link.');
       }
 
-      // Update password with timeout
-      console.log('Attempting to update password...');
-      
-      const updatePasswordWithTimeout = () => {
-        return Promise.race([
-          supabase.auth.updateUser({
-            password: formData.password
-          }),
-          new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Password update timeout - please try again')), 10000);
-          })
-        ]);
-      };
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: formData.password
+      });
 
-      const result = await updatePasswordWithTimeout() as any;
-      const { data, error } = result;
-
-      console.log('Password update result:', { data, error });
-
-      if (error) {
-        console.error('Password update failed:', error);
-        throw error;
+      if (updateError) {
+        console.error('Reset password: Update failed:', updateError);
+        throw new Error(updateError.message || 'Failed to update password');
       }
 
-      console.log('Password updated successfully, redirecting...');
+      console.log('Reset password: Password updated successfully');
+      
       // Success - redirect to login with success message
       const successMessage = encodeURIComponent('Password updated successfully! You can now sign in with your new password.');
       router.push(`/login?message=${successMessage}&type=success`);
 
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to reset password';
-      setError(errorMessage);
+      console.error('Reset password: Form submission failed:', err);
+      
+      let userErrorMessage = err.message || 'Failed to reset password';
+      
+      // Provide more helpful error messages
+      if (err.message?.includes('Session')) {
+        userErrorMessage = 'Your reset session has expired. Please request a new password reset link.';
+      } else if (err.message?.includes('Password')) {
+        userErrorMessage = 'Password update failed. Please check your requirements and try again.';
+      }
+      
+      setError(userErrorMessage);
     } finally {
       setIsLoading(false);
     }
