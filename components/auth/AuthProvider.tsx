@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -8,19 +8,100 @@ import { supabase } from '@/lib/supabase/client'
 import { authDebug } from '@/lib/auth-debug'
 import { connectionMonitor } from '@/lib/connection-monitor'
 
-// Enhanced profile fetching with retry mechanism and error recovery
-async function fetchUserProfileWithRetry(session: any, isMounted: boolean, maxRetries = 3): Promise<User | null> {
+// Session storage utilities for caching user profile
+const CACHE_KEY = 'tasavia_user_profile';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+interface CachedUserProfile {
+  user: User;
+  timestamp: number;
+  userId: string;
+}
+
+function getCachedProfile(userId: string): User | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    
+    const parsed: CachedUserProfile = JSON.parse(cached);
+    const now = Date.now();
+    
+    // Check if cache is valid and for the correct user
+    if (parsed.userId === userId && (now - parsed.timestamp) < CACHE_DURATION) {
+      authDebug.info('profile', 'Using cached profile data', { userId });
+      return parsed.user;
+    } else {
+      // Clear expired or mismatched cache
+      sessionStorage.removeItem(CACHE_KEY);
+      authDebug.debug('profile', 'Cache expired or user mismatch, cleared', { 
+        cached: parsed.userId, 
+        current: userId 
+      });
+    }
+  } catch (error) {
+    authDebug.warn('profile', 'Cache read error, clearing', error);
+    sessionStorage.removeItem(CACHE_KEY);
+  }
+  
+  return null;
+}
+
+function setCachedProfile(user: User): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const cached: CachedUserProfile = {
+      user,
+      timestamp: Date.now(),
+      userId: user.id
+    };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cached));
+    authDebug.debug('profile', 'Profile cached successfully', { userId: user.id });
+  } catch (error) {
+    authDebug.warn('profile', 'Cache write error', error);
+  }
+}
+
+// Create basic user from session data immediately
+function createBasicUserFromSession(session: any): User {
+  return {
+    id: session.user.id,
+    email: session.user.email || undefined,
+    phone: session.user.phone || undefined,
+    created_at: session.user.created_at || '',
+    auth_method: session.user.email ? 'email' : 'phone'
+  };
+}
+
+// Enhanced profile fetching that doesn't block UI - runs in background
+async function fetchUserProfileInBackground(
+  session: any, 
+  mountedRef: { current: boolean }, 
+  onProfileUpdate: (user: User) => void,
+  maxRetries = 3
+): Promise<void> {
+  if (!mountedRef.current) return;
+  
+  // Check cache first
+  const cachedProfile = getCachedProfile(session.user.id);
+  if (cachedProfile) {
+    onProfileUpdate(cachedProfile);
+    return;
+  }
+  
   const timerId = authDebug.startTimer('profile', 'fetchUserProfile');
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    if (!mountedRef.current) {
+      authDebug.debug('profile', 'Component unmounted, aborting profile fetch');
+      return;
+    }
+    
     try {
       authDebug.debug('profile', `Fetching user profile - attempt ${attempt}/${maxRetries}`, 
         { userId: session?.user?.id }, session?.user?.id);
-      
-      // Add small delay before first API call to ensure token is properly set
-      if (attempt === 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
       
       // Check if session is still valid before making API call
       if (!session?.access_token) {
@@ -43,28 +124,46 @@ async function fetchUserProfileWithRetry(session: any, isMounted: boolean, maxRe
       }
 
       const startTime = Date.now();
+      
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        authDebug.warn('profile', 'Profile API request timeout');
+      }, 10000); // 10 second timeout
+      
       const response = await fetch('/api/user/profile', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       const duration = Date.now() - startTime;
 
       authDebug.trackApiCall('/api/user/profile', response.status, duration, session.user.id);
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success) {
+        if (result.success && mountedRef.current) {
           authDebug.info('profile', 'Profile fetched successfully', { userId: session.user.id });
           authDebug.endTimer(timerId, 'Profile fetch');
-          return {
+          
+          const enhancedUser: User = {
             id: session.user.id,
             email: session.user.email || undefined,
             phone: session.user.phone || result.profile?.account?.phone_number || undefined,
             created_at: session.user.created_at || '',
             auth_method: session.user.phone || result.profile?.account?.phone_number ? 'phone' : 'email'
           };
+          
+          // Cache the enhanced profile data
+          setCachedProfile(enhancedUser);
+          
+          onProfileUpdate(enhancedUser);
+          return;
         } else {
           throw new Error(result.error || 'Profile fetch failed');
         }
@@ -78,34 +177,38 @@ async function fetchUserProfileWithRetry(session: any, isMounted: boolean, maxRe
         throw new Error(`Profile API error: ${response.status} ${response.statusText}`);
       }
     } catch (error: any) {
+      const isTimeoutError = error.name === 'AbortError';
+      const isNetworkError = error.message?.includes('fetch') || error.message?.includes('network');
+      const shouldRetry = isTimeoutError || isNetworkError || error.status >= 500;
+      
       authDebug.error('profile', `Profile fetch attempt ${attempt} failed`, { 
-        error: error.message, 
+        error: error.message,
+        errorType: isTimeoutError ? 'timeout' : isNetworkError ? 'network' : 'api',
         attempt, 
-        maxRetries 
+        maxRetries,
+        shouldRetry
       });
       
-      if (attempt === maxRetries) {
-        authDebug.warn('profile', 'All profile fetch attempts failed, falling back to basic user data');
-        authDebug.endTimer(timerId, 'Profile fetch (with fallback)');
-        // Return basic user data as fallback
-        return {
-          id: session.user.id,
-          email: session.user.email || undefined,
-          phone: session.user.phone || undefined,
-          created_at: session.user.created_at || '',
-          auth_method: session.user.email ? 'email' : 'phone'
-        };
+      if (attempt === maxRetries || !shouldRetry) {
+        authDebug.warn('profile', 'Profile fetch failed permanently, keeping basic user data', {
+          finalError: error.message,
+          attempts: attempt
+        });
+        authDebug.endTimer(timerId, 'Profile fetch (failed)');
+        return;
       }
       
-      // Exponential backoff for next attempt
-      const delay = Math.min(500 * Math.pow(2, attempt - 1), 2000);
-      authDebug.debug('profile', `Waiting ${delay}ms before retry...`);
+      // Exponential backoff for next attempt, with jitter
+      const baseDelay = Math.min(500 * Math.pow(2, attempt - 1), 2000);
+      const jitter = Math.random() * 200; // Add up to 200ms jitter
+      const delay = baseDelay + jitter;
+      
+      authDebug.debug('profile', `Waiting ${Math.round(delay)}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
   authDebug.endTimer(timerId, 'Profile fetch (failed)');
-  return null;
 }
 
 interface AuthContextType {
@@ -143,6 +246,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const mountedRef = useRef(true)
+  const lastUserIdRef = useRef<string | null>(null)
 
   // Initialize connection monitoring
   useEffect(() => {
@@ -163,78 +268,118 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return unsubscribe;
   }, []);
 
+  // Memoized profile update handler to prevent unnecessary re-renders
+  const handleProfileUpdate = useCallback((updatedUser: User) => {
+    if (mountedRef.current) {
+      setUser(updatedUser);
+      authDebug.info('auth', 'User profile updated in background', { userId: updatedUser.id });
+    }
+  }, []);
+
+  // Initial session hydration - sync with server state
+  useEffect(() => {
+    authDebug.info('auth', 'Starting initial session hydration');
+    
+    const hydrateInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          authDebug.error('auth', 'Initial session fetch failed', error);
+          setError('Failed to initialize authentication');
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          authDebug.info('auth', 'Initial session found, hydrating user state');
+          
+          // Check for cached profile data first
+          const cachedProfile = getCachedProfile(session.user.id);
+          if (cachedProfile) {
+            authDebug.info('auth', 'Using cached profile for initial hydration');
+            setUser(cachedProfile);
+            setLoading(false);
+            lastUserIdRef.current = session.user.id;
+            return;
+          }
+          
+          // Set basic user immediately for fast UI rendering
+          const basicUser = createBasicUserFromSession(session);
+          setUser(basicUser);
+          setLoading(false);
+          lastUserIdRef.current = session.user.id;
+          
+          // Enhance with profile data in background
+          fetchUserProfileInBackground(session, mountedRef, handleProfileUpdate)
+            .catch(error => {
+              authDebug.error('auth', 'Initial profile fetch failed', error);
+            });
+        } else {
+          authDebug.info('auth', 'No initial session found');
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (error: any) {
+        authDebug.error('auth', 'Session hydration error', error);
+        setError('Authentication initialization failed');
+        setLoading(false);
+      }
+    };
+
+    hydrateInitialSession();
+  }, [handleProfileUpdate]);
+
   useEffect(() => {
     authDebug.info('auth', 'Initializing auth state listener');
-
-    let isMounted = true;
-    let lastUserId: string | null = null;
 
     // Listen for auth changes, this is the primary source of truth for client-side session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       authDebug.trackAuthState(event, session, session?.user);
 
       // Prevent race conditions by checking if component is still mounted
-      if (!isMounted) return;
+      if (!mountedRef.current) return;
 
       // Clear any previous errors on auth state change
-      if (isMounted) {
-        setError(null);
-      }
+      setError(null);
 
       if (session?.user) {
-        // Prevent unnecessary API calls if it's the same user
-        if (lastUserId === session.user.id && event !== 'SIGNED_IN') {
-          authDebug.debug('auth', 'Same user, skipping account data fetch', { userId: session.user.id });
+        // Prevent unnecessary processing if it's the same user and not a fresh sign in
+        if (lastUserIdRef.current === session.user.id && event !== 'SIGNED_IN') {
+          authDebug.debug('auth', 'Same user, skipping processing', { userId: session.user.id });
           setLoading(false);
           return;
         }
 
-        lastUserId = session.user.id;
+        lastUserIdRef.current = session.user.id;
 
-        try {
-          // Enhanced profile fetching with retry mechanism and token refresh
-          const currentUser = await fetchUserProfileWithRetry(session, isMounted);
-          if (currentUser && isMounted) {
-            setUser(currentUser);
-            authDebug.info('auth', 'User profile loaded successfully', { userId: currentUser.id });
-          }
-        } catch (error: any) {
-          authDebug.error('auth', 'Error fetching user profile', error);
-          const errorMessage = error?.message || 'Failed to load user profile';
-          
-          if (isMounted) {
-            setError(errorMessage);
-            // Fallback to basic user data even with error
-            const currentUser: User = {
-              id: session.user.id,
-              email: session.user.email || undefined,
-              phone: session.user.phone || undefined,
-              created_at: session.user.created_at || '',
-              auth_method: session.user.email ? 'email' : 'phone'
-            };
-            setUser(currentUser);
-            authDebug.warn('auth', 'Using fallback user data due to profile fetch error', { userId: session.user.id });
-          }
-        }
+        // Set basic user data immediately to show UI
+        const basicUser = createBasicUserFromSession(session);
+        setUser(basicUser);
+        setLoading(false); // Critical: Set loading false immediately
+        
+        authDebug.info('auth', 'Basic user data set immediately', { userId: basicUser.id });
+
+        // Fetch enhanced profile data in background (non-blocking)
+        fetchUserProfileInBackground(session, mountedRef, handleProfileUpdate)
+          .catch(error => {
+            authDebug.error('auth', 'Background profile fetch failed', error);
+            // Don't set error state here - user can still use the app with basic data
+          });
       } else {
-        lastUserId = null;
-        if (isMounted) {
-          setUser(null);
-          authDebug.info('auth', 'User signed out');
-        }
-      }
-      
-      if (isMounted) {
+        lastUserIdRef.current = null;
+        setUser(null);
         setLoading(false);
+        authDebug.info('auth', 'User signed out');
       }
-    })
+    });
 
     return () => {
       authDebug.info('auth', 'Cleaning up auth state listener');
-      isMounted = false;
-      subscription?.unsubscribe()
+      mountedRef.current = false;
+      subscription?.unsubscribe();
     }
-  }, []) // Empty dependency array to run only once on mount
+  }, [handleProfileUpdate]) // Include handleProfileUpdate in dependencies
 
   // Note: Redirect logic has been moved to middleware.ts for better performance and reliability
 
@@ -254,19 +399,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       
       if (session?.user) {
-        const currentUser = await fetchUserProfileWithRetry(session, true);
-        if (currentUser) {
-          setUser(currentUser);
-          console.log("AuthProvider: Auth retry successful");
-        }
+        // Set basic user data immediately
+        const basicUser = createBasicUserFromSession(session);
+        setUser(basicUser);
+        setLoading(false);
+        
+        // Fetch enhanced profile in background
+        fetchUserProfileInBackground(session, mountedRef, handleProfileUpdate)
+          .catch(error => {
+            authDebug.error('auth', 'Retry profile fetch failed', error);
+          });
+        
+        console.log("AuthProvider: Auth retry successful");
       } else {
         setUser(null);
+        setLoading(false);
         console.log("AuthProvider: No session found during retry");
       }
     } catch (error: any) {
       console.error("AuthProvider: Auth retry failed:", error);
       setError(error?.message || 'Authentication retry failed');
-    } finally {
       setLoading(false);
     }
   };

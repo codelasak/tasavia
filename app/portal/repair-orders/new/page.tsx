@@ -7,7 +7,7 @@ async function getFormData() {
   const supabase = createSupabaseServer()
   
   const [vendorsResult, inventoryResult] = await Promise.all([
-    supabase.from('companies').select('*').eq('company_type', 'vendor').order('company_name'),
+    supabase.from('companies').select('*').in('company_type', ['vendor', 'both']).order('company_name'),
     supabase.from('inventory')
       .select(`
         *,
