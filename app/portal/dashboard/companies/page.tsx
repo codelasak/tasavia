@@ -81,7 +81,7 @@ export default function CompaniesPage() {
         
         setCompanies(companiesWithEmptyRelations as ExternalCompany[])
       } else {
-        setCompanies((data || []) as ExternalCompany[])
+        setCompanies((data || []) as unknown as ExternalCompany[])
       }
     } catch (error) {
       console.error('Error fetching companies:', error)

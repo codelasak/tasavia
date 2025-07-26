@@ -11,15 +11,48 @@ interface SalesOrderPDFData {
   sales_order_id: string
   invoice_number: string
   customer_po_number: string | null
+  reference_number: string | null
+  contract_number: string | null
+  country_of_origin: string | null
+  end_use_country: string | null
   sales_date: string | null
   status: string | null
   sub_total: number | null
+  freight_charge: number | null
+  misc_charge: number | null
+  vat_percentage: number | null
+  vat_amount: number | null
   total_net: number | null
   currency: string | null
   payment_terms: string | null
   tracking_number: string | null
   remarks: string | null
-  my_companies: any
+  my_companies: {
+    my_company_name: string
+    my_company_code: string
+    company_addresses: Array<{
+      address_line1: string
+      address_line2: string | null
+      city: string | null
+      country: string | null
+    }>
+    company_contacts: Array<{
+      contact_name: string
+      phone: string | null
+      email: string | null
+    }>
+    company_bank_details?: Array<{
+      account_holder_name: string
+      bank_name: string
+      account_number: string
+      swift_code: string | null
+      iban: string | null
+      bank_address: string | null
+      branch_code: string | null
+      branch_address: string | null
+      is_primary: boolean | null
+    }>
+  }
   companies: any
   terms_and_conditions: {
     title: string
@@ -115,6 +148,12 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
             <div className="text-sm text-slate-600">Date: {salesOrder.sales_date ? format(new Date(salesOrder.sales_date), 'MMMM dd, yyyy') : 'N/A'}</div>
             {salesOrder.customer_po_number && (
               <div className="text-sm text-slate-600">Customer PO: {salesOrder.customer_po_number}</div>
+            )}
+            {salesOrder.reference_number && (
+              <div className="text-sm text-slate-600">Reference: {salesOrder.reference_number}</div>
+            )}
+            {salesOrder.contract_number && (
+              <div className="text-sm text-slate-600">Contract: {salesOrder.contract_number}</div>
             )}
           </div>
         </div>
@@ -249,6 +288,28 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
           )}
         </div>
 
+        {/* Export Documentation */}
+        {(salesOrder.country_of_origin || salesOrder.end_use_country) && (
+          <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded">
+            <h3 className="font-bold text-slate-900 mb-3">EXPORT DOCUMENTATION</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {salesOrder.country_of_origin && (
+                <div>
+                  <span className="font-semibold">Country of Origin:</span> {salesOrder.country_of_origin}
+                </div>
+              )}
+              {salesOrder.end_use_country && (
+                <div>
+                  <span className="font-semibold">End Use Country:</span> {salesOrder.end_use_country}
+                </div>
+              )}
+            </div>
+            <div className="text-xs text-blue-700 mt-2">
+              This information is provided for export control compliance purposes.
+            </div>
+          </div>
+        )}
+
         {/* Line Items Table */}
         <div className="mb-8">
           <table className="w-full border-collapse border border-slate-300">
@@ -298,19 +359,36 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
         </div>
 
         {/* Wire Details Section */}
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
-          <div className="text-sm font-medium text-slate-900 mb-2">WIRE DETAILS (USD):</div>
-          <div className="text-sm space-y-1">
-            <div><span className="font-semibold">Account Holder:</span> TASAVIA HAVACILIK TEKNIK SAN. TIC AS</div>
-            <div><span className="font-semibold">Bank Name/ Number:</span> KUVEYT TURK KATILIM BANKASI AS</div>
-            <div><span className="font-semibold">Branch Code:</span> Levent Tcari / 471</div>
-            <div><span className="font-semibold">Account Number:</span> 98093015-101</div>
-            <div><span className="font-semibold">Swift Number:</span> KTEFTRISXXX</div>
-            <div><span className="font-semibold">IBAN #:</span> TR04 0020 5000 0980 9301 5001 01</div>
-            <div><span className="font-semibold">Bank Address:</span> Esentepe Mh Ali Kaya Sk Nef Plaza No:3</div>
-            <div>Kat:13 no:30-31 Sisli - Istanbul Turkiye</div>
+        {salesOrder.my_companies.company_bank_details && salesOrder.my_companies.company_bank_details.length > 0 && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+            <div className="text-sm font-medium text-slate-900 mb-2">WIRE DETAILS ({salesOrder.currency}):</div>
+            {salesOrder.my_companies.company_bank_details
+              .filter(bank => bank.is_primary)
+              .slice(0, 1)
+              .map((bank, index) => (
+                <div key={index} className="text-sm space-y-1">
+                  <div><span className="font-semibold">Account Holder:</span> {bank.account_holder_name}</div>
+                  <div><span className="font-semibold">Bank Name:</span> {bank.bank_name}</div>
+                  {bank.branch_code && (
+                    <div><span className="font-semibold">Branch Code:</span> {bank.branch_code}</div>
+                  )}
+                  <div><span className="font-semibold">Account Number:</span> {bank.account_number}</div>
+                  {bank.swift_code && (
+                    <div><span className="font-semibold">Swift Code:</span> {bank.swift_code}</div>
+                  )}
+                  {bank.iban && (
+                    <div><span className="font-semibold">IBAN:</span> {bank.iban}</div>
+                  )}
+                  {bank.bank_address && (
+                    <div><span className="font-semibold">Bank Address:</span> {bank.bank_address}</div>
+                  )}
+                  {bank.branch_address && (
+                    <div>{bank.branch_address}</div>
+                  )}
+                </div>
+              ))}
           </div>
-        </div>
+        )}
 
         {/* Cost Summary */}
         <div className="flex justify-end mb-8">
@@ -321,10 +399,24 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
                   <td className="py-1 text-sm">Subtotal:</td>
                   <td className="py-1 text-sm text-right">${(salesOrder.sub_total || 0).toFixed(2)}</td>
                 </tr>
-                <tr>
-                  <td className="py-1 text-sm">Misc Charge:</td>
-                  <td className="py-1 text-sm text-right">$0.00</td>
-                </tr>
+                {(salesOrder.freight_charge && salesOrder.freight_charge > 0) && (
+                  <tr>
+                    <td className="py-1 text-sm">Freight Charge:</td>
+                    <td className="py-1 text-sm text-right">${salesOrder.freight_charge.toFixed(2)}</td>
+                  </tr>
+                )}
+                {(salesOrder.misc_charge && salesOrder.misc_charge > 0) && (
+                  <tr>
+                    <td className="py-1 text-sm">Misc Charge:</td>
+                    <td className="py-1 text-sm text-right">${salesOrder.misc_charge.toFixed(2)}</td>
+                  </tr>
+                )}
+                {(salesOrder.vat_amount && salesOrder.vat_amount > 0) && (
+                  <tr>
+                    <td className="py-1 text-sm">VAT ({salesOrder.vat_percentage || 0}%):</td>
+                    <td className="py-1 text-sm text-right">${salesOrder.vat_amount.toFixed(2)}</td>
+                  </tr>
+                )}
                 <tr className="border-t border-slate-300">
                   <td className="py-2 font-bold">Total NET ({salesOrder.currency}):</td>
                   <td className="py-2 font-bold text-right text-lg">${(salesOrder.total_net || 0).toFixed(2)}</td>
@@ -376,10 +468,7 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
               use, sale, transfer or alteration of the goods furnished hereunder; Any damage to or destruction of any property or injury to any
               person(s) caused by any such act or omission, whether negligent or otherwise, of Buyer or any employee, subcontractor, or
               agent employed by Buyer. Such obligations shall survive acceptance of the goods and payment by the Buyer.
-            </p>
-            
-            <div className="text-right text-xs">Page 1/2</div>
-            
+            </p>            
             <p>
               <strong>Disclaimer:</strong> These goods are sold by TASAVIA or subsidiaries &ldquo;As Is, Where Is&rdquo; without any warranties, guarantees, or
               representations of any kind, either expressed or implied, statutory, or otherwise, that shall survive delivery as to the products
@@ -433,8 +522,8 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
               for use in activities which involve the development, production, use or stockpiling of Nuclear, Chemical, or Biological weapons or
               missiles, nor use said products, technology or software in any facilities which are engaged in activities related to such weapons;</li>
               <li>I (We) acknowledge that U.S., law prohibits the sale, transfer, export or re-export other participation in any export transaction
-              involving products, technology or software with individuals listed in the U.S. Commerce Department's Table of Denial Orders, the
-              U.S. Treasury Department's List of Specially Designated Nationals, and/or the U.S. Department of State's list of debarred from
+              involving products, technology or software with individuals listed in the U.S. Commerce Department&apos;s Table of Denial Orders, the
+              U.S. Treasury Department&apos;s List of Specially Designated Nationals, and/or the U.S. Department of State&apos;s list of debarred from
               receiving Munitions List items;</li>
               <li>I (We) will abide by all applicable U.S. Export Control laws and regulations for any products, technology or software purchased
               from TASAVIA or subsidiaries and will obtain any licenses or prior approvals required by the U.S. Government prior to export or re-

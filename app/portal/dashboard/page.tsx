@@ -1,8 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, Package, ShoppingCart, BarChart3, DollarSign, TrendingUp } from 'lucide-react'
+import { Building2, Package, ShoppingCart, BarChart3, DollarSign, TrendingUp, FileText } from 'lucide-react'
 import { createSupabaseServer } from '@/lib/supabase/server'
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
 import { redirect } from 'next/navigation'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface DashboardStats {
   totalCompanies: number
@@ -23,7 +24,44 @@ export default async function DashboardPage() {
   
   const stats: DashboardStats = await fetchDashboardStats();
 
-  return <DashboardClient initialStats={stats} />;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+      </div>
+      
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview" className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4" />
+            <span>Business Overview</span>
+          </TabsTrigger>
+          <TabsTrigger value="ata106" className="flex items-center space-x-2">
+            <FileText className="h-4 w-4" />
+            <span>ATA 106 Analytics</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          <DashboardClient initialStats={stats} />
+        </TabsContent>
+        
+        <TabsContent value="ata106" className="space-y-6">
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">ATA 106 Analytics</h3>
+                  <p className="text-muted-foreground">Analytics dashboard will be available once the system is fully initialized.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 async function fetchDashboardStats(): Promise<DashboardStats> {

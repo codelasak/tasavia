@@ -1,32 +1,9 @@
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
-import { createSupabaseServer } from '@/lib/supabase/server'
 import SalesOrdersList from './sales-orders-list'
 
-export const dynamic = 'force-dynamic'
-
-async function getSalesOrders() {
-  const supabase = createSupabaseServer()
-  const { data, error } = await supabase
-    .from('sales_orders')
-    .select(`
-      *,
-      companies(company_name, company_code),
-      my_companies(my_company_name)
-    `)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching sales orders:', error)
-    return []
-  }
-  return (data as any) || []
-}
-
-export default async function SalesOrdersPage() {
-  const salesOrders = await getSalesOrders()
-
+export default function SalesOrdersPage() {
   return (
     <div className="space-y-4 px-2 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -37,7 +14,7 @@ export default async function SalesOrdersPage() {
           </Button>
         </Link>
       </div>
-      <SalesOrdersList initialSalesOrders={salesOrders} />
+      <SalesOrdersList />
     </div>
   )
 }

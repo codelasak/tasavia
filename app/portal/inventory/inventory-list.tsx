@@ -23,6 +23,9 @@ interface InventoryItem {
   total_value?: number
   notes?: string | null
   last_updated?: string
+  status: string
+  po_id_original?: string | null
+  po_number_original?: string | null
   pn_master_table: {
     pn: string
     description: string | null
@@ -40,24 +43,29 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [searchTerm, setSearchTerm] = useState('')
   const [conditionFilter, setConditionFilter] = useState<string>('all')
   const [locationFilter, setLocationFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [locations, setLocations] = useState<string[]>([])
   const [conditions, setConditions] = useState<string[]>([])
+  const [statuses, setStatuses] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Extract unique locations and conditions for filters
+    // Extract unique locations, conditions, and statuses for filters
     const locationData = inventory?.map(item => item.location).filter(Boolean) || []
     const conditionData = inventory?.map(item => item.condition).filter(Boolean) || []
+    const statusData = inventory?.map(item => item.status).filter(Boolean) || []
     
     const uniqueLocations = Array.from(new Set(locationData)) as string[]
     const uniqueConditions = Array.from(new Set(conditionData)) as string[]
+    const uniqueStatuses = Array.from(new Set(statusData)) as string[]
     
     setLocations(uniqueLocations)
     setConditions(uniqueConditions)
+    setStatuses(uniqueStatuses)
   }, [inventory])
 
   useEffect(() => {
@@ -76,8 +84,12 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
       filtered = filtered.filter(item => item.location === locationFilter)
     }
 
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(item => item.status === statusFilter)
+    }
+
     setFilteredInventory(filtered)
-  }, [inventory, searchTerm, conditionFilter, locationFilter])
+  }, [inventory, searchTerm, conditionFilter, locationFilter, statusFilter])
 
   const fetchInventory = async () => {
     try {
@@ -114,7 +126,16 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   }
 
   const handleDelete = async (item: InventoryItem) => {
-    if (!confirm(`Are you sure you want to delete this inventory item?`)) return
+    // Enhanced confirmation based on status
+    let confirmMessage = `Are you sure you want to delete this inventory item?`
+    
+    if (item.status === 'Reserved') {
+      confirmMessage = `This inventory item is RESERVED for a sales order. Deleting it may cause issues. Are you sure you want to proceed?`
+    } else if (item.status === 'Sold') {
+      confirmMessage = `This inventory item has been SOLD. Deleting it may cause data integrity issues. Are you sure you want to proceed?`
+    }
+    
+    if (!confirm(confirmMessage)) return
 
     try {
       setDeleteLoading(item.inventory_id)
@@ -158,6 +179,17 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
     return colors[condition as keyof typeof colors] || 'bg-gray-100 text-gray-800'
   }
 
+  const getStatusBadge = (status: string) => {
+    const colors = {
+      'Available': 'bg-green-100 text-green-800 border-green-200',
+      'Reserved': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'Sold': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Damaged': 'bg-red-100 text-red-800 border-red-200',
+      'Under Repair': 'bg-purple-100 text-purple-800 border-purple-200'
+    }
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200'
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -199,18 +231,30 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
               ))}
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {statuses.map(status => (
+                <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           {filteredInventory.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-slate-500">No inventory items found</div>
-              {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all') && (
+              {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all' || statusFilter !== 'all') && (
                 <Button
                   variant="link"
                   onClick={() => {
                     setSearchTerm('')
                     setConditionFilter('all')
                     setLocationFilter('all')
+                    setStatusFilter('all')
                   }}
                   className="mt-2"
                 >
@@ -227,6 +271,7 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table.pn}</span>
+                          <Badge className={`${getStatusBadge(item.status)} border`}>{item.status}</Badge>
                           <Badge className={getConditionBadge(item.condition)}>{item.condition || 'Unknown'}</Badge>
                           {item.location && (
                             <span className="flex items-center text-xs text-slate-500"><MapPin className="h-4 w-4 mr-1" />{item.location}</span>
@@ -240,6 +285,11 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                           <span>Value: <b>${(item.total_value || 0).toFixed(2)}</b></span>
                           {item.serial_number && <span>S/N: <b>{item.serial_number}</b></span>}
                         </div>
+                        {item.po_number_original && (
+                          <div className="text-xs text-slate-400 mt-1">
+                            From PO: <span className="font-mono">{item.po_number_original}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex gap-1 ml-4">
                         <Button 

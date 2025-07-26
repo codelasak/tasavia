@@ -80,6 +80,9 @@ const poItemSchema = z.object({
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unit_price: z.number().min(0, 'Unit price must be positive'),
   condition: z.string().optional(),
+  traceability_source: z.string().optional(),
+  traceable_to: z.string().optional(),
+  last_certified_agency: z.string().optional(),
 })
 
 const purchaseOrderSchema = z.object({
@@ -165,6 +168,9 @@ export default function PurchaseOrderEditClientPage({
           quantity: item.quantity,
           unit_price: item.unit_price,
           condition: item.condition || '',
+          traceability_source: item.traceability_source || '',
+          traceable_to: item.traceable_to || '',
+          last_certified_agency: item.last_certified_agency || '',
         }
       })
       
@@ -178,6 +184,9 @@ export default function PurchaseOrderEditClientPage({
         quantity: 1,
         unit_price: 0,
         condition: '',
+        traceability_source: '',
+        traceable_to: '',
+        last_certified_agency: '',
       }]
       
       // Resetting form with initial data
@@ -482,6 +491,9 @@ export default function PurchaseOrderEditClientPage({
       quantity: item.quantity,
       unit_price: item.unit_price,
       condition: item.condition || null,
+      traceability_source: item.traceability_source || null,
+      traceable_to: item.traceable_to || null,
+      last_certified_agency: item.last_certified_agency || null,
     }))
 
 
@@ -1044,6 +1056,9 @@ export default function PurchaseOrderEditClientPage({
                   quantity: 1,
                   unit_price: 0,
                   condition: '',
+                  traceability_source: '',
+                  traceable_to: '',
+                  last_certified_agency: '',
                 })}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -1182,6 +1197,51 @@ export default function PurchaseOrderEditClientPage({
                           {form.formState.errors.items[index]?.unit_price?.message}
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Traceability Fields */}
+                  <div className="mt-4">
+                    <h5 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
+                      <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">ATA 106</span>
+                      Traceability Information
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor={`items.${index}.traceability_source`}>Traceability Source</Label>
+                        <Input
+                          id={`items.${index}.traceability_source`}
+                          {...form.register(`items.${index}.traceability_source`)}
+                          placeholder="e.g., Manufacturer Certificate"
+                        />
+                        <div className="text-xs text-gray-500 mt-1">
+                          Source of traceability documentation
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`items.${index}.traceable_to`}>Traceable To</Label>
+                        <Input
+                          id={`items.${index}.traceable_to`}
+                          {...form.register(`items.${index}.traceable_to`)}
+                          placeholder="e.g., Aircraft N12345"
+                        />
+                        <div className="text-xs text-gray-500 mt-1">
+                          What this part is traceable to
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`items.${index}.last_certified_agency`}>Last Certified Agency</Label>
+                        <Input
+                          id={`items.${index}.last_certified_agency`}
+                          {...form.register(`items.${index}.last_certified_agency`)}
+                          placeholder="e.g., FAA, EASA"
+                        />
+                        <div className="text-xs text-gray-500 mt-1">
+                          Certification authority
+                        </div>
+                      </div>
                     </div>
                   </div>
 

@@ -7,43 +7,20 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Eye, Edit, Trash2, FileText, Truck } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { Search, Eye, Edit, Trash2, FileText, Truck, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { SALES_ORDER_STATUSES } from '@/lib/constants/sales-order-constants'
+import { StatusBadge } from '@/components/sales-order/StatusBadge'
+import { useSalesOrders, useDeleteSalesOrder } from '@/lib/hooks/usePurchaseOrders'
 
-interface SalesOrder {
-  sales_order_id: string
-  invoice_number: string
-  customer_company_id: string
-  customer_po_number: string | null
-  sales_date: string | null
-  status: string | null
-  sub_total: number | null
-  total_net: number | null
-  currency: string | null
-  tracking_number: string | null
-  created_at: string | null
-  companies: {
-    company_name: string
-    company_code: string | null
-  }
-  my_companies: {
-    my_company_name: string
-  }
-}
-
-interface SalesOrdersListProps {
-  initialSalesOrders: SalesOrder[]
-}
-
-export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListProps) {
+export default function SalesOrdersList() {
   const router = useRouter()
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>(initialSalesOrders)
-  const [filteredOrders, setFilteredOrders] = useState<SalesOrder[]>(initialSalesOrders)
+  const { data: salesOrders = [], isLoading, error } = useSalesOrders()
+  const deleteOrderMutation = useDeleteSalesOrder()
+  const [filteredOrders, setFilteredOrders] = useState(salesOrders)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
 
   useEffect(() => {
     let filtered = salesOrders.filter(order =>
@@ -59,43 +36,35 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
     setFilteredOrders(filtered)
   }, [salesOrders, searchTerm, statusFilter])
 
-  const handleDelete = async (order: SalesOrder) => {
+  const handleDelete = (order: any) => {
     if (!confirm(`Are you sure you want to delete sales order ${order.invoice_number}?`)) return
-
-    try {
-      setDeleteLoading(order.sales_order_id)
-      
-      const { error } = await supabase
-        .from('sales_orders')
-        .delete()
-        .eq('sales_order_id', order.sales_order_id)
-
-      if (error) {
-        console.error('Delete sales order error:', error)
-        throw new Error(error.message || 'Failed to delete sales order')
-      }
-      
-      setSalesOrders(salesOrders.filter(o => o.sales_order_id !== order.sales_order_id))
-      toast.success('Sales order deleted successfully')
-    } catch (error: any) {
-      console.error('Error deleting sales order:', error)
-      toast.error(error.message || 'Failed to delete sales order')
-    } finally {
-      setDeleteLoading(null)
-    }
+    deleteOrderMutation.mutate(order.sales_order_id)
   }
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      'Draft': 'bg-gray-100 text-gray-800',
-      'Confirmed': 'bg-blue-100 text-blue-800',
-      'Shipped': 'bg-yellow-100 text-yellow-800',
-      'Invoiced': 'bg-green-100 text-green-800',
-      'Closed': 'bg-purple-100 text-purple-800',
-      'Cancelled': 'bg-red-100 text-red-800'
-    }
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span>Loading sales orders...</span>
+        </CardContent>
+      </Card>
+    )
   }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-red-600 text-center">
+            <div className="font-semibold">Error loading sales orders</div>
+            <div className="text-sm mt-1">{error.message}</div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
 
   return (
     <Card>
@@ -116,12 +85,11 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="Draft">Draft</SelectItem>
-              <SelectItem value="Confirmed">Confirmed</SelectItem>
-              <SelectItem value="Shipped">Shipped</SelectItem>
-              <SelectItem value="Invoiced">Invoiced</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
+              {SALES_ORDER_STATUSES.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -154,9 +122,7 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
                           <span className="font-mono font-bold text-base text-slate-900">
                             {order.invoice_number}
                           </span>
-                          <Badge className={getStatusBadge(order.status || 'Draft')}>
-                            {order.status || 'Draft'}
-                          </Badge>
+                          <StatusBadge status={order.status || 'Draft'} />
                           {order.tracking_number && (
                             <span className="flex items-center text-xs text-slate-500">
                               <Truck className="h-4 w-4 mr-1" />
@@ -206,10 +172,10 @@ export default function SalesOrdersList({ initialSalesOrders }: SalesOrdersListP
                           size="icon" 
                           className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDelete(order)}
-                          disabled={deleteLoading === order.sales_order_id}
+                          disabled={deleteOrderMutation.isPending}
                         >
-                          {deleteLoading === order.sales_order_id ? (
-                            <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                          {deleteOrderMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Trash2 className="h-4 w-4" />
                           )}

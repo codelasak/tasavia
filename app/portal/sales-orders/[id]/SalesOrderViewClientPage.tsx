@@ -9,14 +9,24 @@ import { ArrowLeft, Edit, FileText, Package, Truck } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { StatusBadge } from '@/components/sales-order/StatusBadge'
+import { StatusActions } from '@/components/sales-order/StatusActions'
 
 interface SalesOrderDetails {
   sales_order_id: string
   invoice_number: string
   customer_po_number: string | null
+  reference_number: string | null
+  contract_number: string | null
+  country_of_origin: string | null
+  end_use_country: string | null
   sales_date: string | null
   status: string | null
   sub_total: number | null
+  freight_charge: number | null
+  misc_charge: number | null
+  vat_percentage: number | null
+  vat_amount: number | null
   total_net: number | null
   currency: string | null
   payment_terms: string | null
@@ -47,6 +57,9 @@ interface SalesOrderDetails {
       serial_number: string | null
       condition: string | null
       quantity: number | null
+      application_code: string | null
+      dimensions: string | null
+      weight: number | null
       traceability_source: string | null
       traceable_to: string | null
       last_certified_agency: string | null
@@ -69,65 +82,57 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
 
   const updateStatus = async (newStatus: string) => {
     try {
-      const { error } = await supabase
+      // Start transaction by updating sales order first
+      const { error: salesOrderError } = await supabase
         .from('sales_orders')
         .update({ status: newStatus })
         .eq('sales_order_id', salesOrder.sales_order_id)
 
-      if (error) throw error
+      if (salesOrderError) throw salesOrderError
 
       // Update inventory status based on sales order status
       if (newStatus === 'Shipped') {
-        // Update inventory items to 'Sold' status
+        const inventoryUpdates = []
+        const failedUpdates = []
+
+        // Update inventory items to 'Sold' status with proper error handling
         for (const item of salesOrder.sales_order_items) {
-          await supabase
-            .from('inventory')
-            .update({ status: 'Sold' })
-            .eq('inventory_id', item.inventory.inventory_id)
+          try {
+            const { error: inventoryError } = await supabase
+              .from('inventory')
+              .update({ status: 'Sold' })
+              .eq('inventory_id', item.inventory.inventory_id)
+
+            if (inventoryError) {
+              console.error(`Failed to update inventory ${item.inventory.inventory_id}:`, inventoryError)
+              failedUpdates.push(item.inventory.inventory_id)
+            } else {
+              inventoryUpdates.push(item.inventory.inventory_id)
+            }
+          } catch (err) {
+            console.error(`Exception updating inventory ${item.inventory.inventory_id}:`, err)
+            failedUpdates.push(item.inventory.inventory_id)
+          }
         }
+
+        // Handle partial failures
+        if (failedUpdates.length > 0) {
+          console.warn(`Failed to update ${failedUpdates.length} inventory items:`, failedUpdates)
+          toast.warning(`Sales order updated, but ${failedUpdates.length} inventory items could not be updated`)
+        } else if (inventoryUpdates.length > 0) {
+          toast.success(`Sales order status updated to ${newStatus}. ${inventoryUpdates.length} inventory items marked as sold.`)
+        }
+      } else {
+        toast.success(`Sales order status updated to ${newStatus}`)
       }
 
       setSalesOrder({ ...salesOrder, status: newStatus })
-      toast.success(`Sales order status updated to ${newStatus}`)
     } catch (error) {
       console.error('Error updating status:', error)
-      toast.error('Failed to update status')
+      toast.error(`Failed to update status: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      'Draft': 'bg-gray-100 text-gray-800',
-      'Confirmed': 'bg-blue-100 text-blue-800',
-      'Shipped': 'bg-yellow-100 text-yellow-800',
-      'Invoiced': 'bg-green-100 text-green-800',
-      'Closed': 'bg-purple-100 text-purple-800',
-      'Cancelled': 'bg-red-100 text-red-800'
-    }
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'
-  }
-
-  const getStatusActions = (currentStatus: string) => {
-    const actions = []
-    
-    if (currentStatus === 'Draft') {
-      actions.push({ label: 'Confirm Order', status: 'Confirmed', variant: 'default' })
-    }
-    if (currentStatus === 'Confirmed') {
-      actions.push({ label: 'Mark as Shipped', status: 'Shipped', variant: 'default' })
-    }
-    if (currentStatus === 'Shipped') {
-      actions.push({ label: 'Mark as Invoiced', status: 'Invoiced', variant: 'default' })
-    }
-    if (currentStatus === 'Invoiced') {
-      actions.push({ label: 'Close Order', status: 'Closed', variant: 'default' })
-    }
-    if (!['Closed', 'Cancelled'].includes(currentStatus)) {
-      actions.push({ label: 'Cancel Order', status: 'Cancelled', variant: 'destructive' })
-    }
-    
-    return actions
-  }
 
   return (
     <div className="space-y-6">
@@ -180,22 +185,12 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle>Status</CardTitle>
-              <Badge className={getStatusBadge(salesOrder.status || 'Unknown')}>
-                {salesOrder.status || 'Unknown'}
-              </Badge>
+              <StatusBadge status={salesOrder.status} />
             </div>
-            <div className="flex gap-2">
-              {getStatusActions(salesOrder.status || 'Unknown').map((action) => (
-                <Button
-                  key={action.status}
-                  variant={action.variant as any}
-                  size="sm"
-                  onClick={() => updateStatus(action.status)}
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </div>
+            <StatusActions 
+              currentStatus={salesOrder.status}
+              onStatusChange={updateStatus}
+            />
           </div>
         </CardHeader>
       </Card>
@@ -224,6 +219,18 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
               <div>
                 <div className="text-slate-500 text-sm">Customer PO Number</div>
                 <div className="font-medium">{salesOrder.customer_po_number}</div>
+              </div>
+            )}
+            {salesOrder.reference_number && (
+              <div>
+                <div className="text-slate-500 text-sm">Reference Number</div>
+                <div className="font-medium">{salesOrder.reference_number}</div>
+              </div>
+            )}
+            {salesOrder.contract_number && (
+              <div>
+                <div className="text-slate-500 text-sm">Contract Number</div>
+                <div className="font-medium">{salesOrder.contract_number}</div>
               </div>
             )}
             <div>
@@ -274,6 +281,35 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
         </Card>
       </div>
 
+      {/* Export Documentation */}
+      {(salesOrder.country_of_origin || salesOrder.end_use_country) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Export Documentation</CardTitle>
+            <CardDescription>Country information for export compliance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {salesOrder.country_of_origin && (
+                <div>
+                  <div className="text-slate-500 text-sm">Country of Origin</div>
+                  <div className="font-medium">{salesOrder.country_of_origin}</div>
+                </div>
+              )}
+              {salesOrder.end_use_country && (
+                <div>
+                  <div className="text-slate-500 text-sm">End Use Country</div>
+                  <div className="font-medium">{salesOrder.end_use_country}</div>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+              This information is provided for export control compliance purposes.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Line Items */}
       <Card>
         <CardHeader>
@@ -312,6 +348,24 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
                         <span className="text-slate-500">Line Total:</span> <b>${(item.line_total || 0).toFixed(2)}</b>
                       </div>
                     </div>
+
+                    {/* Physical Specifications */}
+                    {(item.inventory.application_code || item.inventory.dimensions || item.inventory.weight) && (
+                      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                        <div className="text-sm font-medium text-gray-800 mb-1">Physical Specifications</div>
+                        <div className="text-xs space-y-1">
+                          {item.inventory.application_code && (
+                            <div><span className="font-medium">Application:</span> {item.inventory.application_code}</div>
+                          )}
+                          {item.inventory.dimensions && (
+                            <div><span className="font-medium">Dimensions:</span> {item.inventory.dimensions}</div>
+                          )}
+                          {item.inventory.weight && (
+                            <div><span className="font-medium">Weight:</span> {item.inventory.weight} lbs</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Traceability Information */}
                     {item.inventory.traceability_source && (
@@ -350,6 +404,24 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
               <span>Subtotal:</span>
               <span>${(salesOrder.sub_total || 0).toFixed(2)}</span>
             </div>
+            {(salesOrder.freight_charge && salesOrder.freight_charge > 0) && (
+              <div className="flex justify-between">
+                <span>Freight Charge:</span>
+                <span>${salesOrder.freight_charge.toFixed(2)}</span>
+              </div>
+            )}
+            {(salesOrder.misc_charge && salesOrder.misc_charge > 0) && (
+              <div className="flex justify-between">
+                <span>Misc Charge:</span>
+                <span>${salesOrder.misc_charge.toFixed(2)}</span>
+              </div>
+            )}
+            {(salesOrder.vat_amount && salesOrder.vat_amount > 0) && (
+              <div className="flex justify-between">
+                <span>VAT ({salesOrder.vat_percentage || 0}%):</span>
+                <span>${salesOrder.vat_amount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-lg border-t pt-2">
               <span>Total NET ({salesOrder.currency || 'USD'}):</span>
               <span>${(salesOrder.total_net || 0).toFixed(2)}</span>

@@ -9,6 +9,10 @@ interface PackingSlipData {
   sales_order_id: string
   invoice_number: string
   customer_po_number: string | null
+  reference_number: string | null
+  contract_number: string | null
+  country_of_origin: string | null
+  end_use_country: string | null
   sales_date: string | null
   status: string | null
   tracking_number: string | null
@@ -100,6 +104,12 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
               {salesOrder.customer_po_number && (
                 <div>Customer PO: {salesOrder.customer_po_number}</div>
               )}
+              {salesOrder.reference_number && (
+                <div>Reference: {salesOrder.reference_number}</div>
+              )}
+              {salesOrder.contract_number && (
+                <div>Contract: {salesOrder.contract_number}</div>
+              )}
               {salesOrder.tracking_number && (
                 <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
                   <div className="font-semibold text-blue-900">Tracking Number:</div>
@@ -135,6 +145,32 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
             </div>
           </div>
         </div>
+
+        {/* Export Documentation */}
+        {(salesOrder.country_of_origin || salesOrder.end_use_country) && (
+          <div className="mb-8">
+            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded">
+              <h3 className="font-bold text-slate-900 mb-3 text-lg">EXPORT DOCUMENTATION</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                {salesOrder.country_of_origin && (
+                  <div>
+                    <span className="font-semibold text-slate-900">Country of Origin:</span>
+                    <div className="font-medium text-slate-800">{salesOrder.country_of_origin}</div>
+                  </div>
+                )}
+                {salesOrder.end_use_country && (
+                  <div>
+                    <span className="font-semibold text-slate-900">End Use Country:</span>
+                    <div className="font-medium text-slate-800">{salesOrder.end_use_country}</div>
+                  </div>
+                )}
+              </div>
+              <div className="text-xs text-blue-700 mt-3 font-medium">
+                This information is provided for export control compliance and customs documentation purposes.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Items Table */}
         <div className="mb-8">

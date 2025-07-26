@@ -13,11 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { CalendarIcon, Plus, Trash2, ArrowLeft, Loader2 } from 'lucide-react'
 import * as dateFns from 'date-fns'
-import { supabase } from '@/lib/supabase/client'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { PAYMENT_TERMS, CURRENCY_OPTIONS } from '@/lib/constants/sales-order-constants'
+import { useCreateSalesOrder } from '@/lib/hooks/usePurchaseOrders'
 
 interface MyCompany {
   my_company_id: string
@@ -42,7 +42,10 @@ interface InventoryItem {
   location: string | null
   quantity: number | null
   unit_cost: number | null
-  status: string | null
+  status: string
+  application_code: string | null
+  dimensions: string | null
+  weight: number | null
   traceability_source: string | null
   traceable_to: string | null
   last_certified_agency: string | null
@@ -76,9 +79,16 @@ const salesOrderSchema = z.object({
   my_company_id: z.string().min(1, 'My company is required'),
   customer_company_id: z.string().min(1, 'Customer is required'),
   customer_po_number: z.string().optional(),
+  reference_number: z.string().optional(),
+  contract_number: z.string().optional(),
+  country_of_origin: z.string().optional(),
+  end_use_country: z.string().optional(),
   sales_date: z.date(),
   payment_terms: z.string().optional(),
   currency: z.string().default('USD'),
+  freight_charge: z.number().min(0).default(0),
+  misc_charge: z.number().min(0).default(0),
+  vat_percentage: z.number().min(0).max(100).default(0),
   terms_and_conditions_id: z.string().optional(),
   remarks: z.string().optional(),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
@@ -94,6 +104,7 @@ export default function NewSalesOrderClientPage({
 }: NewSalesOrderClientPageProps) {
   const router = useRouter()
   const [selectedCustomerNumber, setSelectedCustomerNumber] = useState<string>('')
+  const createSalesOrderMutation = useCreateSalesOrder()
 
   const { setValue, getValues, ...form } = useForm<SalesOrderFormValues>({
     resolver: zodResolver(salesOrderSchema),
@@ -101,9 +112,16 @@ export default function NewSalesOrderClientPage({
       my_company_id: '',
       customer_company_id: '',
       customer_po_number: '',
+      reference_number: '',
+      contract_number: '',
+      country_of_origin: '',
+      end_use_country: '',
       sales_date: new Date(),
       payment_terms: 'NET30',
       currency: 'USD',
+      freight_charge: 0,
+      misc_charge: 0,
+      vat_percentage: 0,
       terms_and_conditions_id: '',
       remarks: '',
       items: [],
@@ -137,62 +155,53 @@ export default function NewSalesOrderClientPage({
   }, [form, inventoryItems])
 
   const calculateTotal = useCallback(() => {
-    return calculateSubtotal() // For now, no additional charges
-  }, [calculateSubtotal])
+    const subtotal = calculateSubtotal()
+    const freight = form.watch('freight_charge') || 0
+    const misc = form.watch('misc_charge') || 0
+    const vatPercentage = form.watch('vat_percentage') || 0
+    const vatAmount = subtotal * (vatPercentage / 100)
+    return subtotal + freight + misc + vatAmount
+  }, [calculateSubtotal, form])
 
   const onSubmit = async (data: SalesOrderFormValues) => {
-    try {
-      const subtotal = calculateSubtotal()
-      const total = calculateTotal()
+    const subtotal = calculateSubtotal()
+    const total = calculateTotal()
+    const vatAmount = subtotal * ((data.vat_percentage || 0) / 100)
 
-      // Create sales order
-      const salesOrderData = {
+    // Prepare sales order data
+    const salesOrderData = {
+      order: {
         my_company_id: data.my_company_id,
         customer_company_id: data.customer_company_id,
         customer_po_number: data.customer_po_number || null,
+        reference_number: data.reference_number || null,
+        contract_number: data.contract_number || null,
+        country_of_origin: data.country_of_origin || null,
+        end_use_country: data.end_use_country || null,
         sales_date: dateFns.format(data.sales_date, 'yyyy-MM-dd'),
         payment_terms: data.payment_terms || 'NET30',
         currency: data.currency,
+        freight_charge: data.freight_charge,
+        misc_charge: data.misc_charge,
+        vat_percentage: data.vat_percentage,
+        vat_amount: vatAmount,
         terms_and_conditions_id: data.terms_and_conditions_id || null,
         remarks: data.remarks || null,
         sub_total: subtotal,
         total_net: total,
         status: 'Draft',
-      }
-
-      const { data: soData, error: soError } = await supabase
-        .from('sales_orders')
-        .insert(salesOrderData)
-        .select()
-        .single()
-
-      if (soError) throw soError
-
-      // Create line items
-      const lineItems = data.items.map((item, index) => ({
-        sales_order_id: soData.sales_order_id,
-        line_number: index + 1,
+      },
+      items: data.items.map((item) => ({
         inventory_id: item.inventory_id,
         unit_price: item.unit_price,
-        line_total: (() => {
-          const inventoryItem = inventoryItems.find(inv => inv.inventory_id === item.inventory_id)
-          const quantity = inventoryItem?.quantity || 1
-          return quantity * item.unit_price
-        })(),
       }))
-
-      const { error: itemsError } = await supabase
-        .from('sales_order_items')
-        .insert(lineItems)
-
-      if (itemsError) throw itemsError
-
-      toast.success('Sales order created successfully')
-      router.push('/portal/sales-orders')
-    } catch (error: any) {
-      console.error('Error creating sales order:', error)
-      toast.error(error.message || 'Failed to create sales order')
     }
+
+    createSalesOrderMutation.mutate(salesOrderData, {
+      onSuccess: () => {
+        router.push('/portal/sales-orders')
+      }
+    })
   }
 
   const selectedCustomer = customers.find(c => c.company_id === form.watch('customer_company_id'))
@@ -332,12 +341,11 @@ export default function NewSalesOrderClientPage({
                     <SelectValue placeholder="Select payment terms" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PRE-PAY">PRE-PAY</SelectItem>
-                    <SelectItem value="COD">COD</SelectItem>
-                    <SelectItem value="NET5">NET5</SelectItem>
-                    <SelectItem value="NET10">NET10</SelectItem>
-                    <SelectItem value="NET15">NET15</SelectItem>
-                    <SelectItem value="NET30">NET30</SelectItem>
+                    {PAYMENT_TERMS.map((term) => (
+                      <SelectItem key={term.value} value={term.value}>
+                        {term.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -352,10 +360,11 @@ export default function NewSalesOrderClientPage({
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EURO">EURO</SelectItem>
-                    <SelectItem value="TL">TL</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
+                    {CURRENCY_OPTIONS.map((currency) => (
+                      <SelectItem key={currency.value} value={currency.value}>
+                        {currency.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -379,6 +388,77 @@ export default function NewSalesOrderClientPage({
                 </Select>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Document References */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Document References</CardTitle>
+            <CardDescription>Reference numbers and contract information (optional)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="reference_number">Reference Number</Label>
+                <Input
+                  id="reference_number"
+                  {...form.register('reference_number')}
+                  placeholder="e.g., REF-2024-001"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Internal reference number for tracking
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="contract_number">Contract Number</Label>
+                <Input
+                  id="contract_number"
+                  {...form.register('contract_number')}
+                  placeholder="e.g., CTR-2024-001"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Associated contract or agreement number
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Export Documentation */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Export Documentation</CardTitle>
+            <CardDescription>Country information for export compliance (optional)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="country_of_origin">Country of Origin</Label>
+                <Input
+                  id="country_of_origin"
+                  {...form.register('country_of_origin')}
+                  placeholder="e.g., United States, Turkey"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Country where the parts were manufactured
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="end_use_country">End Use Country</Label>
+                <Input
+                  id="end_use_country"
+                  {...form.register('end_use_country')}
+                  placeholder="e.g., Germany, France"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Final destination country for export control
+                </div>
+              </div>
+            </div>
+
           </CardContent>
         </Card>
 
@@ -441,7 +521,9 @@ export default function NewSalesOrderClientPage({
                             <SelectValue placeholder="Select inventory item" />
                           </SelectTrigger>
                           <SelectContent>
-                            {inventoryItems.map((item) => (
+                            {inventoryItems
+                              .filter(item => item.status === 'Available')
+                              .map((item) => (
                               <SelectItem key={item.inventory_id} value={item.inventory_id}>
                                 <div className="flex flex-col">
                                   <div className="font-mono">{item.pn_master_table.pn}</div>
@@ -449,7 +531,7 @@ export default function NewSalesOrderClientPage({
                                     {item.pn_master_table.description} | SN: {item.serial_number || 'N/A'} | Condition: {item.condition || 'N/A'}
                                   </div>
                                   <div className="text-xs text-slate-500">
-                                    Qty: {item.quantity} | Location: {item.location || 'N/A'}
+                                    Qty: {item.quantity} | Location: {item.location || 'N/A'} | Status: {item.status}
                                   </div>
                                 </div>
                               </SelectItem>
@@ -484,6 +566,15 @@ export default function NewSalesOrderClientPage({
                           <div><strong>Condition:</strong> {selectedInventory.condition || 'N/A'}</div>
                           <div><strong>Quantity:</strong> {selectedInventory.quantity}</div>
                           <div><strong>Location:</strong> {selectedInventory.location || 'N/A'}</div>
+                          {selectedInventory.application_code && (
+                            <div><strong>Application Code:</strong> {selectedInventory.application_code}</div>
+                          )}
+                          {selectedInventory.dimensions && (
+                            <div><strong>Dimensions:</strong> {selectedInventory.dimensions}</div>
+                          )}
+                          {selectedInventory.weight && (
+                            <div><strong>Weight:</strong> {selectedInventory.weight} lbs</div>
+                          )}
                           {selectedInventory.traceability_source && (
                             <div><strong>Traceability Source:</strong> {selectedInventory.traceability_source}</div>
                           )}
@@ -524,16 +615,77 @@ export default function NewSalesOrderClientPage({
           </CardContent>
         </Card>
 
-        {/* Cost Summary */}
+        {/* Financial Details */}
         <Card>
           <CardHeader>
-            <CardTitle>Cost Summary</CardTitle>
+            <CardTitle>Financial Details</CardTitle>
+            <CardDescription>Additional charges and tax calculations</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
+              <div>
+                <Label htmlFor="freight_charge">Freight Charge ($)</Label>
+                <Input
+                  id="freight_charge"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...form.register('freight_charge', { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Shipping and freight costs
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="misc_charge">Misc Charge ($)</Label>
+                <Input
+                  id="misc_charge"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...form.register('misc_charge', { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Additional miscellaneous charges
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="vat_percentage">VAT (%)</Label>
+                <Input
+                  id="vat_percentage"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...form.register('vat_percentage', { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Value Added Tax percentage
+                </div>
+              </div>
+            </div>
+
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span>${calculateSubtotal().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Freight Charge:</span>
+                <span>${(form.watch('freight_charge') || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Misc Charge:</span>
+                <span>${(form.watch('misc_charge') || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>VAT ({form.watch('vat_percentage') || 0}%):</span>
+                <span>${(calculateSubtotal() * ((form.watch('vat_percentage') || 0) / 100)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Total NET ({form.watch('currency')}):</span>
@@ -548,8 +700,15 @@ export default function NewSalesOrderClientPage({
           <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
-            {form.formState.isSubmitting ? 'Creating...' : 'Create Sales Order'}
+          <Button 
+            type="submit" 
+            disabled={createSalesOrderMutation.isPending || form.formState.isSubmitting} 
+            className="w-full sm:w-auto"
+          >
+            {createSalesOrderMutation.isPending && (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            )}
+            {createSalesOrderMutation.isPending ? 'Creating...' : 'Create Sales Order'}
           </Button>
         </div>
       </form>

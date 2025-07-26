@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       accounts: {
@@ -181,15 +186,64 @@ export type Database = {
           updated_at?: string | null
           zip_code?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "company_addresses_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["company_id"]
-          },
-        ]
+        Relationships: []
+      }
+      company_bank_details: {
+        Row: {
+          account_holder_name: string
+          account_number: string
+          bank_address: string | null
+          bank_detail_id: string
+          bank_name: string
+          branch_address: string | null
+          branch_code: string | null
+          company_id: string
+          company_ref_type: string
+          created_at: string | null
+          iban: string | null
+          is_active: boolean | null
+          is_primary: boolean | null
+          routing_number: string | null
+          swift_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_holder_name: string
+          account_number: string
+          bank_address?: string | null
+          bank_detail_id?: string
+          bank_name: string
+          branch_address?: string | null
+          branch_code?: string | null
+          company_id: string
+          company_ref_type: string
+          created_at?: string | null
+          iban?: string | null
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          routing_number?: string | null
+          swift_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_holder_name?: string
+          account_number?: string
+          bank_address?: string | null
+          bank_detail_id?: string
+          bank_name?: string
+          branch_address?: string | null
+          branch_code?: string | null
+          company_id?: string
+          company_ref_type?: string
+          created_at?: string | null
+          iban?: string | null
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          routing_number?: string | null
+          swift_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       company_contacts: {
         Row: {
@@ -228,15 +282,7 @@ export type Database = {
           role?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "company_contacts_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["company_id"]
-          },
-        ]
+        Relationships: []
       }
       company_ship_via: {
         Row: {
@@ -278,27 +324,23 @@ export type Database = {
           ship_model?: Database["public"]["Enums"]["ship_model_enum"] | null
           ship_via_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "company_ship_via_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["company_id"]
-          },
-        ]
+        Relationships: []
       }
       inventory: {
         Row: {
+          application_code: string | null
           certificate_date: string | null
           certificate_reference: string | null
           condition: string | null
+          country_of_origin: string | null
           created_at: string | null
+          dimensions: string | null
           inventory_id: string
           last_certified_agency: string | null
           last_updated: string | null
           location: string | null
           notes: string | null
+          obtained_from: string | null
           part_status_certification: string | null
           pn_id: string
           po_id_original: string | null
@@ -313,17 +355,22 @@ export type Database = {
           traceable_to: string | null
           unit_cost: number | null
           updated_at: string | null
+          weight: number | null
         }
         Insert: {
+          application_code?: string | null
           certificate_date?: string | null
           certificate_reference?: string | null
           condition?: string | null
+          country_of_origin?: string | null
           created_at?: string | null
+          dimensions?: string | null
           inventory_id?: string
           last_certified_agency?: string | null
           last_updated?: string | null
           location?: string | null
           notes?: string | null
+          obtained_from?: string | null
           part_status_certification?: string | null
           pn_id: string
           po_id_original?: string | null
@@ -338,17 +385,22 @@ export type Database = {
           traceable_to?: string | null
           unit_cost?: number | null
           updated_at?: string | null
+          weight?: number | null
         }
         Update: {
+          application_code?: string | null
           certificate_date?: string | null
           certificate_reference?: string | null
           condition?: string | null
+          country_of_origin?: string | null
           created_at?: string | null
+          dimensions?: string | null
           inventory_id?: string
           last_certified_agency?: string | null
           last_updated?: string | null
           location?: string | null
           notes?: string | null
+          obtained_from?: string | null
           part_status_certification?: string | null
           pn_id?: string
           po_id_original?: string | null
@@ -363,6 +415,7 @@ export type Database = {
           traceable_to?: string | null
           unit_cost?: number | null
           updated_at?: string | null
+          weight?: number | null
         }
         Relationships: [
           {
@@ -785,15 +838,21 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          contract_number: string | null
+          country_of_origin: string | null
           created_at: string | null
           currency: string | null
           customer_company_id: string
           customer_po_number: string | null
+          end_use_country: string | null
+          freight_charge: number | null
           invoice_number: string
+          misc_charge: number | null
           my_company_id: string
           payment_terms: string | null
           prepared_by_name: string | null
           prepared_by_user_id: string | null
+          reference_number: string | null
           remarks: string | null
           sales_date: string | null
           sales_order_id: string
@@ -803,17 +862,25 @@ export type Database = {
           total_net: number | null
           tracking_number: string | null
           updated_at: string | null
+          vat_amount: number | null
+          vat_percentage: number | null
         }
         Insert: {
+          contract_number?: string | null
+          country_of_origin?: string | null
           created_at?: string | null
           currency?: string | null
           customer_company_id: string
           customer_po_number?: string | null
+          end_use_country?: string | null
+          freight_charge?: number | null
           invoice_number?: string
+          misc_charge?: number | null
           my_company_id: string
           payment_terms?: string | null
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
+          reference_number?: string | null
           remarks?: string | null
           sales_date?: string | null
           sales_order_id?: string
@@ -823,17 +890,25 @@ export type Database = {
           total_net?: number | null
           tracking_number?: string | null
           updated_at?: string | null
+          vat_amount?: number | null
+          vat_percentage?: number | null
         }
         Update: {
+          contract_number?: string | null
+          country_of_origin?: string | null
           created_at?: string | null
           currency?: string | null
           customer_company_id?: string
           customer_po_number?: string | null
+          end_use_country?: string | null
+          freight_charge?: number | null
           invoice_number?: string
+          misc_charge?: number | null
           my_company_id?: string
           payment_terms?: string | null
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
+          reference_number?: string | null
           remarks?: string | null
           sales_date?: string | null
           sales_order_id?: string
@@ -843,6 +918,8 @@ export type Database = {
           total_net?: number | null
           tracking_number?: string | null
           updated_at?: string | null
+          vat_amount?: number | null
+          vat_percentage?: number | null
         }
         Relationships: [
           {
@@ -1003,21 +1080,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -1035,14 +1116,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -1058,14 +1141,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -1081,14 +1166,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -1096,14 +1183,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never

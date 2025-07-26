@@ -22,6 +22,9 @@ interface POItem {
   unit_price: number
   condition: string | null
   description: string | null
+  traceability_source: string | null
+  traceable_to: string | null
+  last_certified_agency: string | null
   pn_master_table: {
     pn: string
     description: string | null
@@ -78,6 +81,9 @@ export default function POCompletionModal({
           unit_price,
           condition,
           description,
+          traceability_source,
+          traceable_to,
+          last_certified_agency,
           pn_master_table (
             pn,
             description
@@ -94,7 +100,7 @@ export default function POCompletionModal({
       }
 
       // Transform the data to handle potential array response from Supabase
-      const transformedItems = (poItems || []).map(item => ({
+      const transformedItems = (poItems || []).map((item: any) => ({
         ...item,
         pn_master_table: Array.isArray(item.pn_master_table) 
           ? item.pn_master_table[0] || null 
@@ -269,6 +275,32 @@ export default function POCompletionModal({
                                 </>
                               )}
                             </div>
+                            {/* ATA 106 Traceability Information */}
+                            {(item.traceability_source || item.traceable_to || item.last_certified_agency) && (
+                              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">ATA 106</span>
+                                  <span className="text-xs font-medium text-blue-800">Traceability</span>
+                                </div>
+                                <div className="space-y-1">
+                                  {item.traceability_source && (
+                                    <div className="text-xs text-blue-700">
+                                      <span className="font-medium">Source:</span> {item.traceability_source}
+                                    </div>
+                                  )}
+                                  {item.traceable_to && (
+                                    <div className="text-xs text-blue-700">
+                                      <span className="font-medium">Traceable to:</span> {item.traceable_to}
+                                    </div>
+                                  )}
+                                  {item.last_certified_agency && (
+                                    <div className="text-xs text-blue-700">
+                                      <span className="font-medium">Certified by:</span> {item.last_certified_agency}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
                             <div className="font-medium">
