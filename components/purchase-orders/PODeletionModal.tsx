@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 
 interface InventoryItem {
   inventory_id: string
-  status: string
+  status: string | null
   pn_master_table: {
     pn: string
   } | null
@@ -99,7 +99,7 @@ export default function PODeletionModal({
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     const colors = {
       'Available': 'bg-green-100 text-green-800 border-green-200',
       'Reserved': 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -216,7 +216,7 @@ export default function PODeletionModal({
                             <div key={item.inventory_id} className="flex items-center justify-between text-xs p-2 bg-slate-50 rounded">
                               <span className="font-mono">{item.pn_master_table?.pn || 'N/A'}</span>
                               <Badge className={`${getStatusBadge(item.status)} border text-xs`}>
-                                {item.status}
+                                {item.status || 'N/A'}
                               </Badge>
                             </div>
                           ))}

@@ -7,7 +7,12 @@ import { ArrowLeft, Download, Printer } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import Image from 'next/image'
+import PDFLayout from '@/components/pdf/PDFLayout'
+import PDFHeader from '@/components/pdf/PDFHeader'
+import PDFCompanyGrid from '@/components/pdf/PDFCompanyGrid'
+import PDFSignatureBlock from '@/components/pdf/PDFSignatureBlock'
+import PDFFinancialSummary from '@/components/pdf/PDFFinancialSummary'
+import PDFFooter from '@/components/pdf/PDFFooter'
 
 interface PurchaseOrderDetails {
   po_id: string
@@ -123,145 +128,62 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
   const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
   const hasShipToInfo = !!(purchaseOrder.ship_to_company_name?.trim() || purchaseOrder.ship_to_address_details?.trim())
 
+  // Prepare company sections for PDFCompanyGrid
+  const companySections = [
+    {
+      title: 'FROM',
+      company: {
+        company_name: purchaseOrder.my_companies.my_company_name,
+        company_code: purchaseOrder.my_companies.my_company_code,
+        company_addresses: purchaseOrder.my_companies.company_addresses,
+        company_contacts: purchaseOrder.my_companies.company_contacts
+      }
+    },
+    {
+      title: 'TO',
+      company: {
+        company_name: purchaseOrder.companies.company_name,
+        company_code: purchaseOrder.companies.company_code,
+        company_addresses: purchaseOrder.companies.company_addresses,
+        company_contacts: purchaseOrder.companies.company_contacts
+      }
+    },
+    ...(hasShipToInfo ? [
+      {
+        title: 'SHIP TO',
+        company: {
+          company_name: purchaseOrder.ship_to_company_name || '',
+          company_code: '',
+          company_addresses: [{
+            address_line1: purchaseOrder.ship_to_address_details || '',
+            address_line2: null,
+            city: null,
+            country: null
+          }],
+          company_contacts: [{
+            contact_name: purchaseOrder.ship_to_contact_name || '',
+            phone: purchaseOrder.ship_to_contact_phone,
+            email: purchaseOrder.ship_to_contact_email
+          }]
+        }
+      }
+    ] : [])
+  ]
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Print Controls - Hidden when printing */}
-      <div className="no-print bg-slate-50 border-b p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <h1 className="text-xl font-semibold">Purchase Order PDF - {purchaseOrder.po_number}</h1>
-        </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </Button>
-          <Button onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-        </div>
-      </div>
+    <PDFLayout
+      title="Purchase Order PDF"
+      documentNumber={purchaseOrder.po_number}
+      onDownload={handleDownload}
+    >
+        <PDFHeader
+          documentType="PURCHASE ORDER"
+          documentNumber={purchaseOrder.po_number}
+          documentDate={purchaseOrder.po_date}
+          additionalInfo={[]}
+        />
 
-      {/* PDF Content */}
-      <div className="max-w-4xl mx-auto p-8 print:p-0 print:max-w-none">
-        {/* Header with Logo */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center">
-            <Image
-              src="/logo.png"
-              alt="TASAVIA"
-              width={150}
-              height={50}
-              className="h-12 w-auto"
-            />
-          </div>
-          <div className="text-right">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">PURCHASE ORDER</h1>
-            <div className="text-lg font-semibold text-slate-700">PO# {purchaseOrder.po_number}</div>
-            <div className="text-sm text-slate-600">Date: {format(new Date(purchaseOrder.po_date), 'MMMM dd, yyyy')}</div>
-          </div>
-        </div>
-
-        {/* Company Information - Dynamic Layout */}
-        <div className={`grid gap-6 mb-8 ${hasShipToInfo ? 'grid-cols-3' : 'grid-cols-2'}`}>
-          <div>
-            <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">FROM:</h3>
-            <div className="space-y-1 text-sm">
-              <div className="font-semibold">{purchaseOrder.my_companies.my_company_name}</div>
-              <div>{purchaseOrder.my_companies.my_company_code}</div>
-              {purchaseOrder.my_companies?.company_addresses?.length > 0 && (
-                <>
-                  {purchaseOrder.my_companies.company_addresses.map((addr, idx) => (
-                    <div key={idx}>
-                      <div>{addr.address_line1}</div>
-                      {addr.address_line2 && <div>{addr.address_line2}</div>}
-                      {(addr.city || addr.country) && (
-                        <div>
-                          {addr.city}
-                          {addr.city && addr.country && ', '}
-                          {addr.country}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-              {purchaseOrder.my_companies?.company_contacts?.length > 0 && (
-                <>
-                  {purchaseOrder.my_companies.company_contacts.map((contact, idx) => (
-                    <div key={idx}>
-                      {contact.phone && <div>Tel: {contact.phone}</div>}
-                      {contact.email && <div>Email: {contact.email}</div>}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">TO:</h3>
-            <div className="space-y-1 text-sm">
-              <div className="font-semibold">{purchaseOrder.companies.company_name}</div>
-              <div>{purchaseOrder.companies.company_code}</div>
-              {purchaseOrder.companies?.company_addresses?.length > 0 && (
-                <>
-                  {purchaseOrder.companies.company_addresses.map((addr, idx) => (
-                    <div key={idx}>
-                      <div>{addr.address_line1}</div>
-                      {addr.address_line2 && <div>{addr.address_line2}</div>}
-                      {(addr.city || addr.country) && (
-                        <div>
-                          {addr.city}
-                          {addr.city && addr.country && ', '}
-                          {addr.country}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-              {purchaseOrder.companies?.company_contacts?.length > 0 && (
-                <>
-                  {purchaseOrder.companies.company_contacts.map((contact, idx) => (
-                    <div key={idx}>
-                      {contact.phone && <div>Tel: {contact.phone}</div>}
-                      {contact.email && <div>Email: {contact.email}</div>}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Ship To Information - Integrated */}
-          {hasShipToInfo && (
-            <div>
-              <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">SHIP TO:</h3>
-              <div className="space-y-1 text-sm">
-                {purchaseOrder.ship_to_company_name?.trim() && (
-                  <div className="font-semibold">{purchaseOrder.ship_to_company_name}</div>
-                )}
-                {purchaseOrder.ship_to_address_details?.trim() && (
-                  <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
-                )}
-                {purchaseOrder.ship_to_contact_name?.trim() && (
-                  <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
-                )}
-                {purchaseOrder.ship_to_contact_phone?.trim() && (
-                  <div>Tel: {purchaseOrder.ship_to_contact_phone}</div>
-                )}
-                {purchaseOrder.ship_to_contact_email?.trim() && (
-                  <div>Email: {purchaseOrder.ship_to_contact_email}</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <PDFCompanyGrid sections={companySections} />
 
         {/* Additional Details */}
         <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
@@ -345,48 +267,27 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
               All material must be traced to a certificated operator. Any material not traced to an operator must be pre-approved prior to shipment.
             </div>
             
-            {/* Authorized Signature Box */}
-            <div>
-              <div className="text-sm font-semibold text-slate-900 mb-2">Authorized Sign:</div>
-              <div className="border border-slate-300 rounded h-20 bg-gray-50 flex items-center justify-center">
-                <Image 
-                  src="/signature.png" 
-                  alt="Signature" 
-                  width={120}
-                  height={48}
-                  className="max-h-12 max-w-full object-contain opacity-80"
-                />
-              </div>
-            </div>
+            <PDFSignatureBlock 
+              sections={[
+                {
+                  title: "AUTHORIZED SIGNATURE",
+                  fields: [
+                    { label: "Authorized Sign", type: "signature", height: "large" }
+                  ]
+                }
+              ]}
+            />
           </div>
           
-          {/* Right Column: Cost Summary */}
-          <div className="w-80">
-            <table className="w-full text-sm">
-              <tbody>
-                <tr>
-                  <td className="py-1">Subtotal:</td>
-                  <td className="py-1 text-right">${(purchaseOrder.subtotal || 0).toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td className="py-1">Freight/Forwarding:</td>
-                  <td className="py-1 text-right">${(purchaseOrder.freight_charge || 0).toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td className="py-1">Misc Charge:</td>
-                  <td className="py-1 text-right">${(purchaseOrder.misc_charge || 0).toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td className="py-1">VAT ({purchaseOrder.vat_percentage || 0}%):</td>
-                  <td className="py-1 text-right">${vatAmount.toFixed(2)}</td>
-                </tr>
-                <tr className="border-t border-slate-300">
-                  <td className="py-2 font-bold">Total NET ({purchaseOrder.currency}):</td>
-                  <td className="py-2 font-bold text-right text-lg">${(purchaseOrder.total_amount || 0).toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <PDFFinancialSummary
+            subtotal={purchaseOrder.subtotal || 0}
+            freight_charge={purchaseOrder.freight_charge}
+            misc_charge={purchaseOrder.misc_charge}
+            vat_percentage={purchaseOrder.vat_percentage}
+            vat_amount={vatAmount}
+            total_net={purchaseOrder.total_amount || 0}
+            currency={purchaseOrder.currency}
+          />
         </div>
 
 
@@ -398,54 +299,14 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex justify-between items-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-200">
-          <div>
-            <div>Purchase Order generated on {format(new Date(), 'MMMM dd, yyyy HH:mm')}</div>
-            <div className="mt-1">Status: {purchaseOrder.status}</div>
-          </div>
-          <div className="text-right manual-page-number">
-            <div className="font-medium">Page 1 of 1</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-          
-          body {
-            margin: 0;
-            padding: 0;
-          }
-          
-          @page {
-            margin: 0.5in;
-            size: A4;
-            @bottom-right {
-              content: "Page " counter(page) " of " counter(pages);
-              font-size: 10px;
-              color: #6b7280;
-            }
-          }
-          
-          .print\\:p-0 {
-            padding: 0 !important;
-          }
-          
-          .print\\:max-w-none {
-            max-width: none !important;
-          }
-          
-          /* Hide manual page number in footer when printing since CSS will handle it */
-          .manual-page-number {
-            display: none !important;
-          }
-        }
-      `}</style>
-    </div>
+        <PDFFooter
+          documentType="Purchase Order"
+          documentNumber={purchaseOrder.po_number}
+          status={purchaseOrder.status}
+          additionalInfo={[
+            { label: 'Generated', value: format(new Date(), 'MMMM dd, yyyy HH:mm') }
+          ]}
+        />
+    </PDFLayout>
   )
 }
