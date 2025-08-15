@@ -7,37 +7,35 @@ const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const alphanumericWithDashRegex = /^[A-Z0-9-]+$/i
 
-// ATA 106 Traceability validation schema
+// Enhanced ATA 106 Traceability validation schema with new fields
 const ata106TraceabilitySchema = z.object({
   traceability_source: z.string()
-    .min(1, 'Traceability source is required for ATA 106 compliance')
-    .max(200, 'Traceability source must be less than 200 characters')
-    .regex(/^[A-Za-z0-9\s\-\.\/]+$/, 'Traceability source contains invalid characters')
+    .max(200, 'Obtained from must be less than 200 characters')
+    .regex(/^[A-Za-z0-9\s\-\.\/]+$/, 'Obtained from contains invalid characters')
+    .optional(),
+    
+  source_of_traceability_documentation: z.string()
+    .max(200, 'Source of traceability documentation must be less than 200 characters')
     .optional(),
     
   traceable_to: z.string()
-    .min(1, 'Traceable to field is required for ATA 106 compliance')
     .max(200, 'Traceable to must be less than 200 characters')
     .regex(/^[A-Za-z0-9\s\-\.\/\,]+$/, 'Traceable to contains invalid characters')
     .optional(),
     
+  origin_country: z.string()
+    .max(100, 'Origin country must be less than 100 characters')
+    .optional(),
+    
+  origin_country_code: z.string()
+    .length(2, 'Origin country code must be exactly 2 characters')
+    .optional(),
+    
   last_certified_agency: z.string()
-    .min(2, 'Last certified agency must be at least 2 characters')
     .max(100, 'Last certified agency must be less than 100 characters')
     .regex(/^[A-Za-z0-9\s\-\.]+$/, 'Certified agency contains invalid characters')
     .optional(),
-}).refine((data) => {
-  // Business rule: If any ATA 106 field is provided, all should be provided for complete traceability
-  const hasAnyField = data.traceability_source || data.traceable_to || data.last_certified_agency;
-  const hasAllFields = data.traceability_source && data.traceable_to && data.last_certified_agency;
-  
-  if (hasAnyField && !hasAllFields) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'For complete ATA 106 compliance, all traceability fields must be provided when any is specified',
-  path: ['traceability_source'], // Show error on the first field
+    
 })
 
 // Purchase Order Item validation schema with ATA 106 support
@@ -168,7 +166,7 @@ const aviationComplianceSchema = z.object({
     .optional(),
 })
 
-// Main Purchase Order validation schema
+// Main Purchase Order validation schema (aviation compliance removed)
 const purchaseOrderSchema = z.object({
   // Basic information
   my_company_id: z.string()
@@ -207,12 +205,12 @@ const purchaseOrderSchema = z.object({
     .max(500, 'Special instructions must be less than 500 characters')
     .optional(),
     
-  // Line items with ATA 106 support
+  // Line items with enhanced ATA 106 traceability support
   items: z.array(purchaseOrderItemSchema)
     .min(1, 'At least one item is required')
     .max(100, 'Cannot exceed 100 line items'),
     
-}).and(financialValidationSchema).and(aviationComplianceSchema)
+}).and(financialValidationSchema)
   .refine((data) => {
     // Custom validation: Expected delivery date must be in the future
     const today = new Date();
@@ -230,16 +228,17 @@ const purchaseOrderSchema = z.object({
     path: ['expected_delivery_date'],
   })
   .refine((data) => {
-    // Custom validation: Check if any items have ATA 106 data for compliance warning
-    const hasAta106Items = data.items.some(item => 
-      item.traceability_source || item.traceable_to || item.last_certified_agency
+    // Custom validation: Check if any items have traceability data
+    const hasTraceabilityItems = data.items.some(item => 
+      item.traceability_source || item.traceable_to || item.last_certified_agency ||
+      item.source_of_traceability_documentation || item.origin_country
     );
     
-    // This is just for informational purposes - we don't fail validation
-    // but we can use this to show compliance status
+    // This is informational - we don't fail validation
+    // but can be used to show traceability status
     return true;
   }, {
-    message: 'ATA 106 compliance status checked',
+    message: 'Traceability status checked',
     path: ['items'],
   })
 

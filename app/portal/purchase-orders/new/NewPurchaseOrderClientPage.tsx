@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
 import purchaseOrderSchema, { type PurchaseOrderFormValues } from '@/lib/validation/purchase-order-schemas'
-import { fetchAirlines, fetchCountries, getRegulatoryAuthorities, validateMSN, type AirlineData } from '@/lib/external-apis'
+import { fetchCountries } from '@/lib/external-apis'
 
 interface MyCompany {
   my_company_id: string
@@ -82,9 +82,8 @@ interface NewPurchaseOrderClientPageProps {
 
 const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
 const PAYMENT_TERM_OPTIONS = ['PRE-PAY', 'COD', 'NET5', 'NET10', 'NET15', 'NET30'];
-const AIRWORTHINESS_STATUS_OPTIONS = ['AIRWORTHY', 'NON-AIRWORTHY', 'UNKNOWN', 'PENDING'];
 
-// Update the purchase order schema to match the new format with simplified field names
+// Updated purchase order schema without aviation compliance fields
 const formSchema = z.object({
   my_company_id: z.string().min(1, 'My company is required'),
   vendor_company_id: z.string().min(1, 'Vendor is required'),
@@ -99,19 +98,6 @@ const formSchema = z.object({
   freight_charge: z.number().min(0).default(0),
   misc_charge: z.number().min(0).default(0),
   vat_percentage: z.number().min(0).max(100).default(0),
-  // Aviation compliance fields
-  last_certificate: z.string().optional(),
-  obtained_from: z.string().optional(),
-  certificate_reference_number: z.string().optional(),
-  certificate_expiry_date: z.date().optional(),
-  traceable_to_airline: z.string().optional(),
-  traceable_to_msn: z.string().optional(),
-  origin_country: z.string().optional(),
-  end_use_country: z.string().optional(),
-  regulatory_authority: z.string().optional(),
-  airworthiness_status: z.enum(AIRWORTHINESS_STATUS_OPTIONS as [string, ...string[]]).optional(),
-  aviation_compliance_verified: z.boolean().default(false),
-  compliance_notes: z.string().optional(),
   items: z.array(z.object({
     pn_id: z.string().min(1, 'Part number is required'),
     description: z.string().min(1, 'Description is required'),
@@ -119,8 +105,12 @@ const formSchema = z.object({
     quantity: z.number().min(1, 'Quantity must be at least 1'),
     unit_price: z.number().min(0, 'Unit price must be positive'),
     condition: z.string().optional(),
+    // Enhanced traceability fields
     traceability_source: z.string().optional(),
+    source_of_traceability_documentation: z.string().optional(),
     traceable_to: z.string().optional(),
+    origin_country: z.string().optional(),
+    origin_country_code: z.string().optional(),
     last_certified_agency: z.string().optional(),
   })).min(1, 'At least one item is required'),
 })
@@ -138,68 +128,14 @@ export default function NewPurchaseOrderClientPage({
   const { addPurchaseOrder } = usePurchaseOrdersContext()
 
   // State for external API data
-  const [airlines, setAirlines] = useState<AirlineData[]>([])
   const [countries, setCountries] = useState<{ name: string; code: string; region: string }[]>([])
-  const [regulatoryAuthorities] = useState(getRegulatoryAuthorities())
-  const [loadingAirlines, setLoadingAirlines] = useState(false)
   const [loadingCountries, setLoadingCountries] = useState(false)
-  const [msnValidation, setMsnValidation] = useState<{
-    isValidating: boolean
-    isValid: boolean | null
-    message: string
-  }>({ isValidating: false, isValid: null, message: '' })
 
-  // MSN validation function with API integration
-  const handleMSNValidation = async (msn: string) => {
-    if (!msn.trim()) {
-      setMsnValidation({ isValidating: false, isValid: null, message: '' })
-      return
-    }
-
-    setMsnValidation({ isValidating: true, isValid: null, message: 'Validating MSN...' })
-
-    try {
-      const result = await validateMSN(msn)
-      if (result.success && result.data) {
-        setMsnValidation({
-          isValidating: false,
-          isValid: true,
-          message: `✓ Valid MSN${result.data.registration ? ` (${result.data.registration})` : ''} - ${result.source}`
-        })
-      } else {
-        setMsnValidation({
-          isValidating: false,
-          isValid: false,
-          message: result.error || 'MSN validation failed'
-        })
-      }
-    } catch (error) {
-      setMsnValidation({
-        isValidating: false,
-        isValid: false,
-        message: 'Unable to validate MSN - check format'
-      })
-    }
-  }
-
-  // Enhanced country selection with code storage
-  const handleCountryChange = (countryName: string, fieldType: 'origin' | 'end_use') => {
-    const selectedCountry = countries.find(c => c.name === countryName)
-    if (selectedCountry) {
-      if (fieldType === 'origin') {
-        form.setValue('origin_country', selectedCountry.name)
-        // Note: We would need to add origin_country_code to the form schema to store the code
-      } else {
-        form.setValue('end_use_country', selectedCountry.name)
-        // Note: We would need to add end_use_country_code to the form schema to store the code
-      }
-    }
-  }
 
   // Load external data
   useEffect(() => {
     const loadExternalData = async () => {
-      // Load countries
+      // Load countries for origin country field in line items
       setLoadingCountries(true)
       try {
         const countriesData = await fetchCountries()
@@ -208,17 +144,6 @@ export default function NewPurchaseOrderClientPage({
         console.error('Failed to load countries:', error)
       } finally {
         setLoadingCountries(false)
-      }
-
-      // Load airlines
-      setLoadingAirlines(true)
-      try {
-        const airlinesData = await fetchAirlines()
-        setAirlines(airlinesData)
-      } catch (error) {
-        console.error('Failed to load airlines:', error)
-      } finally {
-        setLoadingAirlines(false)
       }
     }
 
@@ -265,19 +190,6 @@ export default function NewPurchaseOrderClientPage({
       freight_charge: 0,
       misc_charge: 0,
       vat_percentage: 0,
-      // Aviation compliance fields
-      last_certificate: '',
-      obtained_from: '',
-      certificate_reference_number: '',
-      certificate_expiry_date: undefined,
-      traceable_to_airline: '',
-      traceable_to_msn: '',
-      origin_country: '',
-      end_use_country: '',
-      regulatory_authority: '',
-      airworthiness_status: '',
-      aviation_compliance_verified: false,
-      compliance_notes: '',
       items: [
         {
           pn_id: '',
@@ -286,6 +198,13 @@ export default function NewPurchaseOrderClientPage({
           quantity: 1,
           unit_price: 0,
           condition: '',
+          // Enhanced traceability fields
+          traceability_source: '',
+          source_of_traceability_documentation: '',
+          traceable_to: '',
+          origin_country: '',
+          origin_country_code: '',
+          last_certified_agency: '',
         }
       ],
     }
@@ -355,19 +274,6 @@ export default function NewPurchaseOrderClientPage({
         vat_percentage: data.vat_percentage,
         subtotal,
         total_amount: total,
-        // Aviation compliance fields
-        last_certificate: data.last_certificate || null,
-        obtained_from: data.obtained_from || null,
-        certificate_reference_number: data.certificate_reference_number || null,
-        certificate_expiry_date: data.certificate_expiry_date && data.certificate_expiry_date instanceof Date ? dateFns.format(data.certificate_expiry_date, 'yyyy-MM-dd') : null,
-        traceable_to_airline: data.traceable_to_airline || null,
-        traceable_to_msn: data.traceable_to_msn || null,
-        origin_country: data.origin_country || null,
-        end_use_country: data.end_use_country || null,
-        regulatory_authority: data.regulatory_authority || null,
-        airworthiness_status: data.airworthiness_status || null,
-        aviation_compliance_verified: data.aviation_compliance_verified || false,
-        compliance_notes: data.compliance_notes || null,
       }
 
       const { data: poData, error: poError } = await supabase
@@ -381,7 +287,7 @@ export default function NewPurchaseOrderClientPage({
       }
 
 
-      // Create the line items
+      // Create the line items with enhanced traceability fields
       const lineItems = data.items.map((item, index) => ({
         po_id: poData.po_id,
         line_number: index + 1,
@@ -391,8 +297,12 @@ export default function NewPurchaseOrderClientPage({
         quantity: item.quantity,
         unit_price: item.unit_price,
         condition: item.condition || null,
+        // Enhanced traceability fields
         traceability_source: item.traceability_source || null,
+        source_of_traceability_documentation: item.source_of_traceability_documentation || null,
         traceable_to: item.traceable_to || null,
+        origin_country: item.origin_country || null,
+        origin_country_code: item.origin_country_code || null,
         last_certified_agency: item.last_certified_agency || null,
       }))
 
@@ -860,276 +770,6 @@ export default function NewPurchaseOrderClientPage({
           </CardContent>
         </Card>
 
-        {/* Aviation Compliance */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">ATA 106</span>
-              Aviation Compliance
-            </CardTitle>
-            <CardDescription>Aviation regulatory compliance and traceability information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Certificate Information */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-slate-900">Certificate Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="last_certificate">Last Certificate</Label>
-                  <Input
-                    id="last_certificate"
-                    {...form.register('last_certificate')}
-                    placeholder="e.g., Form 8130-3"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Type of certificate or authorization document
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="obtained_from">Obtained From</Label>
-                  <Input
-                    id="obtained_from"
-                    {...form.register('obtained_from')}
-                    placeholder="e.g., Boeing Aircraft Company"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Source of the certificate or authorization
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="certificate_reference_number">Certificate Reference Number</Label>
-                  <Input
-                    id="certificate_reference_number"
-                    {...form.register('certificate_reference_number')}
-                    placeholder="e.g., FAA-PMA-12345"
-                  />
-                </div>
-
-                <div>
-                  <Label>Certificate Expiry Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !form.watch('certificate_expiry_date') && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {(() => {
-                          const expiryDate = form.watch('certificate_expiry_date');
-                          return expiryDate instanceof Date
-                            ? dateFns.format(expiryDate, "PPP")
-                            : <span>Select expiry date</span>;
-                        })()}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={form.watch('certificate_expiry_date')}
-                        onSelect={(date) => form.setValue('certificate_expiry_date', date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </div>
-
-            {/* Traceability Information */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-slate-900">Traceability Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="traceable_to_airline">Traceable to Airline</Label>
-                  <Select
-                    value={form.watch('traceable_to_airline')}
-                    onValueChange={(value) => form.setValue('traceable_to_airline', value)}
-                  >
-                    <SelectTrigger id="traceable_to_airline">
-                      <SelectValue placeholder={loadingAirlines ? "Loading airlines..." : "Select airline"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {airlines.map((airline) => (
-                        <SelectItem key={airline.airline_id} value={airline.airline_name}>
-                          <div className="flex flex-col">
-                            <div className="font-medium">{airline.airline_name}</div>
-                            <div className="text-sm text-slate-600">
-                              {airline.iata_code} / {airline.icao_code} • {airline.country_name}
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Airline or operator this part is traceable to
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="traceable_to_msn">MSN (Manufacturer Serial Number)</Label>
-                  <Input
-                    id="traceable_to_msn"
-                    {...form.register('traceable_to_msn')}
-                    placeholder="e.g., MSN12345 or 12345"
-                    onChange={(e) => {
-                      const value = e.target.value
-                      form.setValue('traceable_to_msn', value)
-                      
-                      // Debounced API validation
-                      const timeoutId = setTimeout(() => {
-                        handleMSNValidation(value)
-                      }, 500)
-                      
-                      return () => clearTimeout(timeoutId)
-                    }}
-                    className={
-                      msnValidation.isValid === false ? 'border-red-500' :
-                      msnValidation.isValid === true ? 'border-green-500' :
-                      ''
-                    }
-                  />
-                  <div className={`text-xs mt-1 flex items-center gap-2 ${
-                    msnValidation.isValid === false ? 'text-red-600' :
-                    msnValidation.isValid === true ? 'text-green-600' :
-                    'text-gray-500'
-                  }`}>
-                    {msnValidation.isValidating && (
-                      <div className="animate-spin h-3 w-3 border border-blue-500 rounded-full border-t-transparent"></div>
-                    )}
-                    <span>
-                      {msnValidation.message || 'Aircraft manufacturer serial number - will validate with aviation databases'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Origin and Destination */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-slate-900">Origin & Destination</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="origin_country">Origin Country</Label>
-                  <Select
-                    value={form.watch('origin_country')}
-                    onValueChange={(value) => handleCountryChange(value, 'origin')}
-                  >
-                    <SelectTrigger id="origin_country">
-                      <SelectValue placeholder={loadingCountries ? "Loading countries..." : "Select origin country"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.name}>
-                          <div className="flex items-center gap-2">
-                            <span>{country.name}</span>
-                            <span className="text-sm text-slate-500">({country.code})</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="end_use_country">End Use Country</Label>
-                  <Select
-                    value={form.watch('end_use_country')}
-                    onValueChange={(value) => handleCountryChange(value, 'end_use')}
-                  >
-                    <SelectTrigger id="end_use_country">
-                      <SelectValue placeholder={loadingCountries ? "Loading countries..." : "Select end use country"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.name}>
-                          <div className="flex items-center gap-2">
-                            <span>{country.name}</span>
-                            <span className="text-sm text-slate-500">({country.code})</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Regulatory Information */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-slate-900">Regulatory Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="regulatory_authority">Regulatory Authority</Label>
-                  <Select
-                    value={form.watch('regulatory_authority')}
-                    onValueChange={(value) => form.setValue('regulatory_authority', value)}
-                  >
-                    <SelectTrigger id="regulatory_authority">
-                      <SelectValue placeholder="Select regulatory authority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {regulatoryAuthorities.map((authority) => (
-                        <SelectItem key={authority.code} value={authority.name}>
-                          <div className="flex flex-col">
-                            <div className="font-medium">{authority.name}</div>
-                            <div className="text-sm text-slate-600">{authority.code} • {authority.country}</div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="airworthiness_status">Airworthiness Status</Label>
-                  <Select
-                    value={form.watch('airworthiness_status')}
-                    onValueChange={(value) => form.setValue('airworthiness_status', value)}
-                  >
-                    <SelectTrigger id="airworthiness_status">
-                      <SelectValue placeholder="Select airworthiness status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AIRWORTHINESS_STATUS_OPTIONS.map(status => (
-                        <SelectItem key={status} value={status}>{status}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Compliance Notes */}
-            <div>
-              <Label htmlFor="compliance_notes">Compliance Notes</Label>
-              <Textarea
-                id="compliance_notes"
-                {...form.register('compliance_notes')}
-                rows={3}
-                placeholder="Additional notes regarding aviation compliance requirements..."
-              />
-            </div>
-
-            {/* Compliance Verification */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="aviation_compliance_verified"
-                {...form.register('aviation_compliance_verified')}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="aviation_compliance_verified" className="text-sm">
-                Aviation compliance verified and complete
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Line Items */}
         <Card>
@@ -1149,10 +789,14 @@ export default function NewPurchaseOrderClientPage({
                   quantity: 1,
                   unit_price: 0,
                   condition: '',
+                  // Enhanced traceability fields
                   traceability_source: '',
+                  source_of_traceability_documentation: '',
                   traceable_to: '',
+                  origin_country: '',
+                  origin_country_code: '',
                   last_certified_agency: '',
-                })}
+                        })}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item
@@ -1284,22 +928,36 @@ export default function NewPurchaseOrderClientPage({
                     </div>
                   </div>
 
-                  {/* Traceability Fields */}
+                  {/* Enhanced Traceability Fields */}
                   <div className="mt-4">
                     <h5 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
                       <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">ATA 106</span>
                       Traceability Information
                     </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    {/* First row - Obtained from, Source of Documentation, Traceable To */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       <div>
-                        <Label htmlFor={`items.${index}.traceability_source`}>Traceability Source</Label>
+                        <Label htmlFor={`items.${index}.traceability_source`}>Obtained from</Label>
                         <Input
                           id={`items.${index}.traceability_source`}
                           {...form.register(`items.${index}.traceability_source`)}
-                          placeholder="e.g., Manufacturer Certificate"
+                          placeholder="e.g., Boeing Aircraft Company"
                         />
                         <div className="text-xs text-gray-500 mt-1">
-                          Source of traceability documentation
+                          Source where part was obtained from
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`items.${index}.source_of_traceability_documentation`}>Source of traceability documentation</Label>
+                        <Input
+                          id={`items.${index}.source_of_traceability_documentation`}
+                          {...form.register(`items.${index}.source_of_traceability_documentation`)}
+                          placeholder="e.g., Manufacturer Certificate, Test Report"
+                        />
+                        <div className="text-xs text-gray-500 mt-1">
+                          Type of documentation providing traceability
                         </div>
                       </div>
 
@@ -1314,19 +972,57 @@ export default function NewPurchaseOrderClientPage({
                           What this part is traceable to
                         </div>
                       </div>
+                    </div>
+
+                    {/* Second row - Origin Country, Last Certified Agency */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <Label htmlFor={`items.${index}.origin_country`}>Origin Country</Label>
+                        <Select
+                          value={form.watch(`items.${index}.origin_country`) || ''}
+                          onValueChange={(value) => {
+                            const selectedCountry = countries.find(c => c.name === value)
+                            if (selectedCountry) {
+                              form.setValue(`items.${index}.origin_country`, selectedCountry.name)
+                              form.setValue(`items.${index}.origin_country_code`, selectedCountry.code)
+                            }
+                          }}
+                        >
+                          <SelectTrigger id={`items.${index}.origin_country`}>
+                            <SelectValue placeholder={loadingCountries ? "Loading countries..." : "Select origin country"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((country) => (
+                              <SelectItem key={country.code} value={country.name}>
+                                <div className="flex items-center gap-2">
+                                  <span>{country.name}</span>
+                                  <span className="text-sm text-slate-500">({country.code})</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Country where the part originated
+                        </div>
+                      </div>
 
                       <div>
-                        <Label htmlFor={`items.${index}.last_certified_agency`}>Last Certified Agency</Label>
+                        <Label htmlFor={`items.${index}.last_certified_agency`}>
+                          Last Certified Agency
+                          <span className="text-xs text-gray-400 ml-1">(if applicable)</span>
+                        </Label>
                         <Input
                           id={`items.${index}.last_certified_agency`}
                           {...form.register(`items.${index}.last_certified_agency`)}
                           placeholder="e.g., FAA, EASA"
                         />
                         <div className="text-xs text-gray-500 mt-1">
-                          Certification authority
+                          Certification authority, if part has been certified
                         </div>
                       </div>
                     </div>
+
                   </div>
 
                   {form.watch(`items.${index}.quantity`) && form.watch(`items.${index}.unit_price`) && (

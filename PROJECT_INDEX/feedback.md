@@ -1,68 +1,27 @@
+http://localhost:3000/portal/purchase-orders/new page remove Aviation Compliance section we dont need it. What we need is: 
 
-To-Do List
- * Sidebar order
-   * Dashboard
-   * Inventory
-   * Purchase order
-   * Repair order
-   * Invoice orders
-PDF Generation
- * PDF deki sistem Üst yazısı silinecek
- * Kompact bir tasarım bir olması lazım PO tasarımı ve alan kullanımı referans alınabilir. Gereksiz alan ve bilgiden kaçınılmalı. 
+In lime Items section, Traceability Information 
+1. Traceability Source: rename it to Obtained from 
+2. Source of traceability documentation
+Traceable To
+e.g., Aircraft N12345
+3. Origin Country with countries rest api
+4. Last Certified Agency : be neccerey if 
 
-
- * Purchase order'de alınması gereken bilgiler:
-   * Parçaya göre last certificate Repair
-   * Obtained from:
-   * Treacble to: Airline
-     and MSN number and uçak ismi
-   * Origin country bilgisi
+5. Add option to upload files PDFs that user can upload the part's FULL TRACE files. -storeged in supabase 
 
 
+-----
 
-Sales
- * Invoice orders
-   * PDF'lerde Sales order yerine Invoice no kullanılacak. Eğer proforma ile başlaydıysa proforma no bitsin.
-   * Dimensions 1 EA BOX (product line sayınıa kadar EA box ekle)
-   Dimensions || L W H || Gr.wgt/ Kgs bilgileri optional filedler ekleylim
-
-Freighter AWB # FEDEX account (from ship info) TRACKNING NO (Free text), 
+Add public/signature.png to AUTHORIZED SIGNATURE section as default. 
 
 
-### Data Flow Improvements
-- **Issue:** Country of Origin and End Use not flowing from Purchase Orders
-- **Solution:** Automatic data inheritance between related records
-- **Impact:** Reduced manual data entry, improved accuracy
-- **Files:** Database relations, API endpoints
+remove Purchase Order generated on August 15, 2025 19:03
+Purchase Order Number: P25033
+Status: Completed
+Generated: August 15, 2025 19:03 to. I dont see the in generated PDF. 
+-----
 
-
-Part Number Management System
-- **Requirements:**
-  - Full descriptions AND abbreviations for each part
-  - Dynamic part creation during data entry (Bu şu demek oluyor. bir paraçayı uniqe bir serial numarasıyla tanımladık ve repair'e gönderiken değiştirdiği yeni seri numarsı gerekebilir. her zaman değil önemli bileşnler tamir edildiği böyle bir durum oluyor. bu bilgini satın alma ve satış ve tamir süreçlerin bu veri güncellem durumu gözetilmeli.)
-
-  ### Dual Inventory Status System
-  - **Current:** Single status field
-  - **Required:** Two-dimensional tracking
-    - **Physical Status:** Depot, In-Repair, In-Transit
-    - **Business Status:** Available, Reserved, Sold
-  - **Use Cases:**
-    - Reserved parts not yet physically received
-    - Parts in repair but already sold
-    - Complete lifecycle visibility
-
-  ### Part Number Modification During Repair
-  - **Business Case:** Software upgrades change part numbers (e.g., 350-0530-2818 � 350-0530-2323)
-  - **Requirements:**
-    - Track original and modified part numbers
-    - Update inventory automatically
-    - Maintain traceability chain
-    - Generate proper documentation with new part numbers
-  - **Implementation:** Repair Order enhancement with part number change capability
-
-  ### Complete Document Package Generation
-- **Requirements:**
-  - PDF merging for "Full Trace Paperwork"
-  - Combine supplier documents + generated documents
-  - Single download for complete compliance package
-  - Document validation and completeness checking
+In 
+fix the repair order creation error: Failed to create repair order: new row for relation "inventory" violates check constraint "inventory_status_check"
+---- 
