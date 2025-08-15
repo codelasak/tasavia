@@ -6,7 +6,7 @@ import PDFCompanyGrid, { shouldShowShipTo } from '@/components/pdf/PDFCompanyGri
 import PDFFooter from '@/components/pdf/PDFFooter'
 import PDFSignatureBlock from '@/components/pdf/PDFSignatureBlock'
 
-interface SalesOrderPDFData {
+interface InvoicePDFData {
   sales_order_id: string
   invoice_number: string
   customer_po_number: string | null
@@ -14,7 +14,7 @@ interface SalesOrderPDFData {
   contract_number: string | null
   country_of_origin: string | null
   end_use_country: string | null
-  sales_date: string | null
+  invoice_date: string | null
   status: string | null
   sub_total: number | null
   freight_charge: number | null
@@ -58,7 +58,7 @@ interface SalesOrderPDFData {
     version: string | null
     content: string | null
   } | null
-  sales_order_items: Array<{
+  invoice_items: Array<{
     line_number: number
     unit_price: number
     line_total: number | null
@@ -78,11 +78,11 @@ interface SalesOrderPDFData {
   }>
 }
 
-interface SalesOrderPDFClientPageProps {
-  salesOrder: SalesOrderPDFData
+interface InvoicePDFClientPageProps {
+  salesOrder: InvoicePDFData
 }
 
-export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFClientPageProps) {
+export default function InvoicePDFClientPage({ salesOrder }: InvoicePDFClientPageProps) {
   const handleDownload = () => {
     window.print()
   }
@@ -124,7 +124,7 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
       <PDFHeader
         documentType="INVOICE"
         documentNumber={salesOrder.invoice_number}
-        documentDate={salesOrder.sales_date || new Date()}
+        documentDate={salesOrder.invoice_date || new Date()}
         additionalInfo={additionalHeaderInfo}
       />
 
@@ -183,7 +183,7 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
             </tr>
           </thead>
           <tbody>
-            {salesOrder.sales_order_items
+            {salesOrder.invoice_items
               .sort((a, b) => a.line_number - b.line_number)
               .map((item: any) => (
                 <tr key={item.line_number}>
@@ -298,7 +298,7 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
             title: "CONFIRMATION",
             titleClassName: "border-b pb-1",
             fields: [
-              { label: "Terms Acceptance", value: "YOUR PO NUMBER IS YOUR APPROVAL OF THE TERMS AND CONDITIONS OF THE SALES.", type: "text" }
+              { label: "Terms Acceptance", value: "YOUR PO NUMBER IS YOUR APPROVAL OF THE TERMS AND CONDITIONS OF THIS INVOICE.", type: "text" }
             ]
           }
         ]}
@@ -316,7 +316,7 @@ export default function SalesOrderPDFClientPage({ salesOrder }: SalesOrderPDFCli
 
       {/* Terms and Conditions of Sale */}
       <div className="mb-6">
-        <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">TERMS AND CONDITIONS OF SALE:</h3>
+        <h3 className="font-bold text-slate-900 mb-3 border-b pb-1">TERMS AND CONDITIONS OF INVOICE:</h3>
         <div className="text-xs leading-tight space-y-2">
           <p>
             These goods are offered by TASAVIA or subsidiaries (Seller) in fulfillment of the referenced contract issued by Buyer. Acceptance

@@ -28,10 +28,10 @@ const groupedNavigation = [
     label: 'Main',
     items: [
       { name: 'Dashboard', href: '/portal/dashboard', icon: Home },
-      { name: 'Purchase Orders', href: '/portal/purchase-orders', icon: ShoppingCart },
-      { name: 'Sales Orders', href: '/portal/sales-orders', icon: FileText },
-      { name: 'Repair Orders', href: '/portal/repair-orders', icon: Wrench },
       { name: 'Inventory', href: '/portal/inventory', icon: BarChart3 },
+      { name: 'Purchase Orders', href: '/portal/purchase-orders', icon: ShoppingCart },
+      { name: 'Repair Orders', href: '/portal/repair-orders', icon: Wrench },
+      { name: 'Invoices', href: '/portal/sales-orders', icon: FileText },
     ],
   },
   {

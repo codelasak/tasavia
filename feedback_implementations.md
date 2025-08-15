@@ -165,8 +165,8 @@ This document outlines the comprehensive implementation plan for enhancing the a
 **Acceptance Criteria**:
 - [ ] All required aviation fields added to Purchase Order forms
 - [ ] Certificate tracking with upload capability
-- [ ] Airline and MSN number validation
-- [ ] Origin country dropdown with aviation standards
+- [ ] Airline and MSN number validation (use free airline api and or MSN Aircraft api to seleceted form dropdwon not free text)
+- [ ] Origin country dropdown with aviation standards (add a Countries API free that used in our project)
 - [ ] Fields properly validated before order submission
 - [ ] Historical orders support new field structure
 
@@ -336,7 +336,7 @@ This document outlines the comprehensive implementation plan for enhancing the a
 - [ ] Sales Order PDFs include traceability information
 - [ ] Repair Order PDFs show part number modifications
 - [ ] Certificate information properly displayed
-- [ ] Origin country and end use clearly shown
+- [ ] Origin country and end use clearly shown 
 - [ ] Data formatting consistent across document types
 
 **Definition of Done**: Aviation compliance data visible in all relevant PDFs

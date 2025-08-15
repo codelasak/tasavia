@@ -344,7 +344,7 @@ export default function SalesOrderEditClientPage({
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Edit Sales Order</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Edit Invoice</h1>
             <p className="text-slate-600">Invoice #{initialSalesOrder.invoice_number}</p>
           </div>
         </div>
@@ -355,8 +355,8 @@ export default function SalesOrderEditClientPage({
         {/* Header Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Sales Order Details</CardTitle>
-            <CardDescription>Basic information for the sales order</CardDescription>
+            <CardTitle>Invoice Details</CardTitle>
+            <CardDescription>Basic information for the invoice</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -547,7 +547,7 @@ export default function SalesOrderEditClientPage({
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>Line Items</CardTitle>
-                <CardDescription>Parts and services included in this sales order</CardDescription>
+                <CardDescription>Parts and services included in this invoice</CardDescription>
               </div>
               <Button
                 type="button"

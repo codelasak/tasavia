@@ -108,6 +108,66 @@ const financialValidationSchema = z.object({
   }).optional(),
 })
 
+// Aviation compliance validation schema
+const aviationComplianceSchema = z.object({
+  // Certificate information
+  last_certificate: z.string()
+    .max(200, 'Last certificate must be less than 200 characters')
+    .optional(),
+    
+  obtained_from: z.string()
+    .max(200, 'Obtained from must be less than 200 characters')
+    .optional(),
+    
+  certificate_reference_number: z.string()
+    .max(100, 'Certificate reference number must be less than 100 characters')
+    .optional(),
+    
+  certificate_expiry_date: z.date({
+    invalid_type_error: 'Invalid certificate expiry date format',
+  }).optional(),
+  
+  certificate_upload_path: z.string()
+    .max(500, 'Certificate upload path must be less than 500 characters')
+    .optional(),
+    
+  // Traceability information
+  traceable_to_airline: z.string()
+    .max(100, 'Traceable to airline must be less than 100 characters')
+    .regex(/^[A-Za-z0-9\s\-\.\/]+$/, 'Airline name contains invalid characters')
+    .optional(),
+    
+  traceable_to_msn: z.string()
+    .max(50, 'MSN must be less than 50 characters')
+    .regex(/^[A-Za-z0-9\-]+$/, 'MSN can only contain letters, numbers, and hyphens')
+    .optional(),
+    
+  // Origin and destination countries
+  origin_country: z.string()
+    .max(100, 'Origin country must be less than 100 characters')
+    .optional(),
+    
+  end_use_country: z.string()
+    .max(100, 'End use country must be less than 100 characters')
+    .optional(),
+    
+  // Regulatory information
+  regulatory_authority: z.string()
+    .max(100, 'Regulatory authority must be less than 100 characters')
+    .regex(/^[A-Za-z0-9\s\-\.]+$/, 'Regulatory authority contains invalid characters')
+    .optional(),
+    
+  airworthiness_status: z.enum(['AIRWORTHY', 'NON-AIRWORTHY', 'UNKNOWN', 'PENDING'], {
+    invalid_type_error: 'Invalid airworthiness status',
+  }).optional(),
+  
+  // Compliance verification
+  aviation_compliance_verified: z.boolean().default(false),
+  compliance_notes: z.string()
+    .max(1000, 'Compliance notes must be less than 1000 characters')
+    .optional(),
+})
+
 // Main Purchase Order validation schema
 const purchaseOrderSchema = z.object({
   // Basic information
@@ -152,7 +212,7 @@ const purchaseOrderSchema = z.object({
     .min(1, 'At least one item is required')
     .max(100, 'Cannot exceed 100 line items'),
     
-}).and(financialValidationSchema)
+}).and(financialValidationSchema).and(aviationComplianceSchema)
   .refine((data) => {
     // Custom validation: Expected delivery date must be in the future
     const today = new Date();
@@ -245,5 +305,6 @@ export {
   purchaseOrderItemSchema,
   companyValidationSchema,
   financialValidationSchema,
+  aviationComplianceSchema,
   ata106ComplianceSchema,
 }

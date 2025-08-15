@@ -11,6 +11,7 @@ import { Search, Edit, Trash2, MapPin, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { InventoryDialog } from '@/components/inventory/InventoryDialog'
+import DualStatusBadges from '@/components/inventory/DualStatusBadges'
 
 interface InventoryItem {
   inventory_id: string
@@ -23,7 +24,11 @@ interface InventoryItem {
   total_value?: number
   notes?: string | null
   last_updated?: string
-  status: string
+  status?: string // Legacy status for compatibility
+  physical_status: 'depot' | 'in_repair' | 'in_transit'
+  business_status: 'available' | 'reserved' | 'sold'
+  status_updated_at?: string
+  status_updated_by?: string
   po_id_original?: string | null
   po_number_original?: string | null
   pn_master_table: {
@@ -49,6 +54,10 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [locations, setLocations] = useState<string[]>([])
   const [conditions, setConditions] = useState<string[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
+  const [physicalStatuses, setPhysicalStatuses] = useState<string[]>([])
+  const [businessStatuses, setBusinessStatuses] = useState<string[]>([])
+  const [physicalStatusFilter, setPhysicalStatusFilter] = useState<string>('all')
+  const [businessStatusFilter, setBusinessStatusFilter] = useState<string>('all')
   const [loading, setLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -58,14 +67,20 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
     const locationData = inventory?.map(item => item.location).filter(Boolean) || []
     const conditionData = inventory?.map(item => item.condition).filter(Boolean) || []
     const statusData = inventory?.map(item => item.status).filter(Boolean) || []
+    const physicalStatusData = inventory?.map(item => item.physical_status).filter(Boolean) || []
+    const businessStatusData = inventory?.map(item => item.business_status).filter(Boolean) || []
     
     const uniqueLocations = Array.from(new Set(locationData)) as string[]
     const uniqueConditions = Array.from(new Set(conditionData)) as string[]
     const uniqueStatuses = Array.from(new Set(statusData)) as string[]
+    const uniquePhysicalStatuses = Array.from(new Set(physicalStatusData)) as string[]
+    const uniqueBusinessStatuses = Array.from(new Set(businessStatusData)) as string[]
     
     setLocations(uniqueLocations)
     setConditions(uniqueConditions)
     setStatuses(uniqueStatuses)
+    setPhysicalStatuses(uniquePhysicalStatuses)
+    setBusinessStatuses(uniqueBusinessStatuses)
   }, [inventory])
 
   useEffect(() => {
@@ -88,8 +103,16 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
       filtered = filtered.filter(item => item.status === statusFilter)
     }
 
+    if (physicalStatusFilter !== 'all') {
+      filtered = filtered.filter(item => item.physical_status === physicalStatusFilter)
+    }
+
+    if (businessStatusFilter !== 'all') {
+      filtered = filtered.filter(item => item.business_status === businessStatusFilter)
+    }
+
     setFilteredInventory(filtered)
-  }, [inventory, searchTerm, conditionFilter, locationFilter, statusFilter])
+  }, [inventory, searchTerm, conditionFilter, locationFilter, statusFilter, physicalStatusFilter, businessStatusFilter])
 
   const fetchInventory = async () => {
     try {
@@ -99,7 +122,25 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
       const { data, error } = await supabase
         .from('inventory')
         .select(`
-          *,
+          inventory_id,
+          pn_id,
+          serial_number,
+          condition,
+          location,
+          quantity,
+          unit_cost,
+          total_value,
+          notes,
+          last_updated,
+          status,
+          physical_status,
+          business_status,
+          status_updated_at,
+          status_updated_by,
+          po_id_original,
+          po_number_original,
+          created_at,
+          updated_at,
           pn_master_table(pn, description)
         `)
         .order('updated_at', { ascending: false })
@@ -126,12 +167,12 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   }
 
   const handleDelete = async (item: InventoryItem) => {
-    // Enhanced confirmation based on status
+    // Enhanced confirmation based on business status
     let confirmMessage = `Are you sure you want to delete this inventory item?`
     
-    if (item.status === 'Reserved') {
+    if (item.business_status === 'reserved') {
       confirmMessage = `This inventory item is RESERVED for a sales order. Deleting it may cause issues. Are you sure you want to proceed?`
-    } else if (item.status === 'Sold') {
+    } else if (item.business_status === 'sold') {
       confirmMessage = `This inventory item has been SOLD. Deleting it may cause data integrity issues. Are you sure you want to proceed?`
     }
     
@@ -233,12 +274,40 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="All Statuses" />
+              <SelectValue placeholder="Legacy Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="all">All Legacy</SelectItem>
               {statuses.map(status => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={physicalStatusFilter} onValueChange={setPhysicalStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Physical Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Physical</SelectItem>
+              {physicalStatuses.map(status => (
+                <SelectItem key={status} value={status}>
+                  {status === 'depot' ? 'At Depot' : 
+                   status === 'in_repair' ? 'In Repair' : 
+                   status === 'in_transit' ? 'In Transit' : status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={businessStatusFilter} onValueChange={setBusinessStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Business Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Business</SelectItem>
+              {businessStatuses.map(status => (
+                <SelectItem key={status} value={status}>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -247,7 +316,7 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
           {filteredInventory.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-slate-500">No inventory items found</div>
-              {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all' || statusFilter !== 'all') && (
+              {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all' || statusFilter !== 'all' || physicalStatusFilter !== 'all' || businessStatusFilter !== 'all') && (
                 <Button
                   variant="link"
                   onClick={() => {
@@ -255,6 +324,8 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                     setConditionFilter('all')
                     setLocationFilter('all')
                     setStatusFilter('all')
+                    setPhysicalStatusFilter('all')
+                    setBusinessStatusFilter('all')
                   }}
                   className="mt-2"
                 >
@@ -271,7 +342,28 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table.pn}</span>
-                          <Badge className={`${getStatusBadge(item.status)} border`}>{item.status}</Badge>
+                          <DualStatusBadges
+                            inventory_id={item.inventory_id}
+                            physical_status={item.physical_status}
+                            business_status={item.business_status}
+                            status_updated_at={item.status_updated_at}
+                            status_updated_by={item.status_updated_by}
+                            size="sm"
+                            showHistory={true}
+                            onStatusChange={(newStatus) => {
+                              // Update the local state with the new status
+                              setInventory(prev => prev.map(inv => 
+                                inv.inventory_id === item.inventory_id 
+                                  ? { 
+                                      ...inv, 
+                                      physical_status: newStatus.physical_status,
+                                      business_status: newStatus.business_status,
+                                      status_updated_at: newStatus.status_updated_at
+                                    }
+                                  : inv
+                              ))
+                            }}
+                          />
                           <Badge className={getConditionBadge(item.condition)}>{item.condition || 'Unknown'}</Badge>
                           {item.location && (
                             <span className="flex items-center text-xs text-slate-500"><MapPin className="h-4 w-4 mr-1" />{item.location}</span>

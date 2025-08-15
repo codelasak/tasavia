@@ -143,8 +143,8 @@ export default function SalesOrderViewClientPage({ salesOrder: initialSalesOrder
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Sales Order</h1>
-            <p className="text-slate-600">Invoice: {salesOrder.invoice_number}</p>
+            <h1 className="text-3xl font-bold text-slate-900">Invoice</h1>
+            <p className="text-slate-600">Number: {salesOrder.invoice_number}</p>
           </div>
         </div>
         <div className="flex space-x-2">

@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Edit, FileText, Package, Calendar, Clock } from 'lucide-react'
+import { ArrowLeft, Edit, FileText, Package, Calendar, Clock, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import PartNumberModificationModal from '@/components/repair-orders/PartNumberModificationModal'
 
 interface RepairOrderDetails {
   repair_order_id: string
@@ -35,6 +36,7 @@ interface RepairOrderDetails {
     status: string | null
     inventory: {
       inventory_id: string
+      pn_id: string
       serial_number: string | null
       condition: string | null
       quantity: number
@@ -92,6 +94,11 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
     } finally {
       setLoading(false)
     }
+  }
+
+  const handlePartNumberModification = () => {
+    // Refresh the repair order data when a part number is modified
+    fetchRepairOrder()
   }
 
   const updateStatus = async (newStatus: string) => {
@@ -349,6 +356,36 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
                         </div>
                       </div>
                     )}
+                  </div>
+                  
+                  {/* Part Number Modification Button */}
+                  <div className="ml-4">
+                    <PartNumberModificationModal
+                      inventoryItem={{
+                        inventory_id: item.inventory.inventory_id,
+                        serial_number: item.inventory.serial_number,
+                        condition: item.inventory.condition,
+                        quantity: item.inventory.quantity,
+                        pn_master_table: {
+                          pn_id: item.inventory.pn_id || '',
+                          pn: item.inventory.pn_master_table.pn,
+                          description: item.inventory.pn_master_table.description
+                        }
+                      }}
+                      repairOrderId={repairOrder.repair_order_id}
+                      onModificationComplete={handlePartNumberModification}
+                      trigger={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1"
+                          title="Modify Part Number"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Modify PN
+                        </Button>
+                      }
+                    />
                   </div>
                 </div>
               </Card>

@@ -16,6 +16,11 @@ interface InventoryItem {
   total_value?: number
   notes?: string | null
   last_updated?: string
+  status?: string // Legacy status for compatibility
+  physical_status: 'depot' | 'in_repair' | 'in_transit'
+  business_status: 'available' | 'reserved' | 'sold'
+  status_updated_at?: string
+  status_updated_by?: string
   pn_master_table: {
     pn: string
     description: string | null
@@ -28,7 +33,23 @@ async function getInventory() {
     const { data, error } = await supabase
       .from('inventory')
       .select(`
-        *,
+        inventory_id,
+        pn_id,
+        serial_number,
+        condition,
+        location,
+        quantity,
+        unit_cost,
+        total_value,
+        notes,
+        last_updated,
+        status,
+        physical_status,
+        business_status,
+        status_updated_at,
+        status_updated_by,
+        created_at,
+        updated_at,
         pn_master_table(pn, description)
       `)
       .order('updated_at', { ascending: false })

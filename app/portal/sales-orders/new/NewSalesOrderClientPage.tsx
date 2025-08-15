@@ -18,6 +18,13 @@ import * as dateFns from 'date-fns'
 import { cn } from '@/lib/utils'
 import { PAYMENT_TERMS, CURRENCY_OPTIONS } from '@/lib/constants/sales-order-constants'
 import { useCreateSalesOrder } from '@/lib/hooks/usePurchaseOrders'
+import {
+  validateAWBNumber,
+  validateDimensions,
+  validateWeightConsistency,
+  getFieldValidationStyle,
+  type ValidationResult
+} from '@/lib/validation/aviation-validation-utils'
 
 interface MyCompany {
   my_company_id: string
@@ -91,6 +98,17 @@ const salesOrderSchema = z.object({
   vat_percentage: z.number().min(0).max(100).default(0),
   terms_and_conditions_id: z.string().optional(),
   remarks: z.string().optional(),
+  // Shipping fields
+  awb_number: z.string().optional(),
+  shipping_carrier: z.string().optional(),
+  shipping_method: z.string().optional(),
+  shipping_service_type: z.string().optional(),
+  tracking_number: z.string().optional(),
+  dimensions: z.string().optional(),
+  weight: z.number().min(0).optional(),
+  gross_weight_kgs: z.number().min(0).optional(),
+  shipping_cost: z.number().min(0).optional(),
+  shipping_notes: z.string().optional(),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
 })
 
@@ -105,6 +123,25 @@ export default function NewSalesOrderClientPage({
   const router = useRouter()
   const [selectedCustomerNumber, setSelectedCustomerNumber] = useState<string>('')
   const createSalesOrderMutation = useCreateSalesOrder()
+
+  // Form validation states
+  const [awbValidation, setAwbValidation] = useState<{
+    isValidating: boolean
+    isValid: boolean | null
+    message: string
+    suggestions?: string[]
+  }>({ isValidating: false, isValid: null, message: '' })
+  
+  const [dimensionsValidation, setDimensionsValidation] = useState<{
+    isValid: boolean | null
+    message: string
+  }>({ isValid: null, message: '' })
+  
+  const [weightValidation, setWeightValidation] = useState<{
+    isValid: boolean | null
+    message: string
+    suggestedConversion?: string
+  }>({ isValid: null, message: '' })
 
   const { setValue, getValues, ...form } = useForm<SalesOrderFormValues>({
     resolver: zodResolver(salesOrderSchema),
@@ -124,6 +161,17 @@ export default function NewSalesOrderClientPage({
       vat_percentage: 0,
       terms_and_conditions_id: '',
       remarks: '',
+      // Shipping fields
+      awb_number: '',
+      shipping_carrier: '',
+      shipping_method: '',
+      shipping_service_type: '',
+      tracking_number: '',
+      dimensions: '',
+      weight: 0,
+      gross_weight_kgs: 0,
+      shipping_cost: 0,
+      shipping_notes: '',
       items: [],
     }
   })
@@ -168,7 +216,7 @@ export default function NewSalesOrderClientPage({
     const total = calculateTotal()
     const vatAmount = subtotal * ((data.vat_percentage || 0) / 100)
 
-    // Prepare sales order data
+    // Prepare invoice data
     const salesOrderData = {
       order: {
         my_company_id: data.my_company_id,
@@ -187,6 +235,17 @@ export default function NewSalesOrderClientPage({
         vat_amount: vatAmount,
         terms_and_conditions_id: data.terms_and_conditions_id || null,
         remarks: data.remarks || null,
+        // Shipping fields
+        awb_number: data.awb_number || null,
+        shipping_carrier: data.shipping_carrier || null,
+        shipping_method: data.shipping_method || null,
+        shipping_service_type: data.shipping_service_type || null,
+        tracking_number: data.tracking_number || null,
+        dimensions: data.dimensions || null,
+        weight: data.weight || null,
+        gross_weight_kgs: data.gross_weight_kgs || null,
+        shipping_cost: data.shipping_cost || null,
+        shipping_notes: data.shipping_notes || null,
         sub_total: subtotal,
         total_net: total,
         status: 'Draft',
@@ -204,6 +263,49 @@ export default function NewSalesOrderClientPage({
     })
   }
 
+  // Real-time validation handlers
+  const handleAWBValidation = useCallback(async (awbNumber: string) => {
+    if (!awbNumber.trim()) {
+      setAwbValidation({ isValidating: false, isValid: null, message: '' })
+      return
+    }
+    
+    setAwbValidation({ isValidating: true, isValid: null, message: 'Validating AWB...' })
+    
+    // Use timeout to avoid excessive validation calls
+    setTimeout(() => {
+      const carrier = form.watch('shipping_carrier')
+      const result = validateAWBNumber(awbNumber, carrier)
+      
+      setAwbValidation({
+        isValidating: false,
+        isValid: result.isValid,
+        message: result.message,
+        suggestions: result.suggestions
+      })
+    }, 300)
+  }, [form])
+  
+  const handleDimensionsValidation = useCallback((dimensions: string) => {
+    const result = validateDimensions(dimensions)
+    setDimensionsValidation({
+      isValid: result.isValid,
+      message: result.message
+    })
+  }, [])
+  
+  const handleWeightValidation = useCallback(() => {
+    const weightLbs = form.watch('weight')
+    const weightKgs = form.watch('gross_weight_kgs')
+    
+    const result = validateWeightConsistency(weightLbs || undefined, weightKgs || undefined)
+    setWeightValidation({
+      isValid: result.isValid,
+      message: result.message,
+      suggestedConversion: result.suggestedConversion
+    })
+  }, [form])
+
   const selectedCustomer = customers.find(c => c.company_id === form.watch('customer_company_id'))
 
   useEffect(() => {
@@ -211,6 +313,30 @@ export default function NewSalesOrderClientPage({
       setSelectedCustomerNumber(selectedCustomer.customer_number || '')
     }
   }, [selectedCustomer])
+  
+  // Watch for form changes and trigger validation
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'awb_number') {
+        handleAWBValidation(value.awb_number || '')
+      }
+      if (name === 'dimensions') {
+        handleDimensionsValidation(value.dimensions || '')
+      }
+      if (name === 'weight' || name === 'gross_weight_kgs') {
+        handleWeightValidation()
+      }
+      if (name === 'shipping_carrier') {
+        // Re-validate AWB when carrier changes
+        const awbNumber = form.watch('awb_number')
+        if (awbNumber) {
+          handleAWBValidation(awbNumber)
+        }
+      }
+    })
+    
+    return () => subscription.unsubscribe()
+  }, [form, handleAWBValidation, handleDimensionsValidation, handleWeightValidation])
 
   return (
     <div className="space-y-6">
@@ -220,7 +346,7 @@ export default function NewSalesOrderClientPage({
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Create Sales Order</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Create Invoice</h1>
         </div>
       </div>
 
@@ -228,8 +354,8 @@ export default function NewSalesOrderClientPage({
         {/* Header Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Sales Order Details</CardTitle>
-            <CardDescription>Basic information for the sales order</CardDescription>
+            <CardTitle>Invoice Details</CardTitle>
+            <CardDescription>Basic information for the invoice</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -468,7 +594,7 @@ export default function NewSalesOrderClientPage({
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Line Items</CardTitle>
-                <CardDescription>Add inventory items to this sales order</CardDescription>
+                <CardDescription>Add inventory items to this invoice</CardDescription>
               </div>
               <Button
                 type="button"
@@ -615,6 +741,258 @@ export default function NewSalesOrderClientPage({
           </CardContent>
         </Card>
 
+        {/* Shipping Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">📦</span>
+              Shipping Information
+            </CardTitle>
+            <CardDescription>Logistics and shipping details for this invoice</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* AWB and Carrier Information */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-slate-900">Shipping Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="awb_number">AWB Number</Label>
+                  <div className="relative">
+                    <Input
+                      id="awb_number"
+                      {...form.register('awb_number')}
+                      placeholder="e.g., 020-12345678"
+                      className={getFieldValidationStyle(
+                        awbValidation.isValid,
+                        false,
+                        !!form.watch('awb_number')
+                      )}
+                    />
+                    {awbValidation.isValidating && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      </div>
+                    )}
+                  </div>
+                  {awbValidation.message && (
+                    <div className={`text-xs mt-1 ${
+                      awbValidation.isValid === false ? 'text-red-600' : 
+                      awbValidation.isValid === true ? 'text-green-600' : 
+                      'text-gray-500'
+                    }`}>
+                      {awbValidation.message}
+                    </div>
+                  )}
+                  {awbValidation.suggestions && awbValidation.suggestions.length > 0 && (
+                    <div className="text-xs text-blue-600 mt-1">
+                      Suggestion: {awbValidation.suggestions[0]}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-1">
+                    Air Waybill number for tracking
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="shipping_carrier">Shipping Carrier</Label>
+                  <Select
+                    value={form.watch('shipping_carrier')}
+                    onValueChange={(value) => setValue('shipping_carrier', value)}
+                  >
+                    <SelectTrigger id="shipping_carrier">
+                      <SelectValue placeholder="Select carrier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FEDEX">FedEx</SelectItem>
+                      <SelectItem value="DHL">DHL</SelectItem>
+                      <SelectItem value="UPS">UPS</SelectItem>
+                      <SelectItem value="USPS">USPS</SelectItem>
+                      <SelectItem value="TURKISH_AIRLINES">Turkish Airlines</SelectItem>
+                      <SelectItem value="LUFTHANSA">Lufthansa</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="tracking_number">Tracking Number</Label>
+                  <Input
+                    id="tracking_number"
+                    {...form.register('tracking_number')}
+                    placeholder="e.g., 1Z999AA1234567890"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Free text tracking number
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Shipping Method and Service */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-slate-900">Service Options</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="shipping_method">Shipping Method</Label>
+                  <Select
+                    value={form.watch('shipping_method')}
+                    onValueChange={(value) => setValue('shipping_method', value)}
+                  >
+                    <SelectTrigger id="shipping_method">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AIR">Air Freight</SelectItem>
+                      <SelectItem value="SEA">Sea Freight</SelectItem>
+                      <SelectItem value="GROUND">Ground</SelectItem>
+                      <SelectItem value="EXPRESS">Express</SelectItem>
+                      <SelectItem value="COURIER">Courier</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="shipping_service_type">Service Type</Label>
+                  <Select
+                    value={form.watch('shipping_service_type')}
+                    onValueChange={(value) => setValue('shipping_service_type', value)}
+                  >
+                    <SelectTrigger id="shipping_service_type">
+                      <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="STANDARD">Standard</SelectItem>
+                      <SelectItem value="EXPRESS">Express</SelectItem>
+                      <SelectItem value="OVERNIGHT">Overnight</SelectItem>
+                      <SelectItem value="2_DAY">2-Day</SelectItem>
+                      <SelectItem value="ECONOMY">Economy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Package Information */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-slate-900">Package Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="dimensions">Dimensions</Label>
+                  <Input
+                    id="dimensions"
+                    {...form.register('dimensions')}
+                    placeholder='e.g., "1 EA BOX 12x8x6 inches"'
+                    className={getFieldValidationStyle(
+                      dimensionsValidation.isValid,
+                      false,
+                      !!form.watch('dimensions')
+                    )}
+                  />
+                  {dimensionsValidation.message && (
+                    <div className={`text-xs mt-1 ${
+                      dimensionsValidation.isValid === false ? 'text-red-600' : 
+                      dimensionsValidation.isValid === true ? 'text-green-600' : 
+                      'text-gray-500'
+                    }`}>
+                      {dimensionsValidation.message}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-1">
+                    Package dimensions per product line
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="weight">Weight (lbs)</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...form.register('weight', { valueAsNumber: true })}
+                    placeholder="0.00"
+                    className={getFieldValidationStyle(
+                      weightValidation.isValid,
+                      false,
+                      !!(form.watch('weight') || form.watch('gross_weight_kgs'))
+                    )}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Package weight in pounds
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="gross_weight_kgs">Gross Weight (Kgs)</Label>
+                  <Input
+                    id="gross_weight_kgs"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...form.register('gross_weight_kgs', { valueAsNumber: true })}
+                    placeholder="0.00"
+                    className={getFieldValidationStyle(
+                      weightValidation.isValid,
+                      false,
+                      !!(form.watch('weight') || form.watch('gross_weight_kgs'))
+                    )}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Total weight in kilograms
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="shipping_cost">Shipping Cost ($)</Label>
+                  <Input
+                    id="shipping_cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...form.register('shipping_cost', { valueAsNumber: true })}
+                    placeholder="0.00"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Actual shipping charges
+                  </div>
+                </div>
+              </div>
+              
+              {/* Weight validation feedback */}
+              {weightValidation.message && (
+                <div className={`text-xs mt-2 p-2 rounded ${
+                  weightValidation.isValid === false ? 'bg-red-50 text-red-700 border border-red-200' : 
+                  weightValidation.isValid === true ? 'bg-green-50 text-green-700 border border-green-200' : 
+                  'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}>
+                  {weightValidation.message}
+                  {weightValidation.suggestedConversion && (
+                    <div className="mt-1 font-semibold">
+                      💡 {weightValidation.suggestedConversion}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Shipping Notes */}
+            <div>
+              <Label htmlFor="shipping_notes">Shipping Notes</Label>
+              <Textarea
+                id="shipping_notes"
+                {...form.register('shipping_notes')}
+                rows={3}
+                placeholder="Additional shipping instructions, special handling requirements, etc..."
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                Special instructions for shipping and handling
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Financial Details */}
         <Card>
           <CardHeader>
@@ -708,7 +1086,7 @@ export default function NewSalesOrderClientPage({
             {createSalesOrderMutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             )}
-            {createSalesOrderMutation.isPending ? 'Creating...' : 'Create Sales Order'}
+            {createSalesOrderMutation.isPending ? 'Creating...' : 'Create Invoice'}
           </Button>
         </div>
       </form>

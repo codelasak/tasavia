@@ -37,7 +37,7 @@ export default function SalesOrdersList() {
   }, [salesOrders, searchTerm, statusFilter])
 
   const handleDelete = (order: any) => {
-    if (!confirm(`Are you sure you want to delete sales order ${order.invoice_number}?`)) return
+    if (!confirm(`Are you sure you want to delete invoice ${order.invoice_number}?`)) return
     deleteOrderMutation.mutate(order.sales_order_id)
   }
 
@@ -46,7 +46,7 @@ export default function SalesOrdersList() {
       <Card>
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
-          <span>Loading sales orders...</span>
+          <span>Loading invoices...</span>
         </CardContent>
       </Card>
     )
@@ -57,7 +57,7 @@ export default function SalesOrdersList() {
       <Card>
         <CardContent className="flex items-center justify-center py-8">
           <div className="text-red-600 text-center">
-            <div className="font-semibold">Error loading sales orders</div>
+            <div className="font-semibold">Error loading invoices</div>
             <div className="text-sm mt-1">{error.message}</div>
           </div>
         </CardContent>
@@ -97,7 +97,7 @@ export default function SalesOrdersList() {
         <div className="space-y-2">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-slate-500">No sales orders found</div>
+              <div className="text-slate-500">No invoices found</div>
               {(searchTerm || statusFilter !== 'all') && (
                 <Button
                   variant="link"

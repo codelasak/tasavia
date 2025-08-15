@@ -438,6 +438,13 @@ export type Database = {
             referencedColumns: ["pn_id"]
           },
           {
+            foreignKeyName: "inventory_po_id_original_cascade_fkey"
+            columns: ["po_id_original"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["po_id"]
+          },
+          {
             foreignKeyName: "inventory_po_id_original_fkey"
             columns: ["po_id_original"]
             isOneToOne: false
@@ -450,6 +457,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_status_log: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          inventory_id: string
+          log_id: string
+          new_status: string
+          old_status: string | null
+          reason: string | null
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          inventory_id: string
+          log_id?: string
+          new_status: string
+          old_status?: string | null
+          reason?: string | null
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          inventory_id?: string
+          log_id?: string
+          new_status?: string
+          old_status?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_status_log_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["inventory_id"]
           },
         ]
       }
@@ -612,6 +657,7 @@ export type Database = {
           condition: string | null
           created_at: string | null
           description: string | null
+          last_certified_agency: string | null
           line_number: number
           line_total: number | null
           pn_id: string
@@ -619,6 +665,8 @@ export type Database = {
           po_item_id: string
           quantity: number
           sn: string | null
+          traceability_source: string | null
+          traceable_to: string | null
           unit_price: number
           updated_at: string | null
         }
@@ -626,6 +674,7 @@ export type Database = {
           condition?: string | null
           created_at?: string | null
           description?: string | null
+          last_certified_agency?: string | null
           line_number: number
           line_total?: number | null
           pn_id: string
@@ -633,6 +682,8 @@ export type Database = {
           po_item_id?: string
           quantity: number
           sn?: string | null
+          traceability_source?: string | null
+          traceable_to?: string | null
           unit_price: number
           updated_at?: string | null
         }
@@ -640,6 +691,7 @@ export type Database = {
           condition?: string | null
           created_at?: string | null
           description?: string | null
+          last_certified_agency?: string | null
           line_number?: number
           line_total?: number | null
           pn_id?: string
@@ -647,6 +699,8 @@ export type Database = {
           po_item_id?: string
           quantity?: number
           sn?: string | null
+          traceability_source?: string | null
+          traceable_to?: string | null
           unit_price?: number
           updated_at?: string | null
         }
@@ -670,6 +724,9 @@ export type Database = {
       purchase_orders: {
         Row: {
           airworthiness_status: string | null
+          aviation_compliance_notes: string | null
+          aviation_compliance_updated_at: string | null
+          aviation_compliance_updated_by: string | null
           aviation_compliance_verified: boolean | null
           awb_no: string | null
           certificate_expiry_date: string | null
@@ -681,12 +738,15 @@ export type Database = {
           created_at: string | null
           currency: string
           end_use_country: string | null
+          end_use_country_code: string | null
           freight_charge: number | null
           last_certificate: string | null
+          last_certificate_url: string | null
           misc_charge: number | null
           my_company_id: string
           obtained_from: string | null
           origin_country: string | null
+          origin_country_code: string | null
           payment_term: string | null
           po_date: string
           po_id: string
@@ -714,6 +774,9 @@ export type Database = {
         }
         Insert: {
           airworthiness_status?: string | null
+          aviation_compliance_notes?: string | null
+          aviation_compliance_updated_at?: string | null
+          aviation_compliance_updated_by?: string | null
           aviation_compliance_verified?: boolean | null
           awb_no?: string | null
           certificate_expiry_date?: string | null
@@ -725,12 +788,15 @@ export type Database = {
           created_at?: string | null
           currency?: string
           end_use_country?: string | null
+          end_use_country_code?: string | null
           freight_charge?: number | null
           last_certificate?: string | null
+          last_certificate_url?: string | null
           misc_charge?: number | null
           my_company_id: string
           obtained_from?: string | null
           origin_country?: string | null
+          origin_country_code?: string | null
           payment_term?: string | null
           po_date?: string
           po_id?: string
@@ -758,6 +824,9 @@ export type Database = {
         }
         Update: {
           airworthiness_status?: string | null
+          aviation_compliance_notes?: string | null
+          aviation_compliance_updated_at?: string | null
+          aviation_compliance_updated_by?: string | null
           aviation_compliance_verified?: boolean | null
           awb_no?: string | null
           certificate_expiry_date?: string | null
@@ -769,12 +838,15 @@ export type Database = {
           created_at?: string | null
           currency?: string
           end_use_country?: string | null
+          end_use_country_code?: string | null
           freight_charge?: number | null
           last_certificate?: string | null
+          last_certificate_url?: string | null
           misc_charge?: number | null
           my_company_id?: string
           obtained_from?: string | null
           origin_country?: string | null
+          origin_country_code?: string | null
           payment_term?: string | null
           po_date?: string
           po_id?: string
@@ -1211,12 +1283,12 @@ export type Database = {
     }
     Functions: {
       create_inventory_from_po_completion: {
-        Args: { input_po_id: string }
+        Args: { po_id_param: string }
         Returns: {
-          inventory_ids: string[]
           created_count: number
-          success: boolean
           error_message: string
+          inventory_ids: string[]
+          success: boolean
         }[]
       }
       generate_company_code: {
@@ -1237,11 +1309,11 @@ export type Database = {
       }
       handle_company_operations: {
         Args: {
-          p_operation: string
-          p_company_id?: string
-          p_company_data?: Json
-          p_contacts?: Json
           p_addresses?: Json
+          p_company_data?: Json
+          p_company_id?: string
+          p_contacts?: Json
+          p_operation: string
         }
         Returns: Json
       }
