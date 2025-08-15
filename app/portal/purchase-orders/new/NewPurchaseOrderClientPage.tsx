@@ -20,8 +20,8 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
-import purchaseOrderSchema, { type PurchaseOrderFormValues } from '@/lib/validation/purchase-order-schemas'
 import { fetchCountries } from '@/lib/external-apis'
+import FileUpload from '@/components/ui/file-upload'
 
 interface MyCompany {
   my_company_id: string
@@ -107,11 +107,18 @@ const formSchema = z.object({
     condition: z.string().optional(),
     // Enhanced traceability fields
     traceability_source: z.string().optional(),
-    source_of_traceability_documentation: z.string().optional(),
     traceable_to: z.string().optional(),
     origin_country: z.string().optional(),
     origin_country_code: z.string().optional(),
     last_certified_agency: z.string().optional(),
+    traceability_files_path: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      size: z.number(),
+      url: z.string(),
+      path: z.string(),
+      uploadedAt: z.date()
+    })).optional(),
   })).min(1, 'At least one item is required'),
 })
 
@@ -200,11 +207,11 @@ export default function NewPurchaseOrderClientPage({
           condition: '',
           // Enhanced traceability fields
           traceability_source: '',
-          source_of_traceability_documentation: '',
           traceable_to: '',
           origin_country: '',
           origin_country_code: '',
           last_certified_agency: '',
+          traceability_files_path: [],
         }
       ],
     }
@@ -299,11 +306,13 @@ export default function NewPurchaseOrderClientPage({
         condition: item.condition || null,
         // Enhanced traceability fields
         traceability_source: item.traceability_source || null,
-        source_of_traceability_documentation: item.source_of_traceability_documentation || null,
         traceable_to: item.traceable_to || null,
         origin_country: item.origin_country || null,
         origin_country_code: item.origin_country_code || null,
         last_certified_agency: item.last_certified_agency || null,
+        traceability_files_path: item.traceability_files_path && item.traceability_files_path.length > 0 
+          ? JSON.stringify(item.traceability_files_path) 
+          : null,
       }))
 
       const { error: itemsError } = await supabase
@@ -791,11 +800,11 @@ export default function NewPurchaseOrderClientPage({
                   condition: '',
                   // Enhanced traceability fields
                   traceability_source: '',
-                  source_of_traceability_documentation: '',
-                  traceable_to: '',
+                          traceable_to: '',
                   origin_country: '',
                   origin_country_code: '',
                   last_certified_agency: '',
+                  traceability_files_path: [],
                         })}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -935,8 +944,8 @@ export default function NewPurchaseOrderClientPage({
                       Traceability Information
                     </h5>
                     
-                    {/* First row - Obtained from, Source of Documentation, Traceable To */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* First row - Obtained from, Traceable To */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <Label htmlFor={`items.${index}.traceability_source`}>Obtained from</Label>
                         <Input
@@ -946,18 +955,6 @@ export default function NewPurchaseOrderClientPage({
                         />
                         <div className="text-xs text-gray-500 mt-1">
                           Source where part was obtained from
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor={`items.${index}.source_of_traceability_documentation`}>Source of traceability documentation</Label>
-                        <Input
-                          id={`items.${index}.source_of_traceability_documentation`}
-                          {...form.register(`items.${index}.source_of_traceability_documentation`)}
-                          placeholder="e.g., Manufacturer Certificate, Test Report"
-                        />
-                        <div className="text-xs text-gray-500 mt-1">
-                          Type of documentation providing traceability
                         </div>
                       </div>
 
@@ -1019,6 +1016,29 @@ export default function NewPurchaseOrderClientPage({
                         />
                         <div className="text-xs text-gray-500 mt-1">
                           Certification authority, if part has been certified
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Third row - Traceability Files */}
+                    <div className="mb-4">
+                      <div>
+                        <Label>Traceability Documents</Label>
+                        <div className="mt-2">
+                          <FileUpload
+                            maxFiles={5}
+                            maxSizeBytes={10 * 1024 * 1024} // 10MB
+                            acceptedFileTypes={['application/pdf']}
+                            existingFiles={form.watch(`items.${index}.traceability_files_path`) || []}
+                            onFilesChange={(files) => {
+                              form.setValue(`items.${index}.traceability_files_path`, files)
+                            }}
+                            bucketName="traceability-documents"
+                            folderPath={`po-items/${Date.now()}`}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Upload official traceability documents (PDF only)
                         </div>
                       </div>
                     </div>

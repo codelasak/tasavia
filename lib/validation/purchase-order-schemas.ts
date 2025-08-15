@@ -14,9 +14,6 @@ const ata106TraceabilitySchema = z.object({
     .regex(/^[A-Za-z0-9\s\-\.\/]+$/, 'Obtained from contains invalid characters')
     .optional(),
     
-  source_of_traceability_documentation: z.string()
-    .max(200, 'Source of traceability documentation must be less than 200 characters')
-    .optional(),
     
   traceable_to: z.string()
     .max(200, 'Traceable to must be less than 200 characters')
@@ -231,7 +228,7 @@ const purchaseOrderSchema = z.object({
     // Custom validation: Check if any items have traceability data
     const hasTraceabilityItems = data.items.some(item => 
       item.traceability_source || item.traceable_to || item.last_certified_agency ||
-      item.source_of_traceability_documentation || item.origin_country
+      item.origin_country
     );
     
     // This is informational - we don't fail validation

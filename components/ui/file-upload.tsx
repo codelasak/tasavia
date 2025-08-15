@@ -57,7 +57,7 @@ export default function FileUpload({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Validate file before upload
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     if (!acceptedFileTypes.includes(file.type)) {
       return `File type not supported. Please upload ${acceptedFileTypes.includes('application/pdf') ? 'PDF' : 'supported'} files only.`
     }
@@ -71,20 +71,20 @@ export default function FileUpload({
     }
 
     return null
-  }
+  }, [acceptedFileTypes, maxSizeBytes, files.length, maxFiles])
 
   // Generate unique file path
-  const generateFilePath = (fileName: string): string => {
+  const generateFilePath = useCallback((fileName: string): string => {
     const timestamp = Date.now()
     const randomId = Math.random().toString(36).substring(2, 15)
     const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
     return folderPath 
       ? `${folderPath}/traceability-${timestamp}-${randomId}-${sanitizedName}`
       : `traceability-${timestamp}-${randomId}-${sanitizedName}`
-  }
+  }, [folderPath])
 
   // Upload file to Supabase storage
-  const uploadFile = async (file: File): Promise<UploadedFile | null> => {
+  const uploadFile = useCallback(async (file: File): Promise<UploadedFile | null> => {
     const filePath = generateFilePath(file.name)
     const fileId = Math.random().toString(36).substring(2, 15)
     
@@ -136,10 +136,10 @@ export default function FileUpload({
       toast.error(`Failed to upload ${file.name}`)
       return null
     }
-  }
+  }, [bucketName, generateFilePath])
 
   // Handle file selection
-  const handleFiles = async (selectedFiles: FileList) => {
+  const handleFiles = useCallback(async (selectedFiles: FileList) => {
     if (disabled) return
 
     const fileArray = Array.from(selectedFiles)
@@ -176,7 +176,7 @@ export default function FileUpload({
     } finally {
       setIsUploading(false)
     }
-  }
+  }, [disabled, files, onFilesChange, uploadFile, validateFile])
 
   // Delete file
   const deleteFile = async (fileToDelete: UploadedFile) => {
@@ -250,7 +250,7 @@ export default function FileUpload({
     if (droppedFiles.length > 0) {
       handleFiles(droppedFiles)
     }
-  }, [disabled])
+  }, [disabled, handleFiles])
 
   // Format file size
   const formatFileSize = (bytes: number): string => {
@@ -388,15 +388,6 @@ export default function FileUpload({
           </div>
         </div>
       )}
-
-      {/* Info Message */}
-      <div className="flex items-start space-x-2 p-3 bg-blue-50 rounded-lg">
-        <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-blue-700">
-          <p className="font-medium">Traceability Documentation</p>
-          <p>Upload official traceability documents such as certificates, test reports, or compliance documentation in PDF format.</p>
-        </div>
-      </div>
     </div>
   )
 }
