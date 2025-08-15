@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -329,6 +329,7 @@ export type Database = {
       inventory: {
         Row: {
           application_code: string | null
+          business_status: Database["public"]["Enums"]["business_status_enum"]
           certificate_date: string | null
           certificate_reference: string | null
           condition: string | null
@@ -342,6 +343,7 @@ export type Database = {
           notes: string | null
           obtained_from: string | null
           part_status_certification: string | null
+          physical_status: Database["public"]["Enums"]["physical_status_enum"]
           pn_id: string
           po_id_original: string | null
           po_number_original: string | null
@@ -350,6 +352,8 @@ export type Database = {
           remarks: string | null
           serial_number: string | null
           status: string | null
+          status_updated_at: string | null
+          status_updated_by: string | null
           total_value: number | null
           traceability_source: string | null
           traceable_to: string | null
@@ -359,6 +363,7 @@ export type Database = {
         }
         Insert: {
           application_code?: string | null
+          business_status: Database["public"]["Enums"]["business_status_enum"]
           certificate_date?: string | null
           certificate_reference?: string | null
           condition?: string | null
@@ -372,6 +377,7 @@ export type Database = {
           notes?: string | null
           obtained_from?: string | null
           part_status_certification?: string | null
+          physical_status: Database["public"]["Enums"]["physical_status_enum"]
           pn_id: string
           po_id_original?: string | null
           po_number_original?: string | null
@@ -380,6 +386,8 @@ export type Database = {
           remarks?: string | null
           serial_number?: string | null
           status?: string | null
+          status_updated_at?: string | null
+          status_updated_by?: string | null
           total_value?: number | null
           traceability_source?: string | null
           traceable_to?: string | null
@@ -389,6 +397,7 @@ export type Database = {
         }
         Update: {
           application_code?: string | null
+          business_status?: Database["public"]["Enums"]["business_status_enum"]
           certificate_date?: string | null
           certificate_reference?: string | null
           condition?: string | null
@@ -402,6 +411,7 @@ export type Database = {
           notes?: string | null
           obtained_from?: string | null
           part_status_certification?: string | null
+          physical_status?: Database["public"]["Enums"]["physical_status_enum"]
           pn_id?: string
           po_id_original?: string | null
           po_number_original?: string | null
@@ -410,6 +420,8 @@ export type Database = {
           remarks?: string | null
           serial_number?: string | null
           status?: string | null
+          status_updated_at?: string | null
+          status_updated_by?: string | null
           total_value?: number | null
           traceability_source?: string | null
           traceable_to?: string | null
@@ -431,6 +443,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "purchase_orders"
             referencedColumns: ["po_id"]
+          },
+          {
+            foreignKeyName: "inventory_status_updated_by_fkey"
+            columns: ["status_updated_by"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -463,6 +482,103 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      part_number_history: {
+        Row: {
+          approval_date: string | null
+          approved_by_user_id: string | null
+          business_value_adjustment: number | null
+          created_at: string | null
+          history_id: string
+          inventory_id: string
+          is_active: boolean | null
+          modification_date: string
+          modification_reason: string
+          modified_by_user_id: string | null
+          modified_pn_id: string
+          original_pn_id: string
+          repair_order_id: string | null
+          traceability_notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approval_date?: string | null
+          approved_by_user_id?: string | null
+          business_value_adjustment?: number | null
+          created_at?: string | null
+          history_id?: string
+          inventory_id: string
+          is_active?: boolean | null
+          modification_date?: string
+          modification_reason: string
+          modified_by_user_id?: string | null
+          modified_pn_id: string
+          original_pn_id: string
+          repair_order_id?: string | null
+          traceability_notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approval_date?: string | null
+          approved_by_user_id?: string | null
+          business_value_adjustment?: number | null
+          created_at?: string | null
+          history_id?: string
+          inventory_id?: string
+          is_active?: boolean | null
+          modification_date?: string
+          modification_reason?: string
+          modified_by_user_id?: string | null
+          modified_pn_id?: string
+          original_pn_id?: string
+          repair_order_id?: string | null
+          traceability_notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_number_history_approved_by_user_id_fkey"
+            columns: ["approved_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_number_history_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["inventory_id"]
+          },
+          {
+            foreignKeyName: "part_number_history_modified_by_user_id_fkey"
+            columns: ["modified_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_number_history_modified_pn_id_fkey"
+            columns: ["modified_pn_id"]
+            isOneToOne: false
+            referencedRelation: "pn_master_table"
+            referencedColumns: ["pn_id"]
+          },
+          {
+            foreignKeyName: "part_number_history_original_pn_id_fkey"
+            columns: ["original_pn_id"]
+            isOneToOne: false
+            referencedRelation: "pn_master_table"
+            referencedColumns: ["pn_id"]
+          },
+          {
+            foreignKeyName: "part_number_history_repair_order_id_fkey"
+            columns: ["repair_order_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
+            referencedColumns: ["repair_order_id"]
+          },
+        ]
       }
       pn_master_table: {
         Row: {
@@ -553,18 +669,31 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          airworthiness_status: string | null
+          aviation_compliance_verified: boolean | null
           awb_no: string | null
+          certificate_expiry_date: string | null
+          certificate_reference_number: string | null
+          certificate_upload_path: string | null
+          compliance_notes: string | null
+          compliance_verified_by: string | null
+          compliance_verified_date: string | null
           created_at: string | null
           currency: string
+          end_use_country: string | null
           freight_charge: number | null
+          last_certificate: string | null
           misc_charge: number | null
           my_company_id: string
+          obtained_from: string | null
+          origin_country: string | null
           payment_term: string | null
           po_date: string
           po_id: string
           po_number: string
           prepared_by_name: string | null
           prepared_by_user_id: string | null
+          regulatory_authority: string | null
           remarks_1: string | null
           remarks_2: string | null
           ship_account_no_override: string | null
@@ -577,23 +706,38 @@ export type Database = {
           status: string
           subtotal: number | null
           total_amount: number | null
+          traceable_to_airline: string | null
+          traceable_to_msn: string | null
           updated_at: string | null
           vat_percentage: number | null
           vendor_company_id: string
         }
         Insert: {
+          airworthiness_status?: string | null
+          aviation_compliance_verified?: boolean | null
           awb_no?: string | null
+          certificate_expiry_date?: string | null
+          certificate_reference_number?: string | null
+          certificate_upload_path?: string | null
+          compliance_notes?: string | null
+          compliance_verified_by?: string | null
+          compliance_verified_date?: string | null
           created_at?: string | null
           currency?: string
+          end_use_country?: string | null
           freight_charge?: number | null
+          last_certificate?: string | null
           misc_charge?: number | null
           my_company_id: string
+          obtained_from?: string | null
+          origin_country?: string | null
           payment_term?: string | null
           po_date?: string
           po_id?: string
           po_number?: string
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
+          regulatory_authority?: string | null
           remarks_1?: string | null
           remarks_2?: string | null
           ship_account_no_override?: string | null
@@ -606,23 +750,38 @@ export type Database = {
           status?: string
           subtotal?: number | null
           total_amount?: number | null
+          traceable_to_airline?: string | null
+          traceable_to_msn?: string | null
           updated_at?: string | null
           vat_percentage?: number | null
           vendor_company_id: string
         }
         Update: {
+          airworthiness_status?: string | null
+          aviation_compliance_verified?: boolean | null
           awb_no?: string | null
+          certificate_expiry_date?: string | null
+          certificate_reference_number?: string | null
+          certificate_upload_path?: string | null
+          compliance_notes?: string | null
+          compliance_verified_by?: string | null
+          compliance_verified_date?: string | null
           created_at?: string | null
           currency?: string
+          end_use_country?: string | null
           freight_charge?: number | null
+          last_certificate?: string | null
           misc_charge?: number | null
           my_company_id?: string
+          obtained_from?: string | null
+          origin_country?: string | null
           payment_term?: string | null
           po_date?: string
           po_id?: string
           po_number?: string
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
+          regulatory_authority?: string | null
           remarks_1?: string | null
           remarks_2?: string | null
           ship_account_no_override?: string | null
@@ -635,11 +794,20 @@ export type Database = {
           status?: string
           subtotal?: number | null
           total_amount?: number | null
+          traceable_to_airline?: string | null
+          traceable_to_msn?: string | null
           updated_at?: string | null
           vat_percentage?: number | null
           vendor_company_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_orders_compliance_verified_by_fkey"
+            columns: ["compliance_verified_by"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_orders_my_company_id_fkey"
             columns: ["my_company_id"]
@@ -838,6 +1006,8 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          actual_delivery_date: string | null
+          awb_number: string | null
           contract_number: string | null
           country_of_origin: string | null
           created_at: string | null
@@ -845,10 +1015,14 @@ export type Database = {
           customer_company_id: string
           customer_po_number: string | null
           end_use_country: string | null
+          estimated_delivery_date: string | null
+          fedex_account_number: string | null
           freight_charge: number | null
+          gross_weight_kgs: number | null
           invoice_number: string
           misc_charge: number | null
           my_company_id: string
+          package_dimensions: string | null
           payment_terms: string | null
           prepared_by_name: string | null
           prepared_by_user_id: string | null
@@ -856,6 +1030,12 @@ export type Database = {
           remarks: string | null
           sales_date: string | null
           sales_order_id: string
+          shipping_carrier: string | null
+          shipping_cost: number | null
+          shipping_method: string | null
+          shipping_notes: string | null
+          shipping_service_type: string | null
+          shipping_tracking_number: string | null
           status: string | null
           sub_total: number | null
           terms_and_conditions_id: string | null
@@ -866,6 +1046,8 @@ export type Database = {
           vat_percentage: number | null
         }
         Insert: {
+          actual_delivery_date?: string | null
+          awb_number?: string | null
           contract_number?: string | null
           country_of_origin?: string | null
           created_at?: string | null
@@ -873,10 +1055,14 @@ export type Database = {
           customer_company_id: string
           customer_po_number?: string | null
           end_use_country?: string | null
+          estimated_delivery_date?: string | null
+          fedex_account_number?: string | null
           freight_charge?: number | null
+          gross_weight_kgs?: number | null
           invoice_number?: string
           misc_charge?: number | null
           my_company_id: string
+          package_dimensions?: string | null
           payment_terms?: string | null
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
@@ -884,6 +1070,12 @@ export type Database = {
           remarks?: string | null
           sales_date?: string | null
           sales_order_id?: string
+          shipping_carrier?: string | null
+          shipping_cost?: number | null
+          shipping_method?: string | null
+          shipping_notes?: string | null
+          shipping_service_type?: string | null
+          shipping_tracking_number?: string | null
           status?: string | null
           sub_total?: number | null
           terms_and_conditions_id?: string | null
@@ -894,6 +1086,8 @@ export type Database = {
           vat_percentage?: number | null
         }
         Update: {
+          actual_delivery_date?: string | null
+          awb_number?: string | null
           contract_number?: string | null
           country_of_origin?: string | null
           created_at?: string | null
@@ -901,10 +1095,14 @@ export type Database = {
           customer_company_id?: string
           customer_po_number?: string | null
           end_use_country?: string | null
+          estimated_delivery_date?: string | null
+          fedex_account_number?: string | null
           freight_charge?: number | null
+          gross_weight_kgs?: number | null
           invoice_number?: string
           misc_charge?: number | null
           my_company_id?: string
+          package_dimensions?: string | null
           payment_terms?: string | null
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
@@ -912,6 +1110,12 @@ export type Database = {
           remarks?: string | null
           sales_date?: string | null
           sales_order_id?: string
+          shipping_carrier?: string | null
+          shipping_cost?: number | null
+          shipping_method?: string | null
+          shipping_notes?: string | null
+          shipping_service_type?: string | null
+          shipping_tracking_number?: string | null
           status?: string | null
           sub_total?: number | null
           terms_and_conditions_id?: string | null
@@ -1053,8 +1257,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      manual_inherit_aviation_data: {
+        Args: { target_table?: string }
+        Returns: Json
+      }
     }
     Enums: {
+      business_status_enum: "available" | "reserved" | "sold"
+      physical_status_enum: "depot" | "in_repair" | "in_transit"
       ship_model_enum:
         | "IMPORT"
         | "THIRD_PARTY_EXPORT"
@@ -1200,6 +1410,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      business_status_enum: ["available", "reserved", "sold"],
+      physical_status_enum: ["depot", "in_repair", "in_transit"],
       ship_model_enum: [
         "IMPORT",
         "THIRD_PARTY_EXPORT",

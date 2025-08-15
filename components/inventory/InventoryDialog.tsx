@@ -49,6 +49,12 @@ const inventorySchema = z.object({
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unit_cost: z.number().min(0, 'Unit cost must be positive'),
   notes: z.string().optional(),
+  physical_status: z.enum(['depot', 'in_repair', 'in_transit'], {
+    errorMap: () => ({ message: 'Physical status is required' })
+  }),
+  business_status: z.enum(['available', 'reserved', 'sold'], {
+    errorMap: () => ({ message: 'Business status is required' })
+  }),
 })
 
 type InventoryFormValues = z.infer<typeof inventorySchema>
@@ -74,6 +80,8 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
       quantity: 1,
       unit_cost: 0,
       notes: '',
+      physical_status: 'depot',
+      business_status: 'available',
     }
   })
 
@@ -93,6 +101,8 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
         quantity: item.quantity || 1,
         unit_cost: item.unit_cost || 0,
         notes: item.notes || '',
+        physical_status: (item as any).physical_status || 'depot',
+        business_status: (item as any).business_status || 'available',
       })
     } else {
       form.reset({
@@ -103,6 +113,8 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
         quantity: 1,
         unit_cost: 0,
         notes: '',
+        physical_status: 'depot',
+        business_status: 'available',
       })
     }
   }, [item, form])
@@ -137,6 +149,8 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
         serial_number: data.serial_number || null,
         location: data.location || null,
         notes: data.notes || null,
+        status: data.business_status === 'available' ? 'Available' : 
+               data.business_status === 'reserved' ? 'Reserved' : 'Sold', // Legacy status for backward compatibility
       }
 
       if (item) {
@@ -256,6 +270,48 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
               {...form.register('location')}
               placeholder="Storage location (optional)"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="physical_status">Physical Status</Label>
+              <Select
+                value={form.watch('physical_status')}
+                onValueChange={(value) => form.setValue('physical_status', value as any)}
+              >
+                <SelectTrigger id="physical_status" className={form.formState.errors.physical_status ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select physical status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="depot">Depot</SelectItem>
+                  <SelectItem value="in_repair">In Repair</SelectItem>
+                  <SelectItem value="in_transit">In Transit</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.formState.errors.physical_status && (
+                <div className="text-red-500 text-xs mt-1">{form.formState.errors.physical_status.message}</div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="business_status">Business Status</Label>
+              <Select
+                value={form.watch('business_status')}
+                onValueChange={(value) => form.setValue('business_status', value as any)}
+              >
+                <SelectTrigger id="business_status" className={form.formState.errors.business_status ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select business status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="reserved">Reserved</SelectItem>
+                  <SelectItem value="sold">Sold</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.formState.errors.business_status && (
+                <div className="text-red-500 text-xs mt-1">{form.formState.errors.business_status.message}</div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
