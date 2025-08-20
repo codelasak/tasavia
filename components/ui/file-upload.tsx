@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Card, CardContent } from '@/components/ui/card'
@@ -50,11 +50,26 @@ export default function FileUpload({
   disabled = false,
   className
 }: FileUploadProps) {
-  const [files, setFiles] = useState<UploadedFile[]>(existingFiles)
+  // Initialize with existing files, ensuring uploadedAt is a Date object
+  const [files, setFiles] = useState<UploadedFile[]>(() => 
+    existingFiles.map(file => ({
+      ...file,
+      uploadedAt: file.uploadedAt instanceof Date ? file.uploadedAt : new Date(file.uploadedAt)
+    }))
+  )
   const [isDragging, setIsDragging] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Update files when existingFiles prop changes
+  useEffect(() => {
+    const normalizedFiles = existingFiles.map(file => ({
+      ...file,
+      uploadedAt: file.uploadedAt instanceof Date ? file.uploadedAt : new Date(file.uploadedAt)
+    }))
+    setFiles(normalizedFiles)
+  }, [existingFiles])
 
   // Validate file before upload
   const validateFile = useCallback((file: File): string | null => {
@@ -344,7 +359,7 @@ export default function FileUpload({
                           {file.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {formatFileSize(file.size)} • {file.uploadedAt.toLocaleDateString()}
+                          {formatFileSize(file.size)} • {new Date(file.uploadedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>

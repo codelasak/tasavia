@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils'
 import POCompletionModal from '@/components/purchase-orders/POCompletionModal'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
+import { fetchCountries } from '@/lib/external-apis'
+import FileUpload from '@/components/ui/file-upload'
 
 interface MyCompany {
   my_company_id: string
@@ -72,6 +74,9 @@ interface ShipVia {
   custom_company_name?: string | null
 }
 
+const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
+const PAYMENT_TERM_OPTIONS = ['PRE-PAY', 'COD', 'NET5', 'NET10', 'NET15', 'NET30'];
+
 const poItemSchema = z.object({
   po_item_id: z.string().optional(),
   pn_id: z.string().min(1, 'Part number is required'),
@@ -80,9 +85,20 @@ const poItemSchema = z.object({
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   unit_price: z.number().min(0, 'Unit price must be positive'),
   condition: z.string().optional(),
+  // Enhanced traceability fields
   traceability_source: z.string().optional(),
   traceable_to: z.string().optional(),
+  origin_country: z.string().optional(),
+  origin_country_code: z.string().optional(),
   last_certified_agency: z.string().optional(),
+  traceability_files_path: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    size: z.number(),
+    url: z.string(),
+    path: z.string(),
+    uploadedAt: z.date()
+  })).optional(),
 })
 
 const purchaseOrderSchema = z.object({
@@ -92,9 +108,9 @@ const purchaseOrderSchema = z.object({
   ship_to_company_id: z.string().optional(),
   ship_to_company_type: z.enum(['my_company', 'external_company']).optional(),
   prepared_by_name: z.string().min(1, 'Prepared by name is required'),
-  currency: z.string().default('USD'),
+  currency: z.enum(CURRENCY_OPTIONS as [string, ...string[]]),
   ship_via_id: z.string().optional(),
-  payment_term: z.string().optional(),
+  payment_term: z.enum(PAYMENT_TERM_OPTIONS as [string, ...string[]]).optional(),
   remarks_1: z.string().optional(),
   freight_charge: z.number().min(0).default(0),
   misc_charge: z.number().min(0).default(0),
@@ -131,6 +147,10 @@ export default function PurchaseOrderEditClientPage({
   const [pendingStatus, setPendingStatus] = useState<string>('')
   const [currentPoNumber, setCurrentPoNumber] = useState<string>(initialPurchaseOrder?.po_number || '')
   const [isCompleting, setIsCompleting] = useState(false)
+  
+  // State for external API data
+  const [countries, setCountries] = useState<{ name: string; code: string; region: string }[]>([])
+  const [loadingCountries, setLoadingCountries] = useState(false)
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -153,6 +173,24 @@ export default function PurchaseOrderEditClientPage({
     }
   })
 
+  // Load external data
+  useEffect(() => {
+    const loadExternalData = async () => {
+      // Load countries for origin country field in line items
+      setLoadingCountries(true)
+      try {
+        const countriesData = await fetchCountries()
+        setCountries(countriesData)
+      } catch (error) {
+        console.error('Failed to load countries:', error)
+      } finally {
+        setLoadingCountries(false)
+      }
+    }
+
+    loadExternalData()
+  }, [])
+
   // Initialize form with pre-fetched data
   useEffect(() => {
     // Form initialization started
@@ -168,9 +206,17 @@ export default function PurchaseOrderEditClientPage({
           quantity: item.quantity,
           unit_price: item.unit_price,
           condition: item.condition || '',
+          // Enhanced traceability fields
           traceability_source: item.traceability_source || '',
           traceable_to: item.traceable_to || '',
+          origin_country: item.origin_country || '',
+          origin_country_code: item.origin_country_code || '',
           last_certified_agency: item.last_certified_agency || '',
+          traceability_files_path: item.traceability_files_path ? 
+            JSON.parse(item.traceability_files_path).map((file: any) => ({
+              ...file,
+              uploadedAt: new Date(file.uploadedAt)
+            })) : [],
         }
       })
       
@@ -186,8 +232,37 @@ export default function PurchaseOrderEditClientPage({
         condition: '',
         traceability_source: '',
         traceable_to: '',
+        origin_country: '',
+        origin_country_code: '',
         last_certified_agency: '',
+        traceability_files_path: [],
       }]
+      
+      // Determine ship-to company info from existing data
+      let shipToCompanyId = ''
+      let shipToCompanyType: 'my_company' | 'external_company' | undefined = undefined
+      
+      if (initialPurchaseOrder.ship_to_company_name) {
+        // Try to find matching my company first
+        const matchingMyCompany = myCompanies.find(c => 
+          c.my_company_name === initialPurchaseOrder.ship_to_company_name
+        )
+        
+        if (matchingMyCompany) {
+          shipToCompanyId = matchingMyCompany.my_company_id
+          shipToCompanyType = 'my_company'
+        } else {
+          // Try to find matching external company
+          const matchingExternalCompany = externalCompanies.find(c => 
+            c.company_name === initialPurchaseOrder.ship_to_company_name
+          )
+          
+          if (matchingExternalCompany) {
+            shipToCompanyId = matchingExternalCompany.company_id
+            shipToCompanyType = 'external_company'
+          }
+        }
+      }
       
       // Resetting form with initial data
       
@@ -196,10 +271,10 @@ export default function PurchaseOrderEditClientPage({
         my_company_id: initialPurchaseOrder.my_company_id,
         vendor_company_id: initialPurchaseOrder.vendor_company_id,
         po_date: new Date(initialPurchaseOrder.po_date),
-        ship_to_company_id: '',
-        ship_to_company_type: undefined,
+        ship_to_company_id: shipToCompanyId,
+        ship_to_company_type: shipToCompanyType,
         prepared_by_name: initialPurchaseOrder.prepared_by_name || 'System User',
-        currency: initialPurchaseOrder.currency,
+        currency: initialPurchaseOrder.currency || 'USD',
         ship_via_id: initialPurchaseOrder.ship_via_id || '',
         payment_term: initialPurchaseOrder.payment_term || '',
         remarks_1: initialPurchaseOrder.remarks_1 || '',
@@ -215,7 +290,7 @@ export default function PurchaseOrderEditClientPage({
     } else {
       // No initial data available
     }
-  }, [initialPurchaseOrder, initialItems, form])
+  }, [initialPurchaseOrder, initialItems, form, myCompanies, externalCompanies])
 
   // Auto-populate prepared by with current user if editing and field is empty
   useEffect(() => {
@@ -493,7 +568,12 @@ export default function PurchaseOrderEditClientPage({
       condition: item.condition || null,
       traceability_source: item.traceability_source || null,
       traceable_to: item.traceable_to || null,
+      origin_country: item.origin_country || null,
+      origin_country_code: item.origin_country_code || null,
       last_certified_agency: item.last_certified_agency || null,
+      traceability_files_path: item.traceability_files_path && item.traceability_files_path.length > 0 
+        ? JSON.stringify(item.traceability_files_path) 
+        : null,
     }))
 
 
@@ -988,40 +1068,43 @@ export default function PurchaseOrderEditClientPage({
               </div>
 
               <div>
-                <Label htmlFor="payment_term">Payment Term</Label>
-                <Select
-                  value={form.watch('payment_term')}
-                  onValueChange={(value) => form.setValue('payment_term', value)}
-                >
-                  <SelectTrigger id="payment_term_trigger_5">
-                    <SelectValue placeholder="Select payment term" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PRE-PAY">PRE-PAY</SelectItem>
-                    <SelectItem value="COD">COD</SelectItem>
-                    <SelectItem value="NET5">NET5</SelectItem>
-                    <SelectItem value="NET10">NET10</SelectItem>
-                    <SelectItem value="NET15">NET15</SelectItem>
-                    <SelectItem value="NET30">NET30</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <Label htmlFor="currency">Currency</Label>
                 <Select
                   value={form.watch('currency')}
                   onValueChange={(value) => form.setValue('currency', value)}
                 >
-                  <SelectTrigger id="currency_trigger_6">
-                    <SelectValue />
+                  <SelectTrigger id="currency" className={form.formState.errors.currency ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
+                    {CURRENCY_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.currency && (
+                  <div className="text-red-500 text-xs mt-1">{form.formState.errors.currency.message}</div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="payment_term">Payment Term</Label>
+                <Select
+                  value={form.watch('payment_term')}
+                  onValueChange={(value) => form.setValue('payment_term', value)}
+                >
+                  <SelectTrigger id="payment_term" className={form.formState.errors.payment_term ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select payment term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_TERM_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.payment_term && (
+                  <div className="text-red-500 text-xs mt-1">{form.formState.errors.payment_term.message}</div>
+                )}
               </div>
             </div>
 
@@ -1058,7 +1141,10 @@ export default function PurchaseOrderEditClientPage({
                   condition: '',
                   traceability_source: '',
                   traceable_to: '',
+                  origin_country: '',
+                  origin_country_code: '',
                   last_certified_agency: '',
+                  traceability_files_path: [],
                 })}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -1200,22 +1286,24 @@ export default function PurchaseOrderEditClientPage({
                     </div>
                   </div>
 
-                  {/* Traceability Fields */}
+                  {/* Enhanced Traceability Fields */}
                   <div className="mt-4">
                     <h5 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
                       <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">ATA 106</span>
                       Traceability Information
                     </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    {/* First row - Obtained from, Traceable To */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <Label htmlFor={`items.${index}.traceability_source`}>Traceability Source</Label>
+                        <Label htmlFor={`items.${index}.traceability_source`}>Obtained from</Label>
                         <Input
                           id={`items.${index}.traceability_source`}
                           {...form.register(`items.${index}.traceability_source`)}
-                          placeholder="e.g., Manufacturer Certificate"
+                          placeholder="e.g., Boeing Aircraft Company"
                         />
                         <div className="text-xs text-gray-500 mt-1">
-                          Source of traceability documentation
+                          Source where part was obtained from
                         </div>
                       </div>
 
@@ -1230,19 +1318,80 @@ export default function PurchaseOrderEditClientPage({
                           What this part is traceable to
                         </div>
                       </div>
+                    </div>
+
+                    {/* Second row - Origin Country, Last Certified Agency */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <Label htmlFor={`items.${index}.origin_country`}>Origin Country</Label>
+                        <Select
+                          value={form.watch(`items.${index}.origin_country`) || ''}
+                          onValueChange={(value) => {
+                            const selectedCountry = countries.find(c => c.name === value)
+                            if (selectedCountry) {
+                              form.setValue(`items.${index}.origin_country`, selectedCountry.name)
+                              form.setValue(`items.${index}.origin_country_code`, selectedCountry.code)
+                            }
+                          }}
+                        >
+                          <SelectTrigger id={`items.${index}.origin_country`}>
+                            <SelectValue placeholder={loadingCountries ? "Loading countries..." : "Select origin country"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((country) => (
+                              <SelectItem key={country.code} value={country.name}>
+                                <div className="flex items-center gap-2">
+                                  <span>{country.name}</span>
+                                  <span className="text-sm text-slate-500">({country.code})</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Country where the part originated
+                        </div>
+                      </div>
 
                       <div>
-                        <Label htmlFor={`items.${index}.last_certified_agency`}>Last Certified Agency</Label>
+                        <Label htmlFor={`items.${index}.last_certified_agency`}>
+                          Last Certified Agency
+                          <span className="text-xs text-gray-400 ml-1">(if applicable)</span>
+                        </Label>
                         <Input
                           id={`items.${index}.last_certified_agency`}
                           {...form.register(`items.${index}.last_certified_agency`)}
                           placeholder="e.g., FAA, EASA"
                         />
                         <div className="text-xs text-gray-500 mt-1">
-                          Certification authority
+                          Certification authority, if part has been certified
                         </div>
                       </div>
                     </div>
+
+                    {/* Third row - Traceability Files */}
+                    <div className="mb-4">
+                      <div>
+                        <Label>Traceability Documents</Label>
+                        <div className="mt-2">
+                          <FileUpload
+                            maxFiles={5}
+                            maxSizeBytes={10 * 1024 * 1024} // 10MB
+                            acceptedFileTypes={['application/pdf']}
+                            existingFiles={form.watch(`items.${index}.traceability_files_path`) || []}
+                            onFilesChange={(files) => {
+                              form.setValue(`items.${index}.traceability_files_path`, files)
+                            }}
+                            bucketName="traceability-documents"
+                            folderPath={`po-items/${Date.now()}`}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Upload official traceability documents (PDF only)
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
 
                   {form.watch(`items.${index}.quantity`) && form.watch(`items.${index}.unit_price`) && (
