@@ -49,15 +49,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-    ],
+    icon: '/favicon.ico',
     shortcut: '/favicon.ico',
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: '/favicon.ico',
   },
   manifest: '/site.webmanifest',
   openGraph: {
@@ -69,9 +63,9 @@ export const metadata: Metadata = {
     siteName: 'TASAVIA',
     images: [
       {
-        url: '/opengraph-image.png',
-        width: 1200,
-        height: 630,
+        url: '/logo.png',
+        width: 400,
+        height: 200,
         alt: 'TASAVIA - Aviation Technical & Commercial Services'
       }
     ]
@@ -80,7 +74,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TASAVIA - Aviation Technical & Commercial Services',
     description: 'ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.',
-    images: ['/twitter-image.png'],
+    images: ['/logo.png'],
     creator: '@tasavia',
     site: '@tasavia'
   },
