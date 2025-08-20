@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /portal/
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /api/
+
+# Allow common crawl paths
+Allow: /favicon.ico
+Allow: /logo.png
+Allow: *.css
+Allow: *.js
+
+# Sitemap location
+Sitemap: https://tasavia.com/sitemap.xml

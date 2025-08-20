@@ -123,6 +123,92 @@ const FeatureCard = ({ icon: Icon, title, description, delay = 0 }: FeatureCardP
   </motion.div>
 );
 
+// Structured Data for SEO
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "TASAVIA",
+  "description": "ISO9001 certified aviation technical and commercial services provider. Your partner to keep aircrafts flying.",
+  "url": "https://tasavia.com",
+  "logo": "https://tasavia.com/logo.png",
+  "sameAs": [
+    "https://www.linkedin.com/company/tasavia/"
+  ],
+  "address": [
+    {
+      "@type": "PostalAddress",
+      "streetAddress": "EMNİYETTEPE MAH. SADABAT SK. NO: 11/1",
+      "addressLocality": "EYÜPSULTAN",
+      "addressRegion": "ISTANBUL",
+      "addressCountry": "TR"
+    },
+    {
+      "@type": "PostalAddress",
+      "streetAddress": "18815 LANTERN COVE LN",
+      "addressLocality": "TOMBALL",
+      "addressRegion": "TX",
+      "postalCode": "77375",
+      "addressCountry": "US"
+    }
+  ],
+  "contactPoint": [
+    {
+      "@type": "ContactPoint",
+      "email": "rfq@tasavia.com",
+      "contactType": "sales",
+      "areaServed": "TR"
+    },
+    {
+      "@type": "ContactPoint",
+      "email": "info@tasavia.com",
+      "contactType": "customer service",
+      "areaServed": "US"
+    }
+  ],
+  "serviceArea": {
+    "@type": "Place",
+    "name": "Global"
+  },
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Aviation Services",
+    "itemListElement": [
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Aircraft Teardown Management",
+          "description": "Complete aircraft dismantling services with component recovery and documentation"
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Component Sale and Exchange",
+          "description": "Global network for aircraft parts trading, exchange, and logistics"
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Repair Management",
+          "description": "Expert repair coordination and quality management"
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Technical Consultancy",
+          "description": "Professional aviation technical consulting services"
+        }
+      }
+    ]
+  }
+}
+
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -145,6 +231,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-50 to-white dark:from-slate-900 dark:to-slate-950"></div>
@@ -277,7 +368,7 @@ export default function HomePage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section id="home" className="relative pt-28 pb-20 md:pt-36 md:pb-28 overflow-hidden">
+      <section id="home" className="relative pt-28 pb-20 md:pt-36 md:pb-28 overflow-hidden" role="banner" aria-label="Welcome to TASAVIA">
         {/* Animated background elements */}
         <motion.div 
           className="absolute inset-0 -z-10"
@@ -344,10 +435,10 @@ export default function HomePage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-20 bg-slate-50">
+      <section id="about" className="py-20 bg-slate-50" role="region" aria-labelledby="about-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">About TASAVIA</h2>
+            <h2 id="about-heading" className="text-4xl font-bold text-slate-900 mb-4">About TASAVIA</h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto">
               With a highly experienced team, we support our customers on the following subjects in the aviation industry
             </p>
@@ -422,7 +513,7 @@ export default function HomePage() {
       </section>
 
       {/* Services Section */}
-      <section id="services" className="relative py-24 bg-white dark:bg-slate-950 overflow-hidden">
+      <section id="services" className="relative py-24 bg-white dark:bg-slate-950 overflow-hidden" role="region" aria-labelledby="services-heading">
         {/* Background elements */}
         <div className="absolute -z-10 top-0 left-0 w-full h-full overflow-hidden">
           <div className="absolute -right-40 -top-40 w-96 h-96 bg-blue-500/5 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
@@ -441,7 +532,7 @@ export default function HomePage() {
               <Rocket className="w-4 h-4 mr-2" />
               <span>Our Services</span>
             </div>
-            <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white sm:text-5xl">
+            <h2 id="services-heading" className="text-4xl font-extrabold text-slate-900 dark:text-white sm:text-5xl">
               Comprehensive <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">Aviation Solutions</span>
             </h2>
             <p className="mt-4 text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
@@ -543,7 +634,7 @@ export default function HomePage() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="relative py-24 bg-slate-900 text-white overflow-hidden">
+      <section id="contact" className="relative py-24 bg-slate-900 text-white overflow-hidden" role="region" aria-labelledby="contact-heading">
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,transparent)]"></div>
@@ -561,7 +652,7 @@ export default function HomePage() {
               <Mail className="w-4 h-4 mr-2" />
               <span>Get in Touch</span>
             </div>
-            <h2 className="text-4xl font-extrabold text-white sm:text-5xl">
+            <h2 id="contact-heading" className="text-4xl font-extrabold text-white sm:text-5xl">
               Ready to <span className="text-blue-400">Elevate</span> Your Aviation Experience?
             </h2>
             <p className="mt-4 text-xl text-slate-400 max-w-3xl mx-auto">
@@ -585,7 +676,7 @@ export default function HomePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-6">
+                  <form className="space-y-6" role="form" aria-label="Contact form">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label 
@@ -796,7 +887,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 pt-16 pb-8">
+      <footer className="bg-slate-900 text-slate-400 pt-16 pb-8" role="contentinfo" aria-label="Website footer">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
