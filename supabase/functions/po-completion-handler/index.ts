@@ -158,7 +158,7 @@ serve(async (req) => {
       // Call the database function to create inventory items
       console.log('Calling create_inventory_from_po_completion function...')
       const { data, error } = await supabaseClient.rpc('create_inventory_from_po_completion', {
-        input_po_id: po_id
+        po_id_param: po_id
       })
 
       if (error) {
