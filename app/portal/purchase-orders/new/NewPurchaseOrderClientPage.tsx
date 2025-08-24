@@ -22,11 +22,12 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
 import { fetchCountries } from '@/lib/external-apis'
 import FileUpload from '@/components/ui/file-upload'
+import { type UnifiedCompany } from '@/lib/services/company-service'
 
 interface MyCompany {
-  company_id: string
-  company_name: string
-  company_code: string
+  my_company_id: string
+  my_company_name: string
+  my_company_code: string
   is_self: boolean
   company_addresses: Array<{
     address_line1: string
@@ -39,6 +40,7 @@ interface MyCompany {
     email: string | null
     phone: string | null
   }>
+  default_payment_terms?: string | null
 }
 
 interface ExternalCompany {

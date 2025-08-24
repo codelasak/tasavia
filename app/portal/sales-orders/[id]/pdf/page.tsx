@@ -116,26 +116,22 @@ async function fetchSalesOrderData(id: string) {
       .from('company_addresses')
       .select('*')
       .eq('company_id', soDataAny.my_companies.my_company_id as any)
-      .eq('company_ref_type', 'my_companies' as any)
 
     const { data: myCompanyContacts } = await supabase
       .from('company_contacts')
       .select('*')
       .eq('company_id', soDataAny.my_companies.my_company_id as any)
-      .eq('company_ref_type', 'my_companies' as any)
 
-    // Fetch customer company addresses and contacts
+    // Fetch customer company addresses and contacts (no more company_ref_type filter needed)
     const { data: customerAddresses } = await supabase
       .from('company_addresses')
       .select('*')
       .eq('company_id', soDataAny.companies.company_id as any)
-      .eq('company_ref_type', 'companies' as any)
 
     const { data: customerContacts } = await supabase
       .from('company_contacts')
       .select('*')
       .eq('company_id', soDataAny.companies.company_id as any)
-      .eq('company_ref_type', 'companies' as any)
 
     // Combine the data
     const enrichedData = {

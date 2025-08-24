@@ -43,22 +43,19 @@ async function fetchSalesOrder(id: string) {
     // Cast data to any to avoid type issues
     const dataAny = data as any
 
-    // Fetch company addresses and contacts separately
+    // Fetch company addresses and contacts separately (no more company_ref_type filter needed)
     const [myCompanyAddresses, myCompanyContacts, companyAddresses] = await Promise.all([
       supabase
         .from('company_addresses')
         .select('*')
-        .eq('company_ref_type', 'my_companies' as any)
         .eq('company_id', dataAny.my_company_id as any),
       supabase
         .from('company_contacts')
         .select('*')
-        .eq('company_ref_type', 'my_companies' as any)
         .eq('company_id', dataAny.my_company_id as any),
       supabase
         .from('company_addresses')
         .select('*')
-        .eq('company_ref_type', 'companies' as any)
         .eq('company_id', dataAny.customer_company_id as any)
     ])
 

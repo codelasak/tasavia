@@ -63,25 +63,22 @@ export default async function CompletePackagePage({ params }: PageProps) {
   let companyBankDetails: any[] = []
 
   if (salesOrder.my_companies) {
-    // Fetch addresses
+    // Fetch addresses (no more company_ref_type filter needed)
     const { data: addresses } = await supabase
       .from('company_addresses')
       .select('address_line1, address_line2, city, country')
-      .eq('company_ref_type', 'my_companies')
       .eq('company_id', salesOrder.my_companies.my_company_id)
 
-    // Fetch contacts
+    // Fetch contacts (no more company_ref_type filter needed)
     const { data: contacts } = await supabase
       .from('company_contacts')
       .select('contact_name, phone, email')
-      .eq('company_ref_type', 'my_companies')
       .eq('company_id', salesOrder.my_companies.my_company_id)
 
-    // Fetch bank details
+    // Fetch bank details (no more company_ref_type filter needed)
     const { data: bankDetails } = await supabase
       .from('company_bank_details')
       .select('account_holder_name, bank_name, account_number, swift_code, iban, bank_address, branch_code, branch_address, is_primary')
-      .eq('company_ref_type', 'my_companies')
       .eq('company_id', salesOrder.my_companies.my_company_id)
 
     companyAddresses = addresses || []

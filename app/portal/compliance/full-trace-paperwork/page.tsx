@@ -19,14 +19,12 @@ export default async function FullTracePaperworkServerPage() {
     const { data: addresses } = await supabase
       .from('company_addresses')
       .select('address_line1, address_line2, city, country')
-      .eq('company_ref_type', 'my_companies')
-      .eq('company_ref_id', myCompanies.my_company_id)
+      .eq('company_id', myCompanies.my_company_id)
 
     const { data: contacts } = await supabase
       .from('company_contacts')
       .select('contact_name, phone, email')
-      .eq('company_ref_type', 'my_companies')
-      .eq('company_ref_id', myCompanies.my_company_id)
+      .eq('company_id', myCompanies.my_company_id)
 
     companyAddresses = addresses || []
     companyContacts = contacts || []

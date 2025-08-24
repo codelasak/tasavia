@@ -23,23 +23,20 @@ async function getCompanies() {
 
     if (companiesError) throw companiesError
 
-    // Fetch addresses separately
+    // Fetch addresses separately (no more company_ref_type filter needed)
     const { data: addressData } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_ref_type', 'companies' as any)
 
     // Fetch contacts separately 
     const { data: contactData } = await supabase
       .from('company_contacts') 
       .select('*')
-      .eq('company_ref_type', 'companies' as any)
 
     // Fetch shipping data separately
     const { data: shipViaData } = await supabase
       .from('company_ship_via')
       .select('*')
-      .eq('company_ref_type', 'companies' as any)
 
     // Combine the data
     const companiesWithRelations = companiesData?.map((company: any) => ({

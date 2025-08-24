@@ -43,31 +43,27 @@ async function fetchPurchaseOrder(poId: string) {
     // Cast poData to any to avoid type issues
     const poDataAny = poData as any
 
-    // Fetch my company addresses and contacts
+    // Fetch my company addresses and contacts (no more company_ref_type filter needed)
     const { data: myCompanyAddresses } = await supabase
       .from('company_addresses')
       .select('*')
       .eq('company_id', poDataAny.my_companies.my_company_id as any)
-      .eq('company_ref_type', 'my_companies' as any)
 
     const { data: myCompanyContacts } = await supabase
       .from('company_contacts')
       .select('*')
       .eq('company_id', poDataAny.my_companies.my_company_id as any)
-      .eq('company_ref_type', 'my_companies' as any)
 
-    // Fetch vendor company addresses and contacts
+    // Fetch vendor company addresses and contacts (no more company_ref_type filter needed)
     const { data: vendorAddresses } = await supabase
       .from('company_addresses')
       .select('*')
       .eq('company_id', poDataAny.companies.company_id as any)
-      .eq('company_ref_type', 'companies' as any)
 
     const { data: vendorContacts } = await supabase
       .from('company_contacts')
       .select('*')
       .eq('company_id', poDataAny.companies.company_id as any)
-      .eq('company_ref_type', 'companies' as any)
 
     // Combine the data
     const enrichedData = {

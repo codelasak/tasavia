@@ -84,12 +84,12 @@ async function getFormData() {
   if (partNumbersResult.error) throw partNumbersResult.error
   if (shipViaResult.error) throw shipViaResult.error
 
-  // Fetch addresses and contacts separately
+  // Fetch addresses and contacts separately (no more company_ref_type filter needed)
   const [myCompanyAddresses, myCompanyContacts, companyAddresses, companyContacts] = await Promise.all([
-    supabase.from('company_addresses').select('*').eq('company_ref_type', 'my_companies' as any),
-    supabase.from('company_contacts').select('*').eq('company_ref_type', 'my_companies' as any),
-    supabase.from('company_addresses').select('*').eq('company_ref_type', 'companies' as any),
-    supabase.from('company_contacts').select('*').eq('company_ref_type', 'companies' as any)
+    supabase.from('company_addresses').select('*'),
+    supabase.from('company_contacts').select('*'),
+    supabase.from('company_addresses').select('*'),
+    supabase.from('company_contacts').select('*')
   ])
 
   // Combine my companies with their addresses and contacts
