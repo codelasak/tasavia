@@ -41,13 +41,15 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           }
 
           // Get account data
-          const { data: accountInfo } = await supabase
+          const { data: accountInfo, error: accountError } = await supabase
             .from('accounts')
             .select('name, status, phone_number')
             .eq('id', user.id)
-            .single();
+            .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
           
-          if (accountInfo) {
+          if (accountError) {
+            console.error('Error fetching account data:', accountError);
+          } else if (accountInfo) {
             setAccountData(accountInfo);
           }
         } catch (error) {

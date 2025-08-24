@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { PlusCircle, Trash2, Truck, RefreshCw } from 'lucide-react'
+import { PlusCircle, Trash2, Truck, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react'
 
 // Define types manually since we're having issues with the database types import
 type MyCompanyDB = {
@@ -30,7 +30,6 @@ type MyCompanyDB = {
     email?: string | null;
     phone?: string | null;
     role?: string | null;
-    is_primary: boolean | null;
   }>;
   company_addresses?: Array<{
     address_id?: string;
@@ -39,7 +38,7 @@ type MyCompanyDB = {
     city?: string | null;
     country?: string | null;
     zip_code?: string | null;
-    is_primary: boolean | null;
+    is_primary?: boolean | null;
   }>;
 };
 
@@ -56,7 +55,6 @@ type CompanyDB = {
     email?: string | null;
     phone?: string | null;
     role?: string | null;
-    is_primary: boolean | null;
   }>;
   company_addresses?: Array<{
     address_id?: string;
@@ -65,7 +63,7 @@ type CompanyDB = {
     city?: string | null;
     country?: string | null;
     zip_code?: string | null;
-    is_primary: boolean | null;
+    is_primary?: boolean | null;
   }>;
 };
 
@@ -75,7 +73,6 @@ type CompanyContact = {
   email?: string;
   phone?: string;
   role?: string;
-  is_primary: boolean | null;
 };
 
 type CompanyAddress = {
@@ -85,7 +82,7 @@ type CompanyAddress = {
   city?: string;
   country?: string;
   zip_code?: string;
-  is_primary: boolean | null;
+  is_primary?: boolean | null;
 };
 
 type ShipViaInfo = {
@@ -152,7 +149,6 @@ const myCompanySchema = z.object({
     email: z.string().email('Invalid email address').or(z.literal('')).optional(),
     phone: z.string().optional(),
     role: z.string().optional(),
-    is_primary: z.boolean().nullable().default(false),
   })).optional().default([]),
   company_addresses: z.array(z.object({
     address_id: z.string().optional(),
@@ -161,7 +157,7 @@ const myCompanySchema = z.object({
     city: z.string().optional(),
     country: z.string().optional(),
     zip_code: z.string().optional(),
-    is_primary: z.boolean().nullable().default(false),
+    is_primary: z.boolean().nullable().optional().default(false),
   })).optional().default([]),
   ship_via_info: z.array(z.object({
     ship_via_id: z.string().optional(),
@@ -185,7 +181,6 @@ const externalCompanySchema = z.object({
     email: z.string().email('Invalid email address').or(z.literal('')).optional(),
     phone: z.string().optional(),
     role: z.string().optional(),
-    is_primary: z.boolean().nullable().default(false),
   })).optional().default([]),
   company_addresses: z.array(z.object({
     address_id: z.string().optional(),
@@ -194,7 +189,7 @@ const externalCompanySchema = z.object({
     city: z.string().optional(),
     country: z.string().optional(),
     zip_code: z.string().optional(),
-    is_primary: z.boolean().nullable().default(false),
+    is_primary: z.boolean().nullable().optional().default(false),
   })).optional().default([]),
   ship_via_info: z.array(z.object({
     ship_via_id: z.string().optional(),
@@ -237,6 +232,17 @@ const generateCompanyCodePreview = (companyName: string): string => {
 export function CompanyDialog({ open, onClose, company, type }: CompanyDialogProps) {
   const [codePreview, setCodePreview] = useState('')
   const [activeTab, setActiveTab] = useState('basic')
+  const [codeValidation, setCodeValidation] = useState<{
+    isChecking: boolean;
+    isValid: boolean | null;
+    message: string;
+    suggestions: string[];
+  }>({
+    isChecking: false,
+    isValid: null,
+    message: '',
+    suggestions: []
+  })
   const isMyCompanyType = type === 'my_company'
   const schema = isMyCompanyType ? myCompanySchema : externalCompanySchema
 
@@ -259,7 +265,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         address_line2: address.address_line2 || undefined,
         city: address.city || undefined,
         country: address.country || undefined,
-        zip_code: address.zip_code || undefined
+        zip_code: address.zip_code || undefined,
+        is_primary: address.is_primary || false
       })) || [],
       company_contacts: company?.company_contacts?.map(contact => ({
         ...contact,
@@ -288,7 +295,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         address_line2: address.address_line2 || undefined,
         city: address.city || undefined,
         country: address.country || undefined,
-        zip_code: address.zip_code || undefined
+        zip_code: address.zip_code || undefined,
+        is_primary: address.is_primary || false
       })) || [],
       ship_via_info: [] // Will be loaded separately from my_ship_via table
     };
@@ -320,7 +328,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       email: '',
       phone: '',
       role: '',
-      is_primary: false
     });
   };
 
@@ -332,7 +339,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       city: '',
       country: '',
       zip_code: '',
-      is_primary: false
+      is_primary: false,
     });
   };
 
@@ -346,6 +353,98 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       ship_model: undefined
     });
   };
+
+  // Check if company code is unique
+  const checkCodeUniqueness = useCallback(async (code: string, currentCompanyId?: string) => {
+    if (!code.trim()) return { isUnique: true, suggestions: [] };
+
+    try {
+      const tableName = isMyCompanyType ? 'my_companies' : 'companies';
+      const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
+      const idField = isMyCompanyType ? 'my_company_id' : 'company_id';
+      
+      let query = supabase
+        .from(tableName)
+        .select(`${codeField}, ${idField}`)
+        .ilike(codeField, code.trim());
+
+      // Exclude current company when editing
+      if (currentCompanyId) {
+        query = query.neq(idField, currentCompanyId);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      const isUnique = !data || data.length === 0;
+      
+      // Generate suggestions if not unique
+      const suggestions: string[] = [];
+      if (!isUnique) {
+        const baseCode = code.replace(/[-_]\d+$/, ''); // Remove existing suffix
+        for (let i = 1; i <= 5; i++) {
+          const suggestion = `${baseCode}-${i.toString().padStart(2, '0')}`;
+          suggestions.push(suggestion);
+        }
+      }
+      
+      return { isUnique, suggestions };
+    } catch (error) {
+      console.error('Error checking code uniqueness:', error);
+      return { isUnique: true, suggestions: [] };
+    }
+  }, [isMyCompanyType]);
+
+  // Debounced code validation
+  const validateCompanyCode = useCallback(async (code: string) => {
+    if (!code.trim()) {
+      setCodeValidation({
+        isChecking: false,
+        isValid: null,
+        message: '',
+        suggestions: []
+      });
+      return;
+    }
+
+    setCodeValidation(prev => ({ ...prev, isChecking: true }));
+
+    // Get current company ID if editing
+    const currentCompanyId = company ? 
+      (isMyCompanyType ? (company as MyCompanyDB).my_company_id : (company as CompanyDB).company_id) 
+      : undefined;
+
+    const { isUnique, suggestions } = await checkCodeUniqueness(code, currentCompanyId);
+
+    setCodeValidation({
+      isChecking: false,
+      isValid: isUnique,
+      message: isUnique ? 'Code is available' : 'This code is already taken',
+      suggestions
+    });
+  }, [checkCodeUniqueness, company, isMyCompanyType]);
+
+  // Debounce validation
+  useEffect(() => {
+    const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
+    const code = form.watch(codeField);
+    
+    if (code) {
+      const timeoutId = setTimeout(() => {
+        validateCompanyCode(code);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setCodeValidation({
+        isChecking: false,
+        isValid: null,
+        message: '',
+        suggestions: []
+      });
+    }
+  }, [form.watch(isMyCompanyType ? 'my_company_code' : 'company_code'), validateCompanyCode, isMyCompanyType]);
 
   // Load existing ship-via data
   const loadShipViaData = useCallback(async (companyId: string, refType: 'companies' | 'my_companies') => {
@@ -463,9 +562,21 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           setActiveTab('basic');
           return;
         }
+        // Prevent submission if code is not unique
+        if (codeValidation.isValid === false) {
+          toast.error('Please use a unique company code or select one of the suggestions');
+          setActiveTab('basic');
+          return;
+        }
       } else if (isExternalCompanyFormData(formData)) {
         if (!formData.company_name?.trim()) {
           toast.error('Company name is required');
+          setActiveTab('basic');
+          return;
+        }
+        // Check code validation for external companies too if code is provided
+        if (formData.company_code?.trim() && codeValidation.isValid === false) {
+          toast.error('Please use a unique company code or select one of the suggestions');
           setActiveTab('basic');
           return;
         }
@@ -521,7 +632,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 city: address.city || null,
                 zip_code: address.zip_code || null,
                 country: address.country || null,
-                is_primary: address.is_primary || false
               }));
             
             const { error: addressesError } = await supabase
@@ -597,7 +707,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               city: address.city || null,
               zip_code: address.zip_code || null,
               country: address.country || null,
-              is_primary: address.is_primary || false
+              is_primary: address.is_primary || false,
             }));
             
             const { error: addressesError } = await supabase
@@ -668,7 +778,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 email: contact.email || null,
                 phone: contact.phone || null,
                 role: contact.role || null,
-                is_primary: contact.is_primary || false
               }));
             
             const { error: contactsError } = await supabase
@@ -700,7 +809,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 city: address.city || null,
                 zip_code: address.zip_code || null,
                 country: address.country || null,
-                is_primary: address.is_primary || false
               }));
             
             const { error: addressesError } = await supabase
@@ -814,9 +922,37 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('company-updated'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving company:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save company');
+      
+      // Handle specific database errors
+      if (error.code === '23505') {
+        // Unique constraint violation
+        if (error.message?.includes('my_company_code') || error.message?.includes('company_code')) {
+          toast.error('This company code is already in use. Please choose a different code.');
+          setActiveTab('basic');
+          // Trigger validation to show suggestions
+          const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
+          const currentCode = form.getValues(codeField);
+          if (currentCode) {
+            validateCompanyCode(currentCode);
+          }
+        } else {
+          toast.error('A record with this information already exists. Please check your inputs.');
+        }
+      } else if (error.code === '23503') {
+        // Foreign key constraint violation
+        if (error.message?.includes('fk_company_companies')) {
+          toast.error('Database configuration issue detected. Please contact support or try creating the company without addresses first.');
+          console.error('Foreign key constraint conflict: The company_addresses table has conflicting constraints that reference both my_companies and companies tables. This needs to be resolved at the database level.');
+        } else {
+          toast.error('Cannot save company: Referenced data does not exist.');
+        }
+      } else {
+        // Generic error message
+        const message = error.message || 'Failed to save company';
+        toast.error(message);
+      }
     }
   };
 
@@ -846,8 +982,58 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 <div>
                   <Label>Company Code</Label>
                   <div className="space-y-2">
-                    <Input {...form.register(isMyCompanyType ? 'my_company_code' : 'company_code')} 
-                           placeholder={!isMyCompanyType ? "Leave empty for auto-generation" : ""} />
+                    <div className="relative">
+                      <Input 
+                        {...form.register(isMyCompanyType ? 'my_company_code' : 'company_code')} 
+                        placeholder={!isMyCompanyType ? "Leave empty for auto-generation" : ""} 
+                        className={`pr-10 ${
+                          codeValidation.isValid === false ? 'border-red-500 focus:border-red-500' :
+                          codeValidation.isValid === true ? 'border-green-500 focus:border-green-500' : ''
+                        }`}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {codeValidation.isChecking && (
+                          <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
+                        )}
+                        {codeValidation.isValid === true && (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        )}
+                        {codeValidation.isValid === false && (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Validation message */}
+                    {codeValidation.message && (
+                      <div className={`text-sm ${codeValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {codeValidation.message}
+                      </div>
+                    )}
+                    
+                    {/* Code suggestions */}
+                    {codeValidation.suggestions.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-600">Suggestions:</div>
+                        <div className="flex flex-wrap gap-1">
+                          {codeValidation.suggestions.map((suggestion) => (
+                            <Badge 
+                              key={suggestion}
+                              variant="outline" 
+                              className="cursor-pointer hover:bg-blue-50 text-xs"
+                              onClick={() => {
+                                form.setValue(isMyCompanyType ? 'my_company_code' : 'company_code', suggestion);
+                                validateCompanyCode(suggestion);
+                              }}
+                            >
+                              {suggestion}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* External company preview */}
                     {!isMyCompanyType && codePreview && (
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
