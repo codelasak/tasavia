@@ -657,8 +657,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               company_id: company.my_company_id,
               company_ref_type: 'my_companies',
               ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              predefined_company: shipVia.predefined_company,
-              custom_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : null,
               account_no: shipVia.account_no,
               owner: shipVia.owner || null,
               ship_model: shipVia.ship_model || null
@@ -723,8 +721,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               company_id: newCompany.my_company_id,
               company_ref_type: 'my_companies',
               ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              predefined_company: shipVia.predefined_company,
-              custom_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : null,
               account_no: shipVia.account_no,
               owner: shipVia.owner || null,
               ship_model: shipVia.ship_model || null
@@ -834,8 +830,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               company_id: company.company_id,
               company_ref_type: 'companies',
               ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              predefined_company: shipVia.predefined_company,
-              custom_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : null,
               account_no: shipVia.account_no,
               owner: shipVia.owner || null,
               ship_model: shipVia.ship_model || null
@@ -899,8 +893,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               company_id: newCompany.company_id,
               company_ref_type: 'companies',
               ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              predefined_company: shipVia.predefined_company,
-              custom_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : null,
               account_no: shipVia.account_no,
               owner: shipVia.owner || null,
               ship_model: shipVia.ship_model || null
