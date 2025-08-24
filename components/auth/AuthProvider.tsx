@@ -274,7 +274,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(updatedUser);
       authDebug.info('auth', 'User profile updated in background', { userId: updatedUser.id });
     }
-  }, []);
+  }, []); // Empty dependency array - this function doesn't need to change
 
   // Initial session hydration - sync with server state
   useEffect(() => {
@@ -328,7 +328,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     hydrateInitialSession();
-  }, [handleProfileUpdate]);
+  }, []); // Empty dependencies - should only run on mount
 
   useEffect(() => {
     authDebug.info('auth', 'Initializing auth state listener');
@@ -376,10 +376,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return () => {
       authDebug.info('auth', 'Cleaning up auth state listener');
-      mountedRef.current = false;
       subscription?.unsubscribe();
     }
-  }, [handleProfileUpdate]) // Include handleProfileUpdate in dependencies
+  }, []) // Empty dependencies - effect should only run once
+
+  // Separate cleanup effect for mounted ref to handle hot reload properly
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Note: Redirect logic has been moved to middleware.ts for better performance and reliability
 

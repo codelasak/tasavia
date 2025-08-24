@@ -1,5 +1,7 @@
 # TASAVIA Dashboard
 
+[![CI](https://github.com/codelasak/tasavia/actions/workflows/ci.yml/badge.svg)](https://github.com/codelasak/tasavia/actions/workflows/ci.yml)
+
 A modern, integrated web platform for TASAVIA's internal operations management and public website.
 Developer: Eshagh Shahnavazi - eshagh.me
 ## Overview

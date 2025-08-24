@@ -742,16 +742,40 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         if (isExternalCompany(company)) {
           // Update existing company
           if (!company.company_id) throw new Error('Company ID is required for update');
-          const { error } = await supabase
-            .from('companies')
-            .update({
-              company_name: companyData.company_name,
-              company_code: companyData.company_code || null, // Allow null for auto-generation
-              company_type: companyData.company_type
-            })
-            .eq('company_id', company.company_id);
-            
-          if (error) throw error;
+          // Prepare update payload with optional company_type
+          const updatePayload: any = {
+            company_name: companyData.company_name,
+            company_code: companyData.company_code || null,
+          };
+          if (companyData.company_type) {
+            updatePayload.company_type = companyData.company_type;
+          }
+
+          // Try update with company_type; if schema lacks column, retry without it
+          let updateError = null as any;
+          let attemptedWithoutType = false;
+          {
+            const { error } = await supabase
+              .from('companies')
+              .update(updatePayload)
+              .eq('company_id', company.company_id);
+            updateError = error;
+          }
+          if (updateError && updateError.code === 'PGRST204' && String(updateError.message || '').includes("company_type")) {
+            attemptedWithoutType = true;
+            const { error } = await supabase
+              .from('companies')
+              .update({
+                company_name: companyData.company_name,
+                company_code: companyData.company_code || null,
+              })
+              .eq('company_id', company.company_id);
+            updateError = error;
+          }
+          if (updateError) throw updateError;
+          if (attemptedWithoutType) {
+            toast.warning("'company_type' not stored: database column missing. Update saved without type.");
+          }
           
           // Handle company contacts
           if (company_contacts.length > 0) {
@@ -845,17 +869,40 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           toast.success('Company updated successfully');
         } else {
           // Create new company
-          const { data: newCompany, error: companyError } = await supabase
-            .from('companies')
-            .insert({
-              company_name: companyData.company_name,
-              company_code: companyData.company_code || null, // Allow null for auto-generation
-              company_type: companyData.company_type
-            })
-            .select()
-            .single();
-            
+          // Try insert with company_type; if schema lacks column, retry without it
+          let newCompany: any = null;
+          let companyError: any = null;
+          let createdWithoutType = false;
+          {
+            const res = await supabase
+              .from('companies')
+              .insert({
+                company_name: companyData.company_name,
+                company_code: companyData.company_code || null,
+                company_type: companyData.company_type,
+              })
+              .select()
+              .single();
+            newCompany = res.data;
+            companyError = res.error;
+          }
+          if (companyError && companyError.code === 'PGRST204' && String(companyError.message || '').includes("company_type")) {
+            createdWithoutType = true;
+            const res = await supabase
+              .from('companies')
+              .insert({
+                company_name: companyData.company_name,
+                company_code: companyData.company_code || null,
+              })
+              .select()
+              .single();
+            newCompany = res.data;
+            companyError = res.error;
+          }
           if (companyError) throw companyError;
+          if (createdWithoutType) {
+            toast.warning("'company_type' not stored: database column missing. Company created without type.");
+          }
           
           // Handle company contacts
           if (company_contacts.length > 0) {
