@@ -5,33 +5,26 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Search, Edit, Trash2, Plus } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
-import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
 import { CompanyDialog } from '@/components/companies/CompanyDialog'
-
-type MyCompany = Database['public']['Tables']['my_companies']['Row'] & {
-  company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
-  company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
-  company_ship_via: Database['public']['Tables']['company_ship_via']['Row'][]
-}
+import { UnifiedCompany, getInternalCompanies, deleteCompany, checkCompanyReferences } from '@/lib/services/company-service'
 
 interface MyCompaniesListProps {
-  initialCompanies: MyCompany[]
+  initialCompanies: UnifiedCompany[]
 }
 
 export default function MyCompaniesList({ initialCompanies }: MyCompaniesListProps) {
-  const [companies, setCompanies] = useState<MyCompany[]>(initialCompanies)
-  const [filteredCompanies, setFilteredCompanies] = useState<MyCompany[]>(initialCompanies)
+  const [companies, setCompanies] = useState<UnifiedCompany[]>(initialCompanies)
+  const [filteredCompanies, setFilteredCompanies] = useState<UnifiedCompany[]>(initialCompanies)
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingCompany, setEditingCompany] = useState<MyCompany | null>(null)
+  const [editingCompany, setEditingCompany] = useState<UnifiedCompany | null>(null)
 
   useEffect(() => {
     const lowercasedTerm = searchTerm.toLowerCase()
     const filtered = companies.filter(company =>
-      company.my_company_name.toLowerCase().includes(lowercasedTerm) ||
-      company.my_company_code.toLowerCase().includes(lowercasedTerm) ||
+      company.name.toLowerCase().includes(lowercasedTerm) ||
+      (company.code && company.code.toLowerCase().includes(lowercasedTerm)) ||
       company.company_addresses.some(a => 
         (a.city && a.city.toLowerCase().includes(lowercasedTerm)) ||
         (a.country && a.country.toLowerCase().includes(lowercasedTerm))
@@ -43,85 +36,35 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
 
   const fetchCompanies = async () => {
     try {
-      // Fetch my companies first
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('my_companies')
-        .select('*')
-        .order('my_company_name')
-
-      if (companiesError) throw companiesError
-
-      // Fetch addresses separately
-      const { data: addressData } = await supabase
-        .from('company_addresses')
-        .select('*')
-        .eq('company_ref_type', 'my_companies')
-
-      // Fetch contacts separately 
-      const { data: contactData } = await supabase
-        .from('company_contacts') 
-        .select('*')
-        .eq('company_ref_type', 'my_companies')
-
-      // Fetch shipping data separately
-      const { data: shipViaData } = await supabase
-        .from('company_ship_via')
-        .select('*')
-        .eq('company_ref_type', 'my_companies')
-
-      // Combine the data
-      const companiesWithRelations = companiesData?.map(company => ({
-        ...company,
-        company_addresses: addressData?.filter(addr => addr.company_id === company.my_company_id) || [],
-        company_contacts: contactData?.filter(contact => contact.company_id === company.my_company_id) || [],
-        company_ship_via: shipViaData?.filter(ship => ship.company_id === company.my_company_id) || []
-      })) || []
-
-      setCompanies(companiesWithRelations)
+      const companiesData = await getInternalCompanies()
+      setCompanies(companiesData)
     } catch (error) {
       console.error('Error fetching companies:', error)
       toast.error('Failed to fetch companies')
     }
   }
 
-  const handleEdit = (company: MyCompany) => {
+  const handleEdit = (company: UnifiedCompany) => {
     setEditingCompany(company)
     setDialogOpen(true)
   }
 
-  const handleDelete = async (company: MyCompany) => {
-    if (!confirm(`Are you sure you want to delete ${company.my_company_name}?`)) return
+  const handleDelete = async (company: UnifiedCompany) => {
+    if (!confirm(`Are you sure you want to delete ${company.name}?`)) return
 
     try {
-      // First check if this company is referenced in any purchase orders
-      const { data: poReferences, error: poCheckError } = await supabase
-        .from('purchase_orders')
-        .select('po_id')
-        .eq('my_company_id', company.my_company_id)
-        .limit(1)
-
-      if (poCheckError) {
-        console.error('Error checking PO references:', poCheckError)
-        throw new Error('Failed to check company references')
-      }
-
-      if (poReferences && poReferences.length > 0) {
+      // Check if company is referenced
+      const hasReferences = await checkCompanyReferences(company.id, company.is_self)
+      
+      if (hasReferences) {
         toast.error('Cannot delete company: It is referenced in existing purchase orders')
         return
       }
 
-      // If no references found, proceed with deletion
-      const { error } = await supabase
-        .from('my_companies')
-        .delete()
-        .eq('my_company_id', company.my_company_id)
-
-      if (error) {
-        console.error('Delete error:', error)
-        throw error
-      }
+      // Proceed with deletion using service
+      await deleteCompany(company.id, company.is_self)
       
-      setCompanies(companies.filter(c => c.my_company_id !== company.my_company_id))
+      setCompanies(companies.filter(c => c.id !== company.id))
       toast.success('Company deleted successfully')
     } catch (error: any) {
       console.error('Error deleting company:', error)
@@ -175,16 +118,16 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
         ) : (
           <div className="space-y-2">
             {filteredCompanies.map((company) => (
-              <Card key={company.my_company_id} className="hover:shadow-md transition-shadow">
+              <Card key={company.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{company.my_company_name}</CardTitle>
+                    <CardTitle className="text-base">{company.name}</CardTitle>
                     <div className="flex space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(company)}><Edit className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(company)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </div>
-                  <CardDescription className="text-xs">Code: {company.my_company_code}</CardDescription>
+                  <CardDescription className="text-xs">Code: {company.code}</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-2 text-xs text-slate-600 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>

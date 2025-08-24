@@ -49,10 +49,11 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
       setLoading(true)
       setError(null)
       
-      // Fetch companies first
+      // Fetch external companies (is_self = false or null)
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('*')
+        .or('is_self.is.false,is_self.is.null')
         .order('company_name')
 
       if (companiesError) {
@@ -60,23 +61,20 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
         throw new Error(companiesError.message || 'Failed to fetch companies')
       }
 
-      // Fetch addresses separately
+      // Fetch addresses separately (no more company_ref_type filter needed)
       const { data: addressData } = await supabase
         .from('company_addresses')
         .select('*')
-        .eq('company_ref_type', 'companies')
 
       // Fetch contacts separately 
       const { data: contactData } = await supabase
         .from('company_contacts') 
         .select('*')
-        .eq('company_ref_type', 'companies')
 
       // Fetch shipping data separately
       const { data: shipViaData } = await supabase
         .from('company_ship_via')
         .select('*')
-        .eq('company_ref_type', 'companies')
 
       // Combine the data
       const companiesWithRelations = companiesData?.map(company => ({

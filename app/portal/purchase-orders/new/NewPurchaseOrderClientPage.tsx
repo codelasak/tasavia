@@ -24,9 +24,10 @@ import { fetchCountries } from '@/lib/external-apis'
 import FileUpload from '@/components/ui/file-upload'
 
 interface MyCompany {
-  my_company_id: string
-  my_company_name: string
-  my_company_code: string
+  company_id: string
+  company_name: string
+  company_code: string
+  is_self: boolean
   company_addresses: Array<{
     address_line1: string
     address_line2: string | null

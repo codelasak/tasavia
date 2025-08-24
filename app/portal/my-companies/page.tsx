@@ -1,63 +1,10 @@
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
-import { createSupabaseServer } from '@/lib/supabase/server'
-import { Database } from '@/lib/supabase/database.types'
 import MyCompaniesList from './my-companies-list'
+import { getInternalCompaniesServer } from '@/lib/services/company-service.server'
 
 export const dynamic = 'force-dynamic'
 
-type MyCompany = Database['public']['Tables']['my_companies']['Row'] & {
-  company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
-  company_addresses: Database['public']['Tables']['company_addresses']['Row'][]
-  company_ship_via: Database['public']['Tables']['company_ship_via']['Row'][]
-}
-
-async function getMyCompanies() {
-  const supabase = createSupabaseServer()
-  try {
-    // Fetch my companies first
-    const { data: companiesData, error: companiesError } = await supabase
-      .from('my_companies')
-      .select('*')
-      .order('my_company_name')
-
-    if (companiesError) throw companiesError
-
-    // Fetch addresses separately
-    const { data: addressData } = await supabase
-      .from('company_addresses')
-      .select('*')
-      .eq('company_ref_type', 'my_companies' as any)
-
-    // Fetch contacts separately 
-    const { data: contactData } = await supabase
-      .from('company_contacts') 
-      .select('*')
-      .eq('company_ref_type', 'my_companies' as any)
-
-    // Fetch shipping data separately
-    const { data: shipViaData } = await supabase
-      .from('company_ship_via')
-      .select('*')
-      .eq('company_ref_type', 'my_companies' as any)
-
-    // Combine the data
-    const companiesWithRelations = companiesData?.map((company: any) => ({
-      ...company,
-      company_addresses: addressData?.filter((addr: any) => addr.company_id === company.my_company_id) || [],
-      company_contacts: contactData?.filter((contact: any) => contact.company_id === company.my_company_id) || [],
-      company_ship_via: shipViaData?.filter((ship: any) => ship.company_id === company.my_company_id) || []
-    })) || []
-
-    return companiesWithRelations
-  } catch (error) {
-    console.error('Error fetching companies:', error)
-    return []
-  }
-}
-
 export default async function MyCompaniesPage() {
-  const companies = await getMyCompanies()
+  const companies = await getInternalCompaniesServer()
 
   return (
     <div className="space-y-4 px-2 pb-20">
