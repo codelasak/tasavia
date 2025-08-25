@@ -444,7 +444,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
   }, [form.watch(isMyCompanyType ? 'my_company_code' : 'company_code'), validateCompanyCode, isMyCompanyType]);
 
   // Load existing ship-via data
-  const loadShipViaData = useCallback(async (companyId: string, refType: 'companies' | 'my_companies') => {
+  const loadShipViaData = useCallback(async (companyId: string, refType: 'companies') => {
     try {
       const { data, error } = await supabase
         .from('company_ship_via')
@@ -510,7 +510,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         
         // Load ship-via data for my company
         if (myCompanyData.my_company_id) {
-          loadShipViaData(myCompanyData.my_company_id, 'my_companies');
+          loadShipViaData(myCompanyData.my_company_id, 'companies');
         }
       } else {
         const companyData = company as CompanyDB;
@@ -584,7 +584,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         
         if (isMyCompany(company)) {
           // Update existing internal company in unified companies table
-          const companyId = company.my_company_id || company.company_id;
+          const companyId = company.my_company_id;
           if (!companyId) throw new Error('Company ID is required for update');
           
           const unifiedCompanyData = {
@@ -605,8 +605,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           if (company_contacts.length > 0) {
             const contactsToInsert = company_contacts.map(contact => ({
               ...contact,
-              company_id: company.my_company_id,
-              company_ref_type: 'my_companies'
+              company_id: companyId,
+              company_ref_type: 'companies'
             }));
             
             const { error: contactsError } = await supabase
@@ -622,17 +622,17 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             const { error: deleteAddressError } = await supabase
               .from('company_addresses')
               .delete()
-              .eq('company_id', company.my_company_id)
-              .eq('company_ref_type', 'my_companies');
+              .eq('company_id', companyId)
+              .eq('company_ref_type', 'companies');
             
             if (deleteAddressError) throw deleteAddressError;
             
             // Then insert new addresses
             const addressesToInsert = company_addresses
-              .filter(address => company.my_company_id && address.address_line1) // Only process if company_id and address_line1 exist
+              .filter(address => companyId && address.address_line1) // Only process if company_id and address_line1 exist
               .map(address => ({
-                company_id: company.my_company_id!,
-                company_ref_type: 'my_companies',
+                company_id: companyId!,
+                company_ref_type: 'companies',
                 address_line1: address.address_line1!,
                 address_line2: address.address_line2 || null,
                 city: address.city || null,
@@ -653,15 +653,15 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             const { error: deleteShipViaError } = await supabase
               .from('company_ship_via')
               .delete()
-              .eq('company_id', company.my_company_id)
-              .eq('company_ref_type', 'my_companies');
+              .eq('company_id', companyId)
+              .eq('company_ref_type', 'companies');
             
             if (deleteShipViaError) throw deleteShipViaError;
             
             // Then insert new ones
             const shipViaToInsert = ship_via_info.map(shipVia => ({
-              company_id: company.my_company_id,
-              company_ref_type: 'my_companies',
+              company_id: companyId,
+              company_ref_type: 'companies',
               ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
               account_no: shipVia.account_no,
               owner: shipVia.owner || null,
@@ -677,10 +677,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           
           toast.success('My Company updated successfully');
         } else {
-          // Create new my_company
+          // Create new internal company in unified companies table
+          const unifiedCompanyData = {
+            company_name: companyData.my_company_name,
+            company_code: companyData.my_company_code,
+            is_self: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
           const { data: newCompany, error: companyError } = await supabase
-            .from('my_companies')
-            .insert(companyData)
+            .from('companies')
+            .insert(unifiedCompanyData)
             .select()
             .single();
             
@@ -690,8 +698,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           if (company_contacts.length > 0) {
             const contactsToInsert = company_contacts.map(contact => ({
               ...contact,
-              company_id: newCompany.my_company_id,
-              company_ref_type: 'my_companies'
+              company_id: newCompany.company_id,
+              company_ref_type: 'companies'
             }));
             
             const { error: contactsError } = await supabase
@@ -704,8 +712,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           // Handle company addresses
           if (company_addresses.length > 0) {
             const addressesToInsert = company_addresses.map(address => ({
-              company_id: newCompany.my_company_id,
-              company_ref_type: 'my_companies',
+              company_id: newCompany.company_id,
+              company_ref_type: 'companies',
               address_line1: address.address_line1,
               address_line2: address.address_line2 || null,
               city: address.city || null,
@@ -724,8 +732,8 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           // Handle ship-via data for new my company
           if (ship_via_info.length > 0) {
             const shipViaToInsert = ship_via_info.map(shipVia => ({
-              company_id: newCompany.my_company_id,
-              company_ref_type: 'my_companies',
+              company_id: newCompany.company_id,
+              company_ref_type: 'companies',
               ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
               account_no: shipVia.account_no,
               owner: shipVia.owner || null,

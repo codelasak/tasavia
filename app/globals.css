@@ -209,6 +209,16 @@
 /* Ensure proper spacing for hero section */
 @media (min-width: 1024px) {
   .hero-with-aircraft {
-    padding-bottom: 20rem;
+    padding-bottom: 24rem;
   }
+}
+
+/* Footer enhancements */
+.footer-heading-underline::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  background: #3b82f6;
+  margin-top: 8px;
 }

@@ -373,18 +373,18 @@ export default function HomePage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section id="home" className="relative pt-28 pb-40 md:pt-36 md:pb-52 overflow-hidden hero-with-aircraft" role="banner" aria-label="Welcome to TASAVIA">
+      <section id="home" className="relative pt-28 pb-48 md:pt-36 md:pb-64 overflow-hidden hero-with-aircraft" role="banner" aria-label="Welcome to TASAVIA">
         {/* Hero background image */}
         <div className="absolute inset-0 -z-10">
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-multiply"
-            style={{ 
-              backgroundImage: "url('/assets/images/hero-bg.jpg')",
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center',
-              backgroundSize: 'cover'
-            }}
+          <Image
+            src="/assets/images/hero-bg.jpg"
+            alt="Aviation background"
+            fill
+            className="object-cover opacity-30"
+            priority
           />
+          {/* Gradient overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/70 to-white/90 dark:from-slate-900/70 dark:to-slate-900/90"></div>
         </div>
         
         {/* Animated background elements */}
@@ -394,13 +394,13 @@ export default function HomePage() {
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
-          <div className="absolute -bottom-20 left-0 w-96 h-96 bg-cyan-500/10 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+          <div className="absolute -bottom-20 left-0 w-96 h-96 bg-cyan-500/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
         </motion.div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
+          <div className="text-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 max-w-4xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -412,7 +412,7 @@ export default function HomePage() {
             </motion.div>
             
             <motion.h1 
-              className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-5xl md:text-6xl lg:text-7xl"
+              className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-5xl md:text-6xl lg:text-7xl mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
@@ -424,7 +424,7 @@ export default function HomePage() {
             </motion.h1>
             
             <motion.p 
-              className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-slate-600 dark:text-slate-300"
+              className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -440,11 +440,19 @@ export default function HomePage() {
             >
               <Link href="#services" className="w-full sm:w-auto">
                 <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 dark:hover:bg-blue-800"
+                >
+                  Explore Our Services
+                </Button>
+              </Link>
+              <Link href="#contact" className="w-full sm:w-auto">
+                <Button 
                   variant="outline" 
                   size="lg" 
                   className="w-full sm:w-auto border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 >
-                  Our Services
+                  Contact Us
                 </Button>
               </Link>
             </motion.div>
@@ -452,7 +460,7 @@ export default function HomePage() {
         </div>
         
         {/* Hero banner image */}
-        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/3 w-full max-w-6xl hidden lg:block">
+        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/4 w-full max-w-6xl hidden lg:block">
           <Image
             src="/assets/images/hero-banner.png"
             alt="Aircraft in flight"
@@ -921,18 +929,21 @@ export default function HomePage() {
         className="bg-slate-900 text-slate-400 pt-16 pb-8 relative overflow-hidden" 
         role="contentinfo" 
         aria-label="Website footer"
-        style={{ 
-          backgroundImage: "url('/assets/images/footer-bg.png')",
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center 85%',
-          backgroundSize: 'cover'
-        }}
       >
-        <div className="absolute inset-0 bg-slate-900/90"></div>
+        <div className="absolute inset-0 -z-10">
+          <Image
+            src="/assets/images/footer-bg.png"
+            alt="Footer background"
+            fill
+            className="object-cover opacity-20"
+            style={{ objectPosition: 'center 85%' }}
+          />
+          <div className="absolute inset-0 bg-slate-900/90"></div>
+        </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
-              <h4 className="text-white text-lg font-semibold mb-4">About Us</h4>
+              <h4 className="text-white text-lg font-semibold mb-4 footer-heading-underline">About Us</h4>
               <ul className="space-y-3">
                 <li><a href="#" className="hover:text-white transition-colors">Our Story</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Our Team</a></li>
@@ -941,7 +952,7 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <h4 className="text-white text-lg font-semibold mb-4">Services</h4>
+              <h4 className="text-white text-lg font-semibold mb-4 footer-heading-underline">Services</h4>
               <ul className="space-y-3">
                 <li><a href="#" className="hover:text-white transition-colors">Aircraft Maintenance</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Parts & Components</a></li>
@@ -950,7 +961,7 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <h4 className="text-white text-lg font-semibold mb-4">Resources</h4>
+              <h4 className="text-white text-lg font-semibold mb-4 footer-heading-underline">Resources</h4>
               <ul className="space-y-3">
                 <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Case Studies</a></li>
@@ -959,7 +970,7 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <h4 className="text-white text-lg font-semibold mb-4">Legal</h4>
+              <h4 className="text-white text-lg font-semibold mb-4 footer-heading-underline">Legal</h4>
               <ul className="space-y-3">
                 <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
