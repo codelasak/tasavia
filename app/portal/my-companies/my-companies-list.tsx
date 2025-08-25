@@ -45,7 +45,18 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
   }
 
   const handleEdit = (company: UnifiedCompany) => {
-    setEditingCompany(company)
+    // Transform UnifiedCompany to MyCompanyDB format expected by CompanyDialog
+    const transformedCompany = {
+      my_company_id: company.id,
+      company_id: company.id, // Also include the real company_id for validation
+      my_company_name: company.name,
+      my_company_code: company.code || '',
+      created_at: company.created_at,
+      updated_at: company.updated_at,
+      company_contacts: company.company_contacts,
+      company_addresses: company.company_addresses
+    }
+    setEditingCompany(transformedCompany as any)
     setDialogOpen(true)
   }
 

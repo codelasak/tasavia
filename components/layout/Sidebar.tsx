@@ -61,8 +61,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         try {
           const result = await auth.profile.getProfile();
           
-          if (result.success && result.profile?.role) {
-            const userRole = result.profile.role.role_name;
+          if (result.success && (result as any).profile?.role) {
+            const userRole = (result as any).profile.role.role_name;
             setIsAdmin(userRole === 'admin' || userRole === 'super_admin');
           } else {
             setIsAdmin(false);

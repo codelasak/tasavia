@@ -174,7 +174,7 @@ export async function checkCompanyReferences(companyId: string, isInternal: bool
   // Check sales orders
   const { data: soData } = await supabaseClient
     .from('sales_orders')
-    .select('so_id')
+    .select('sales_order_id')
     .eq('company_id', companyId)
     .limit(1)
   

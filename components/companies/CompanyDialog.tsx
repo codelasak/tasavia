@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -161,11 +160,11 @@ const myCompanySchema = z.object({
   })).optional().default([]),
   ship_via_info: z.array(z.object({
     ship_via_id: z.string().optional(),
-    predefined_company: z.enum(['DHL', 'FEDEX', 'UPS', 'TNT', 'ARAMEX', 'DPD', 'SCHENKER', 'KUEHNE_NAGEL', 'EXPEDITORS', 'PANALPINA', 'CUSTOM']).optional(),
-    custom_company_name: z.string().optional(),
+    predefined_company: z.enum(['DHL', 'FEDEX', 'UPS', 'TNT', 'ARAMEX', 'DPD', 'SCHENKER', 'KUEHNE_NAGEL', 'EXPEDITORS', 'PANALPINA', 'CUSTOM']).nullable().optional(),
+    custom_company_name: z.string().nullable().optional(),
     account_no: z.string().min(1, 'Account number is required'),
-    owner: z.string().optional(),
-    ship_model: z.enum(['IMPORT', 'THIRD_PARTY_EXPORT', 'GROUND', 'SEA', 'AIRLINE']).optional(),
+    owner: z.string().nullable().optional(),
+    ship_model: z.enum(['IMPORT', 'THIRD_PARTY_EXPORT', 'GROUND', 'SEA', 'AIRLINE']).nullable().optional(),
   })).optional().default([]),
   formType: z.literal('my_company'),
 });
@@ -193,11 +192,11 @@ const externalCompanySchema = z.object({
   })).optional().default([]),
   ship_via_info: z.array(z.object({
     ship_via_id: z.string().optional(),
-    predefined_company: z.enum(['DHL', 'FEDEX', 'UPS', 'TNT', 'ARAMEX', 'DPD', 'SCHENKER', 'KUEHNE_NAGEL', 'EXPEDITORS', 'PANALPINA', 'CUSTOM']).optional(),
-    custom_company_name: z.string().optional(),
+    predefined_company: z.enum(['DHL', 'FEDEX', 'UPS', 'TNT', 'ARAMEX', 'DPD', 'SCHENKER', 'KUEHNE_NAGEL', 'EXPEDITORS', 'PANALPINA', 'CUSTOM']).nullable().optional(),
+    custom_company_name: z.string().nullable().optional(),
     account_no: z.string().min(1, 'Account number is required'),
-    owner: z.string().optional(),
-    ship_model: z.enum(['IMPORT', 'THIRD_PARTY_EXPORT', 'GROUND', 'SEA', 'AIRLINE']).optional(),
+    owner: z.string().nullable().optional(),
+    ship_model: z.enum(['IMPORT', 'THIRD_PARTY_EXPORT', 'GROUND', 'SEA', 'AIRLINE']).nullable().optional(),
   })).optional().default([]),
   formType: z.literal('external_company'),
 });
@@ -231,7 +230,6 @@ const generateCompanyCodePreview = (companyName: string): string => {
 
 export function CompanyDialog({ open, onClose, company, type }: CompanyDialogProps) {
   const [codePreview, setCodePreview] = useState('')
-  const [activeTab, setActiveTab] = useState('basic')
   const [codeValidation, setCodeValidation] = useState<{
     isChecking: boolean;
     isValid: boolean | null;
@@ -409,7 +407,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
 
     // Get current company ID if editing
     const currentCompanyId = company ? 
-      (isMyCompanyType ? (company as MyCompanyDB).my_company_id : (company as CompanyDB).company_id) 
+      (isMyCompanyType ? (company as any).company_id || (company as MyCompanyDB).my_company_id : (company as CompanyDB).company_id) 
       : undefined;
 
     const { isUnique, suggestions } = await checkCodeUniqueness(code, currentCompanyId);
@@ -484,66 +482,109 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
 
   // Set default values when the company or type changes
   useEffect(() => {
-    if (company) {
-      // Transform company data to match form data structure
-      if (isMyCompanyType) {
-        const myCompanyData = company as MyCompanyDB;
-        form.reset({
-          my_company_name: myCompanyData.my_company_name,
-          my_company_code: myCompanyData.my_company_code,
-          company_addresses: myCompanyData.company_addresses?.map(address => ({
-            ...address,
-            address_line2: address.address_line2 || undefined,
-            city: address.city || undefined,
-            country: address.country || undefined,
-            zip_code: address.zip_code || undefined
-          })) || [],
-          company_contacts: myCompanyData.company_contacts?.map(contact => ({
-            ...contact,
-            email: contact.email || undefined,
-            phone: contact.phone || undefined,
-            role: contact.role || undefined
-          })) || [],
-          ship_via_info: [],
-          formType: 'my_company'
-        });
-        
-        // Load ship-via data for my company
-        if (myCompanyData.my_company_id) {
-          loadShipViaData(myCompanyData.my_company_id, 'companies');
+    const initializeFormData = async () => {
+      if (company) {
+        // Transform company data to match form data structure
+        if (isMyCompanyType) {
+          const myCompanyData = company as MyCompanyDB;
+          
+          // Load ship-via data first
+          let shipViaData: any[] = [];
+          if (myCompanyData.my_company_id || (myCompanyData as any).company_id) {
+            const companyId = myCompanyData.my_company_id || (myCompanyData as any).company_id;
+            try {
+              const { data } = await supabase
+                .from('company_ship_via')
+                .select('*')
+                .eq('company_id', companyId)
+                .eq('company_ref_type', 'companies');
+              
+              shipViaData = data?.map(item => ({
+                ship_via_id: item.ship_via_id,
+                predefined_company: item.predefined_company,
+                custom_company_name: item.custom_company_name,
+                account_no: item.account_no,
+                owner: item.owner,
+                ship_model: item.ship_model
+              })) || [];
+            } catch (error) {
+              console.error('Error loading ship via data:', error);
+            }
+          }
+          
+          form.reset({
+            my_company_name: myCompanyData.my_company_name,
+            my_company_code: myCompanyData.my_company_code,
+            company_addresses: myCompanyData.company_addresses?.map(address => ({
+              ...address,
+              address_line2: address.address_line2 || undefined,
+              city: address.city || undefined,
+              country: address.country || undefined,
+              zip_code: address.zip_code || undefined
+            })) || [],
+            company_contacts: myCompanyData.company_contacts?.map(contact => ({
+              ...contact,
+              email: contact.email || undefined,
+              phone: contact.phone || undefined,
+              role: contact.role || undefined
+            })) || [],
+            ship_via_info: shipViaData,
+            formType: 'my_company'
+          });
+        } else {
+          const companyData = company as CompanyDB;
+          
+          // Load ship-via data first
+          let shipViaData: any[] = [];
+          if (companyData.company_id) {
+            try {
+              const { data } = await supabase
+                .from('company_ship_via')
+                .select('*')
+                .eq('company_id', companyData.company_id)
+                .eq('company_ref_type', 'companies');
+              
+              shipViaData = data?.map(item => ({
+                ship_via_id: item.ship_via_id,
+                predefined_company: item.predefined_company,
+                custom_company_name: item.custom_company_name,
+                account_no: item.account_no,
+                owner: item.owner,
+                ship_model: item.ship_model
+              })) || [];
+            } catch (error) {
+              console.error('Error loading ship via data:', error);
+            }
+          }
+          
+          form.reset({
+            company_name: companyData.company_name,
+            company_code: companyData.company_code ?? '',
+            company_type: (companyData.company_type ?? 'vendor') as 'vendor' | 'customer' | 'both',
+            company_contacts: companyData.company_contacts?.map(contact => ({
+              ...contact,
+              email: contact.email || undefined,
+              phone: contact.phone || undefined,
+              role: contact.role || undefined
+            })) || [],
+            company_addresses: companyData.company_addresses?.map(address => ({
+              ...address,
+              address_line2: address.address_line2 || undefined,
+              city: address.city || undefined,
+              country: address.country || undefined,
+              zip_code: address.zip_code || undefined
+            })) || [],
+            ship_via_info: shipViaData,
+            formType: 'external_company'
+          });
         }
       } else {
-        const companyData = company as CompanyDB;
-        form.reset({
-          company_name: companyData.company_name,
-          company_code: companyData.company_code ?? '',
-          company_type: (companyData.company_type ?? 'vendor') as 'vendor' | 'customer' | 'both',
-          company_contacts: companyData.company_contacts?.map(contact => ({
-            ...contact,
-            email: contact.email || undefined,
-            phone: contact.phone || undefined,
-            role: contact.role || undefined
-          })) || [],
-          company_addresses: companyData.company_addresses?.map(address => ({
-            ...address,
-            address_line2: address.address_line2 || undefined,
-            city: address.city || undefined,
-            country: address.country || undefined,
-            zip_code: address.zip_code || undefined
-          })) || [],
-          ship_via_info: [],
-          formType: 'external_company'
-        });
-        
-        // Load ship-via data for external company
-        if (companyData.company_id) {
-          loadShipViaData(companyData.company_id, 'companies');
-        }
+        form.reset(isMyCompanyType ? getMyCompanyDefaultValues() : getExternalCompanyDefaultValues());
       }
-    } else {
-      form.reset(isMyCompanyType ? getMyCompanyDefaultValues() : getExternalCompanyDefaultValues());
-    }
-  }, [company, isMyCompanyType, form, loadShipViaData]);
+    };
+    
+    initializeFormData();
+  }, [company, isMyCompanyType, form]);
 
   const onSubmit = async (formData: FormData) => {
     try {
@@ -551,34 +592,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       if (isMyCompanyFormData(formData)) {
         if (!formData.my_company_name?.trim()) {
           toast.error('Company name is required');
-          setActiveTab('basic');
           return;
         }
         if (!formData.my_company_code?.trim()) {
           toast.error('Company code is required');
-          setActiveTab('basic');
           return;
         }
         // Prevent submission if code is not unique
         if (codeValidation.isValid === false) {
           toast.error('Please use a unique company code or select one of the suggestions');
-          setActiveTab('basic');
           return;
         }
-      } else if (isExternalCompanyFormData(formData)) {
-        if (!formData.company_name?.trim()) {
-          toast.error('Company name is required');
-          setActiveTab('basic');
-          return;
-        }
-        // Check code validation for external companies too if code is provided
-        if (formData.company_code?.trim() && codeValidation.isValid === false) {
-          toast.error('Please use a unique company code or select one of the suggestions');
-          setActiveTab('basic');
-          return;
-        }
-      }
-      if (isMyCompanyFormData(formData)) {
+        
         // Handle My Company form submission
         const { formType, company_addresses, company_contacts, ship_via_info, ...companyData } = formData;
         
@@ -616,63 +641,73 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             if (contactsError) throw contactsError;
           }
           
-          // Handle company addresses
+          // Handle company addresses - always delete existing ones first
+          const { error: deleteAddressError } = await supabase
+            .from('company_addresses')
+            .delete()
+            .eq('company_id', companyId)
+            .eq('company_ref_type', 'companies');
+          
+          if (deleteAddressError) throw deleteAddressError;
+          
+          // Then insert new addresses if any exist
           if (company_addresses.length > 0) {
-            // First, delete existing addresses
-            const { error: deleteAddressError } = await supabase
-              .from('company_addresses')
-              .delete()
-              .eq('company_id', companyId)
-              .eq('company_ref_type', 'companies');
-            
-            if (deleteAddressError) throw deleteAddressError;
-            
-            // Then insert new addresses
             const addressesToInsert = company_addresses
-              .filter(address => companyId && address.address_line1) // Only process if company_id and address_line1 exist
+              .filter(address => address.address_line1 && address.address_line1.trim()) // Only process if address_line1 exists and is not empty
               .map(address => ({
                 company_id: companyId!,
                 company_ref_type: 'companies',
-                address_line1: address.address_line1!,
-                address_line2: address.address_line2 || null,
-                city: address.city || null,
-                zip_code: address.zip_code || null,
-                country: address.country || null,
+                address_line1: address.address_line1!.trim(),
+                address_line2: address.address_line2?.trim() || null,
+                city: address.city?.trim() || null,
+                zip_code: address.zip_code?.trim() || null,
+                country: address.country?.trim() || null,
+                is_primary: address.is_primary || false,
               }));
             
-            const { error: addressesError } = await supabase
-              .from('company_addresses')
-              .insert(addressesToInsert);
-              
-            if (addressesError) throw addressesError;
+            if (addressesToInsert.length > 0) {
+              const { error: addressesError } = await supabase
+                .from('company_addresses')
+                .insert(addressesToInsert);
+                
+              if (addressesError) throw addressesError;
+            }
           }
           
-          // Handle ship-via data
+          // Handle ship-via data - always delete existing ones first
+          const { error: deleteShipViaError } = await supabase
+            .from('company_ship_via')
+            .delete()
+            .eq('company_id', companyId)
+            .eq('company_ref_type', 'companies');
+          
+          if (deleteShipViaError) throw deleteShipViaError;
+          
+          // Then insert new ones if any exist and are valid
           if (ship_via_info.length > 0) {
-            // First, delete existing ship-via records
-            const { error: deleteShipViaError } = await supabase
-              .from('company_ship_via')
-              .delete()
-              .eq('company_id', companyId)
-              .eq('company_ref_type', 'companies');
+            const shipViaToInsert = ship_via_info
+              .filter(shipVia => {
+                // Only process if we have a valid company name and account number
+                const hasCompanyName = shipVia.predefined_company && (shipVia.predefined_company !== 'CUSTOM' || shipVia.custom_company_name);
+                const hasAccountNo = shipVia.account_no && shipVia.account_no.trim();
+                return hasCompanyName && hasAccountNo;
+              })
+              .map(shipVia => ({
+                company_id: companyId,
+                company_ref_type: 'companies',
+                ship_company_name: shipVia.predefined_company === 'CUSTOM' ? (shipVia.custom_company_name || '') : (shipVia.predefined_company || ''),
+                account_no: shipVia.account_no,
+                owner: shipVia.owner || null,
+                ship_model: shipVia.ship_model || null
+              }));
             
-            if (deleteShipViaError) throw deleteShipViaError;
-            
-            // Then insert new ones
-            const shipViaToInsert = ship_via_info.map(shipVia => ({
-              company_id: companyId,
-              company_ref_type: 'companies',
-              ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              account_no: shipVia.account_no,
-              owner: shipVia.owner || null,
-              ship_model: shipVia.ship_model || null
-            }));
-            
-            const { error: shipViaError } = await supabase
-              .from('company_ship_via')
-              .insert(shipViaToInsert as any);
-            
-            if (shipViaError) throw shipViaError;
+            if (shipViaToInsert.length > 0) {
+              const { error: shipViaError } = await supabase
+                .from('company_ship_via')
+                .insert(shipViaToInsert);
+              
+              if (shipViaError) throw shipViaError;
+            }
           }
           
           toast.success('My Company updated successfully');
@@ -711,45 +746,68 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           
           // Handle company addresses
           if (company_addresses.length > 0) {
-            const addressesToInsert = company_addresses.map(address => ({
-              company_id: newCompany.company_id,
-              company_ref_type: 'companies',
-              address_line1: address.address_line1,
-              address_line2: address.address_line2 || null,
-              city: address.city || null,
-              zip_code: address.zip_code || null,
-              country: address.country || null,
-              is_primary: address.is_primary || false,
-            }));
+            const addressesToInsert = company_addresses
+              .filter(address => address.address_line1 && address.address_line1.trim()) // Only process if address_line1 exists and is not empty
+              .map(address => ({
+                company_id: newCompany.company_id,
+                company_ref_type: 'companies',
+                address_line1: address.address_line1!.trim(),
+                address_line2: address.address_line2?.trim() || null,
+                city: address.city?.trim() || null,
+                zip_code: address.zip_code?.trim() || null,
+                country: address.country?.trim() || null,
+                is_primary: address.is_primary || false,
+              }));
             
-            const { error: addressesError } = await supabase
-              .from('company_addresses')
-              .insert(addressesToInsert);
-              
-            if (addressesError) throw addressesError;
+            if (addressesToInsert.length > 0) {
+              const { error: addressesError } = await supabase
+                .from('company_addresses')
+                .insert(addressesToInsert);
+                
+              if (addressesError) throw addressesError;
+            }
           }
           
           // Handle ship-via data for new my company
           if (ship_via_info.length > 0) {
-            const shipViaToInsert = ship_via_info.map(shipVia => ({
-              company_id: newCompany.company_id,
-              company_ref_type: 'companies',
-              ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              account_no: shipVia.account_no,
-              owner: shipVia.owner || null,
-              ship_model: shipVia.ship_model || null
-            }));
+            const shipViaToInsert = ship_via_info
+              .filter(shipVia => {
+                // Only process if we have a valid company name and account number
+                const hasCompanyName = shipVia.predefined_company && (shipVia.predefined_company !== 'CUSTOM' || shipVia.custom_company_name);
+                const hasAccountNo = shipVia.account_no && shipVia.account_no.trim();
+                return hasCompanyName && hasAccountNo;
+              })
+              .map(shipVia => ({
+                company_id: newCompany.company_id,
+                company_ref_type: 'companies',
+                ship_company_name: shipVia.predefined_company === 'CUSTOM' ? (shipVia.custom_company_name || '') : (shipVia.predefined_company || ''),
+                account_no: shipVia.account_no,
+                owner: shipVia.owner || null,
+                ship_model: shipVia.ship_model || null
+              }));
             
-            const { error: shipViaError } = await supabase
-              .from('company_ship_via')
-              .insert(shipViaToInsert as any);
-            
-            if (shipViaError) throw shipViaError;
+            if (shipViaToInsert.length > 0) {
+              const { error: shipViaError } = await supabase
+                .from('company_ship_via')
+                .insert(shipViaToInsert);
+              
+              if (shipViaError) throw shipViaError;
+            }
           }
           
           toast.success('My Company created successfully');
         }
       } else if (isExternalCompanyFormData(formData)) {
+        if (!formData.company_name?.trim()) {
+          toast.error('Company name is required');
+          return;
+        }
+        // Check code validation for external companies too if code is provided
+        if (formData.company_code?.trim() && codeValidation.isValid === false) {
+          toast.error('Please use a unique company code or select one of the suggestions');
+          return;
+        }
+        
         // Handle External Company form submission
         const { formType, ship_via_info, company_addresses, company_contacts, ...companyData } = formData;
         
@@ -821,63 +879,73 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             if (contactsError) throw contactsError;
           }
           
-          // Handle company addresses
+          // Handle company addresses - always delete existing ones first
+          const { error: deleteAddressError } = await supabase
+            .from('company_addresses')
+            .delete()
+            .eq('company_id', company.company_id)
+            .eq('company_ref_type', 'companies');
+          
+          if (deleteAddressError) throw deleteAddressError;
+          
+          // Then insert new addresses if any exist
           if (company_addresses.length > 0) {
-            // First, delete existing addresses
-            const { error: deleteAddressError } = await supabase
-              .from('company_addresses')
-              .delete()
-              .eq('company_id', company.company_id)
-              .eq('company_ref_type', 'companies');
-            
-            if (deleteAddressError) throw deleteAddressError;
-            
-            // Then insert new addresses
             const addressesToInsert = company_addresses
-              .filter(address => company.company_id && address.address_line1) // Only process if company_id and address_line1 exist
+              .filter(address => address.address_line1 && address.address_line1.trim()) // Only process if address_line1 exists and is not empty
               .map(address => ({
                 company_id: company.company_id!,
                 company_ref_type: 'companies',
-                address_line1: address.address_line1!,
-                address_line2: address.address_line2 || null,
-                city: address.city || null,
-                zip_code: address.zip_code || null,
-                country: address.country || null,
+                address_line1: address.address_line1!.trim(),
+                address_line2: address.address_line2?.trim() || null,
+                city: address.city?.trim() || null,
+                zip_code: address.zip_code?.trim() || null,
+                country: address.country?.trim() || null,
+                is_primary: address.is_primary || false,
               }));
             
-            const { error: addressesError } = await supabase
-              .from('company_addresses')
-              .insert(addressesToInsert);
-              
-            if (addressesError) throw addressesError;
+            if (addressesToInsert.length > 0) {
+              const { error: addressesError } = await supabase
+                .from('company_addresses')
+                .insert(addressesToInsert);
+                
+              if (addressesError) throw addressesError;
+            }
           }
           
-          // Handle ship-via data
+          // Handle ship-via data - always delete existing ones first
+          const { error: deleteShipViaError } = await supabase
+            .from('company_ship_via')
+            .delete()
+            .eq('company_id', company.company_id)
+            .eq('company_ref_type', 'companies');
+          
+          if (deleteShipViaError) throw deleteShipViaError;
+          
+          // Then insert new ones if any exist and are valid
           if (ship_via_info.length > 0) {
-            // First, delete existing ship-via records
-            const { error: deleteShipViaError } = await supabase
-              .from('company_ship_via')
-              .delete()
-              .eq('company_id', company.company_id)
-              .eq('company_ref_type', 'companies');
+            const shipViaToInsert = ship_via_info
+              .filter(shipVia => {
+                // Only process if we have a valid company name and account number
+                const hasCompanyName = shipVia.predefined_company && (shipVia.predefined_company !== 'CUSTOM' || shipVia.custom_company_name);
+                const hasAccountNo = shipVia.account_no && shipVia.account_no.trim();
+                return hasCompanyName && hasAccountNo;
+              })
+              .map(shipVia => ({
+                company_id: company.company_id!,
+                company_ref_type: 'companies',
+                ship_company_name: shipVia.predefined_company === 'CUSTOM' ? (shipVia.custom_company_name || '') : (shipVia.predefined_company || ''),
+                account_no: shipVia.account_no,
+                owner: shipVia.owner || null,
+                ship_model: shipVia.ship_model || null
+              }));
             
-            if (deleteShipViaError) throw deleteShipViaError;
-            
-            // Then insert new ones
-            const shipViaToInsert = ship_via_info.map(shipVia => ({
-              company_id: company.company_id,
-              company_ref_type: 'companies',
-              ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              account_no: shipVia.account_no,
-              owner: shipVia.owner || null,
-              ship_model: shipVia.ship_model || null
-            }));
-            
-            const { error: shipViaError } = await supabase
-              .from('company_ship_via')
-              .insert(shipViaToInsert as any);
-            
-            if (shipViaError) throw shipViaError;
+            if (shipViaToInsert.length > 0) {
+              const { error: shipViaError } = await supabase
+                .from('company_ship_via')
+                .insert(shipViaToInsert);
+              
+              if (shipViaError) throw shipViaError;
+            }
           }
           
           toast.success('Company updated successfully');
@@ -935,35 +1003,53 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
           
           // Handle company addresses
           if (company_addresses.length > 0) {
-            const addressesToInsert = company_addresses.map(address => ({
-              ...address,
-              company_id: newCompany.company_id,
-              company_ref_type: 'companies'
-            }));
+            const addressesToInsert = company_addresses
+              .filter(address => address.address_line1 && address.address_line1.trim()) // Only process if address_line1 exists and is not empty
+              .map(address => ({
+                company_id: newCompany.company_id,
+                company_ref_type: 'companies',
+                address_line1: address.address_line1!.trim(),
+                address_line2: address.address_line2?.trim() || null,
+                city: address.city?.trim() || null,
+                zip_code: address.zip_code?.trim() || null,
+                country: address.country?.trim() || null,
+                is_primary: address.is_primary || false,
+              }));
             
-            const { error: addressesError } = await supabase
-              .from('company_addresses')
-              .insert(addressesToInsert as any);
-              
-            if (addressesError) throw addressesError;
+            if (addressesToInsert.length > 0) {
+              const { error: addressesError } = await supabase
+                .from('company_addresses')
+                .insert(addressesToInsert);
+                
+              if (addressesError) throw addressesError;
+            }
           }
           
           // Handle ship-via data for new company
           if (ship_via_info.length > 0) {
-            const shipViaToInsert = ship_via_info.map(shipVia => ({
-              company_id: newCompany.company_id,
-              company_ref_type: 'companies',
-              ship_company_name: shipVia.predefined_company === 'CUSTOM' ? shipVia.custom_company_name : shipVia.predefined_company,
-              account_no: shipVia.account_no,
-              owner: shipVia.owner || null,
-              ship_model: shipVia.ship_model || null
-            }));
+            const shipViaToInsert = ship_via_info
+              .filter(shipVia => {
+                // Only process if we have a valid company name and account number
+                const hasCompanyName = shipVia.predefined_company && (shipVia.predefined_company !== 'CUSTOM' || shipVia.custom_company_name);
+                const hasAccountNo = shipVia.account_no && shipVia.account_no.trim();
+                return hasCompanyName && hasAccountNo;
+              })
+              .map(shipVia => ({
+                company_id: newCompany.company_id,
+                company_ref_type: 'companies',
+                ship_company_name: shipVia.predefined_company === 'CUSTOM' ? (shipVia.custom_company_name || '') : (shipVia.predefined_company || ''),
+                account_no: shipVia.account_no,
+                owner: shipVia.owner || null,
+                ship_model: shipVia.ship_model || null
+              }));
             
-            const { error: shipViaError } = await supabase
-              .from('company_ship_via')
-              .insert(shipViaToInsert as any);
-            
-            if (shipViaError) throw shipViaError;
+            if (shipViaToInsert.length > 0) {
+              const { error: shipViaError } = await supabase
+                .from('company_ship_via')
+                .insert(shipViaToInsert);
+              
+              if (shipViaError) throw shipViaError;
+            }
           }
           
           toast.success('Company created successfully');
@@ -983,7 +1069,6 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         // Unique constraint violation
         if (error.message?.includes('my_company_code') || error.message?.includes('company_code')) {
           toast.error('This company code is already in use. Please choose a different code.');
-          setActiveTab('basic');
           // Trigger validation to show suggestions
           const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
           const currentCode = form.getValues(codeField);
@@ -1011,39 +1096,50 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px]">
-        <DialogHeader>
-          <DialogTitle>{company ? 'Edit' : 'Add'} {isMyCompanyType ? 'My Company' : 'External Company'}</DialogTitle>
-          <DialogDescription>{company ? 'Update' : 'Create'} company information.</DialogDescription>
+      <DialogContent className="sm:max-w-[1000px] max-h-[95vh] p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+          <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            {isMyCompanyType ? '🏢' : '🏭'} {company ? 'Edit' : 'Add'} {isMyCompanyType ? 'My Company' : 'External Company'}
+          </DialogTitle>
+          <DialogDescription className="text-gray-600 mt-2">
+            {company ? 'Update' : 'Create'} company information and manage contacts, addresses, and shipping methods.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4 max-h-[80vh] overflow-y-auto pr-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="contacts">Contacts</TabsTrigger>
-              <TabsTrigger value="addresses">Addresses</TabsTrigger>
-              <TabsTrigger value="shipping">Shipping</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="basic" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Company Name</Label>
-                  <Input {...form.register(isMyCompanyType ? 'my_company_name' : 'company_name')} />
-                </div>
-                <div>
-                  <Label>Company Code</Label>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input 
-                        {...form.register(isMyCompanyType ? 'my_company_code' : 'company_code')} 
-                        placeholder={!isMyCompanyType ? "Leave empty for auto-generation" : ""} 
-                        className={`pr-10 ${
-                          codeValidation.isValid === false ? 'border-red-500 focus:border-red-500' :
-                          codeValidation.isValid === true ? 'border-green-500 focus:border-green-500' : ''
-                        }`}
-                      />
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+          <div className="px-6 py-6 max-h-[75vh] overflow-y-auto space-y-8 flex-1">
+          {/* Basic Information Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">📝</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Basic Information</h3>
+                <p className="text-sm text-gray-500">Company name, code, and type</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Company Name *</Label>
+                <Input 
+                  {...form.register(isMyCompanyType ? 'my_company_name' : 'company_name')} 
+                  className="h-11"
+                  placeholder="Enter company name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Company Code</Label>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Input 
+                      {...form.register(isMyCompanyType ? 'my_company_code' : 'company_code')} 
+                      placeholder={!isMyCompanyType ? "Leave empty for auto-generation" : "Enter company code"} 
+                      className={`h-11 pr-10 ${
+                        codeValidation.isValid === false ? 'border-red-500 focus:border-red-500 bg-red-50' :
+                        codeValidation.isValid === true ? 'border-green-500 focus:border-green-500 bg-green-50' : ''
+                      }`}
+                    />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {codeValidation.isChecking && (
                           <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
@@ -1057,34 +1153,36 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                       </div>
                     </div>
                     
-                    {/* Validation message */}
-                    {codeValidation.message && (
-                      <div className={`text-sm ${codeValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                        {codeValidation.message}
+                  {/* Validation message */}
+                  {codeValidation.message && (
+                    <div className={`flex items-center gap-2 text-sm p-2 rounded-md ${
+                      codeValidation.isValid ? 'text-green-700 bg-green-50 border border-green-200' : 'text-red-700 bg-red-50 border border-red-200'
+                    }`}>
+                      {codeValidation.isValid ? '✅' : '❌'} {codeValidation.message}
+                    </div>
+                  )}
+                  
+                  {/* Code suggestions */}
+                  {codeValidation.suggestions.length > 0 && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md space-y-2">
+                      <div className="text-sm font-medium text-yellow-800">💡 Suggestions:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {codeValidation.suggestions.map((suggestion) => (
+                          <Badge 
+                            key={suggestion}
+                            variant="outline" 
+                            className="cursor-pointer hover:bg-yellow-100 border-yellow-300 text-yellow-800 transition-colors"
+                            onClick={() => {
+                              form.setValue(isMyCompanyType ? 'my_company_code' : 'company_code', suggestion);
+                              validateCompanyCode(suggestion);
+                            }}
+                          >
+                            {suggestion}
+                          </Badge>
+                        ))}
                       </div>
-                    )}
-                    
-                    {/* Code suggestions */}
-                    {codeValidation.suggestions.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="text-sm text-gray-600">Suggestions:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {codeValidation.suggestions.map((suggestion) => (
-                            <Badge 
-                              key={suggestion}
-                              variant="outline" 
-                              className="cursor-pointer hover:bg-blue-50 text-xs"
-                              onClick={() => {
-                                form.setValue(isMyCompanyType ? 'my_company_code' : 'company_code', suggestion);
-                                validateCompanyCode(suggestion);
-                              }}
-                            >
-                              {suggestion}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    </div>
+                  )}
                     
                     {/* External company preview */}
                     {!isMyCompanyType && codePreview && (
@@ -1106,110 +1204,239 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 </div>
               </div>
 
-              {!isMyCompanyType && (
-                <div>
-                  <Label>Company Type</Label>
-                  <Select
-                    value={form.watch('company_type')}
-                    onValueChange={(value) => form.setValue('company_type', value as 'vendor' | 'customer' | 'both')}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vendor">Vendor</SelectItem>
-                      <SelectItem value="customer">Customer</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {!isMyCompanyType && (
+              <div className="md:col-span-2 space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Company Type *</Label>
+                <Select
+                  value={form.watch('company_type')}
+                  onValueChange={(value) => form.setValue('company_type', value as 'vendor' | 'customer' | 'both')}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select company type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vendor">🏭 Vendor</SelectItem>
+                    <SelectItem value="customer">🛒 Customer</SelectItem>
+                    <SelectItem value="both">🔄 Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            </div>
+          </div>
+
+          {/* Contacts Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl">👥</span>
                 </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Contacts</h3>
+                  <p className="text-sm text-gray-500">Manage contact persons for this company</p>
+                </div>
+              </div>
+              <Button 
+                type="button" 
+                onClick={handleAddContact}
+                className="bg-green-600 hover:bg-green-700 text-white shadow-md"
+              >
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Contact
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {contactFields.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
+                  <span className="text-4xl mb-2 block">👤</span>
+                  No contacts added yet. Click "Add Contact" to get started.
+                </div>
+              ) : (
+                contactFields.map((field, index) => (
+                  <div key={field.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">👤</span>
+                        <span className="font-medium text-gray-700">Contact {index + 1}</span>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => removeContact(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Contact Name *</Label>
+                        <Input 
+                          {...form.register(`company_contacts.${index}.contact_name` as const)} 
+                          className="h-10"
+                          placeholder="Full name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Email</Label>
+                        <Input 
+                          type="email" 
+                          {...form.register(`company_contacts.${index}.email` as const)} 
+                          className="h-10"
+                          placeholder="email@example.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Phone</Label>
+                        <Input 
+                          {...form.register(`company_contacts.${index}.phone` as const)} 
+                          className="h-10"
+                          placeholder="+1 (555) 123-4567"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
-            </TabsContent>
+              </div>
+          </div>
 
-            <TabsContent value="contacts" className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Contacts</h3>
-                {contactFields.map((field, index) => (
-                  <div key={field.id} className="space-y-2 rounded-md border p-3">
-                    <div className="flex justify-end">
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeContact(index)}>
+          {/* Addresses Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl">🏠</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Addresses</h3>
+                  <p className="text-sm text-gray-500">Manage shipping and billing addresses</p>
+                </div>
+              </div>
+              <Button 
+                type="button" 
+                onClick={handleAddAddress}
+                className="bg-purple-600 hover:bg-purple-700 text-white shadow-md"
+              >
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Address
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {addressFields.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
+                  <span className="text-4xl mb-2 block">📍</span>
+                  No addresses added yet. Click "Add Address" to get started.
+                </div>
+              ) : (
+                addressFields.map((field, index) => (
+                  <div key={field.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📍</span>
+                        <span className="font-medium text-gray-700">Address {index + 1}</span>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => removeAddress(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Contact Name</Label>
-                        <Input {...form.register(`company_contacts.${index}.contact_name` as const)} />
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Street Address *</Label>
+                        <Input 
+                          {...form.register(`company_addresses.${index}.address_line1` as const)} 
+                          className="h-10"
+                          placeholder="123 Main Street"
+                        />
                       </div>
-                      <div>
-                        <Label>Email</Label>
-                        <Input type="email" {...form.register(`company_contacts.${index}.email` as const)} />
-                      </div>
-                      <div>
-                        <Label>Phone</Label>
-                        <Input {...form.register(`company_contacts.${index}.phone` as const)} />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Zip Code</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.zip_code` as const)} 
+                            className="h-10"
+                            placeholder="12345"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">City</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.city` as const)} 
+                            className="h-10"
+                            placeholder="New York"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Country</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.country` as const)} 
+                            className="h-10"
+                            placeholder="United States"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
-                <Button type="button" variant="outline" onClick={handleAddContact}>
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add Contact
-                </Button>
+                ))
+              )}
               </div>
-            </TabsContent>
+          </div>
 
-            <TabsContent value="addresses" className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Addresses</h3>
-                {addressFields.map((field, index) => (
-                  <div key={field.id} className="space-y-2 rounded-md border p-3">
-                    <div className="flex justify-end">
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeAddress(index)}>
+          {/* Shipping Methods Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Truck className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Shipping Methods</h3>
+                  <p className="text-sm text-gray-500">Configure shipping companies and account details</p>
+                </div>
+              </div>
+              <Button 
+                type="button" 
+                onClick={handleAddShipVia}
+                className="bg-orange-600 hover:bg-orange-700 text-white shadow-md"
+              >
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Shipping Method
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {shipViaFields.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
+                  <span className="text-4xl mb-2 block">🚚</span>
+                  No shipping methods added yet. Click "Add Shipping Method" to get started.
+                </div>
+              ) : (
+                shipViaFields.map((field, index) => (
+                  <div key={field.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📦</span>
+                        <span className="font-medium text-gray-700">Shipping Method {index + 1}</span>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => removeShipVia(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div>
-                      <Label>Address</Label>
-                      <Input {...form.register(`company_addresses.${index}.address_line1` as const)} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label>Zip Code</Label>
-                        <Input {...form.register(`company_addresses.${index}.zip_code` as const)} />
-                      </div>
-                      <div>
-                        <Label>City</Label>
-                        <Input {...form.register(`company_addresses.${index}.city` as const)} />
-                      </div>
-                      <div>
-                        <Label>Country</Label>
-                        <Input {...form.register(`company_addresses.${index}.country` as const)} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" onClick={handleAddAddress}>
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add Address
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="shipping" className="space-y-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium flex items-center gap-2">
-                    <Truck className="h-5 w-5" />
-                    Shipping Methods
-                  </h3>
-                  {shipViaFields.map((field, index) => (
-                    <div key={field.id} className="space-y-4 rounded-md border p-4">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium">Shipping Method {index + 1}</h4>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeShipVia(index)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Shipping Company</Label>
+                    
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Shipping Company *</Label>
                           <Select
                             value={form.watch(`ship_via_info.${index}.predefined_company`) || ''}
                             onValueChange={(value) => {
@@ -1219,75 +1446,102 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                               }
                             }}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="h-11">
                               <SelectValue placeholder="Select shipping company" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="DHL">DHL</SelectItem>
-                              <SelectItem value="FEDEX">FedEx</SelectItem>
-                              <SelectItem value="UPS">UPS</SelectItem>
-                              <SelectItem value="TNT">TNT</SelectItem>
-                              <SelectItem value="ARAMEX">Aramex</SelectItem>
-                              <SelectItem value="DPD">DPD</SelectItem>
-                              <SelectItem value="SCHENKER">Schenker</SelectItem>
-                              <SelectItem value="KUEHNE_NAGEL">Kuehne + Nagel</SelectItem>
-                              <SelectItem value="EXPEDITORS">Expeditors</SelectItem>
-                              <SelectItem value="PANALPINA">Panalpina</SelectItem>
-                              <SelectItem value="CUSTOM">Custom</SelectItem>
+                              <SelectItem value="DHL">🚛 DHL</SelectItem>
+                              <SelectItem value="FEDEX">📦 FedEx</SelectItem>
+                              <SelectItem value="UPS">🟤 UPS</SelectItem>
+                              <SelectItem value="TNT">🟠 TNT</SelectItem>
+                              <SelectItem value="ARAMEX">🔴 Aramex</SelectItem>
+                              <SelectItem value="DPD">🟢 DPD</SelectItem>
+                              <SelectItem value="SCHENKER">🔵 Schenker</SelectItem>
+                              <SelectItem value="KUEHNE_NAGEL">⚪ Kuehne + Nagel</SelectItem>
+                              <SelectItem value="EXPEDITORS">🟣 Expeditors</SelectItem>
+                              <SelectItem value="PANALPINA">🟡 Panalpina</SelectItem>
+                              <SelectItem value="CUSTOM">✏️ Custom</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         
                         {form.watch(`ship_via_info.${index}.predefined_company`) === 'CUSTOM' && (
-                          <div>
-                            <Label>Custom Company Name</Label>
-                            <Input {...form.register(`ship_via_info.${index}.custom_company_name` as const)} 
-                                   placeholder="Enter custom shipping company name" />
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-gray-700">Custom Company Name *</Label>
+                            <Input 
+                              {...form.register(`ship_via_info.${index}.custom_company_name` as const)} 
+                              className="h-11"
+                              placeholder="Enter custom shipping company name" 
+                            />
                           </div>
                         )}
                         
-                        <div>
-                          <Label>Account Number</Label>
-                          <Input {...form.register(`ship_via_info.${index}.account_no` as const)} />
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Account Number *</Label>
+                          <Input 
+                            {...form.register(`ship_via_info.${index}.account_no` as const)} 
+                            className="h-11"
+                            placeholder="Enter account number"
+                          />
                         </div>
                         
-                        <div>
-                          <Label>Owner (Optional)</Label>
-                          <Input {...form.register(`ship_via_info.${index}.owner` as const)} />
-                        </div>
-                        
-                        <div>
-                          <Label>Ship Model</Label>
-                          <Select
-                            value={form.watch(`ship_via_info.${index}.ship_model`) || ''}
-                            onValueChange={(value) => form.setValue(`ship_via_info.${index}.ship_model`, value as any)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select ship model" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="IMPORT">Import</SelectItem>
-                              <SelectItem value="THIRD_PARTY_EXPORT">3rd Party Export</SelectItem>
-                              <SelectItem value="GROUND">Ground</SelectItem>
-                              <SelectItem value="SEA">Sea</SelectItem>
-                              <SelectItem value="AIRLINE">Airline</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Owner</Label>
+                          <Input 
+                            {...form.register(`ship_via_info.${index}.owner` as const)} 
+                            className="h-11"
+                            placeholder="Account owner (optional)"
+                          />
                         </div>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Shipping Model</Label>
+                        <Select
+                          value={form.watch(`ship_via_info.${index}.ship_model`) || ''}
+                          onValueChange={(value) => form.setValue(`ship_via_info.${index}.ship_model`, value as any)}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select shipping model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="IMPORT">📥 Import</SelectItem>
+                            <SelectItem value="THIRD_PARTY_EXPORT">🔄 3rd Party Export</SelectItem>
+                            <SelectItem value="GROUND">🚛 Ground</SelectItem>
+                            <SelectItem value="SEA">🚢 Sea</SelectItem>
+                            <SelectItem value="AIRLINE">✈️ Airline</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  ))}
-                  <Button type="button" variant="outline" onClick={handleAddShipVia}>
-                    <PlusCircle className="h-4 w-4 mr-2" /> Add Shipping Method
-                  </Button>
-                </div>
-              </TabsContent>
-          </Tabs>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Saving...' : company ? 'Update' : 'Create'}
+          <DialogFooter className="px-6 py-4 border-t bg-gray-50 space-x-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              className="px-6 py-2 border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={form.formState.isSubmitting}
+              className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {form.formState.isSubmitting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                company ? 'Update Company' : 'Create Company'
+              )}
             </Button>
           </DialogFooter>
         </form>
