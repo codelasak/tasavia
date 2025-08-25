@@ -4,7 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 // Server-side Supabase client with service role key
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 );
 
 // Regular client for auth verification
@@ -14,31 +20,71 @@ const supabase = createClient(
 );
 
 async function verifyAdmin(authHeader: string | null) {
+  const fs = require('fs');
+  const logMsg = (msg: string) => {
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${msg}\n`;
+    console.log(msg);
+    fs.appendFileSync('/Users/eshagh/Desktop/webCode/tasavia/admin-debug.log', logLine);
+  };
+  
+  logMsg('[DEBUG] verifyAdmin called with authHeader present: ' + !!authHeader);
+  
   if (!authHeader?.startsWith('Bearer ')) {
+    logMsg('[DEBUG] No valid Bearer token found');
     return null;
   }
 
   const token = authHeader.substring(7);
+  logMsg('[DEBUG] Extracted token length: ' + token.length);
   
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
+    // Create user-authenticated client
+    const userSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        }
+      }
+    );
 
-    // Check if user is admin by querying user_roles directly
-    const { data: adminCheck } = await supabaseAdmin
+    logMsg('[DEBUG] Verifying user token...');
+    const { data: { user }, error } = await userSupabase.auth.getUser();
+    logMsg(`[DEBUG] User verification result: user=${!!user}, userId=${user?.id}, error=${error?.message}`);
+    
+    if (error || !user) {
+      logMsg('[DEBUG] User verification failed: ' + (error?.message || 'No user returned'));
+      return null;
+    }
+
+    logMsg('[DEBUG] Checking admin status for user using authenticated session: ' + user.id);
+    
+    // Use user's authenticated session to check their own roles
+    const { data: userRoles, error: roleError } = await userSupabase
       .from('user_roles')
       .select(`
+        role_id,
         roles!inner(role_name)
       `)
       .eq('user_id', user.id);
     
-    const isAdmin = adminCheck?.some((role: any) => 
-      role.roles?.role_name === 'admin' || role.roles?.role_name === 'super_admin'
-    );
+    logMsg(`[DEBUG] User roles query result: userRoles=${JSON.stringify(userRoles)}, roleError=${roleError?.message}, roleCount=${userRoles?.length}`);
+    
+    const isAdmin = userRoles?.some((userRole: any) => {
+      const roleName = userRole.roles?.role_name;
+      logMsg('[DEBUG] Checking role: ' + roleName);
+      return roleName === 'admin' || roleName === 'super_admin';
+    });
+    
+    logMsg('[DEBUG] Final admin check result: ' + isAdmin);
     
     return isAdmin ? user : null;
   } catch (error) {
-    console.error('Admin verification error:', error);
+    logMsg('[DEBUG] Admin verification exception: ' + error);
     return null;
   }
 }
@@ -264,6 +310,161 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Admin create user error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    console.log('PUT /api/admin/users - Updating user');
+    
+    const authHeader = request.headers.get('authorization');
+    const adminUser = await verifyAdmin(authHeader);
+    
+    if (!adminUser) {
+      console.log('User update failed: Unauthorized');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { userId, email, phone, password, name, allowedLoginMethods, role } = body;
+    
+    console.log('Updating user:', userId, 'with data:', { email, phone, name, allowedLoginMethods, role });
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format if provided
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'Please provide a valid email address' },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone format if provided
+    if (phone && !/^\+[1-9]\d{1,14}$/.test(phone)) {
+      return NextResponse.json(
+        { error: 'Please provide a valid phone number in international format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate role if provided
+    if (role && !['user', 'admin', 'super_admin'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Invalid role. Must be user, admin, or super_admin' },
+        { status: 400 }
+      );
+    }
+
+    // Validate login methods if provided
+    if (allowedLoginMethods && !['email_only', 'phone_only', 'both'].includes(allowedLoginMethods)) {
+      return NextResponse.json(
+        { error: 'Invalid login methods. Must be email_only, phone_only, or both' },
+        { status: 400 }
+      );
+    }
+
+    // Prepare auth updates
+    const authUpdates: any = {};
+    if (email) authUpdates.email = email;
+    if (phone) authUpdates.phone = phone;
+    if (password) authUpdates.password = password;
+    if (name) authUpdates.user_metadata = { name };
+
+    // Update auth user if there are auth-related changes
+    if (Object.keys(authUpdates).length > 0) {
+      console.log('Updating auth user data...');
+      const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        authUpdates
+      );
+      
+      if (authUpdateError) {
+        console.error('Auth user update error:', authUpdateError);
+        throw new Error(`Failed to update user: ${authUpdateError.message}`);
+      }
+    }
+
+    // Update account record
+    const accountUpdates: any = { updated_at: new Date().toISOString() };
+    if (phone !== undefined) accountUpdates.phone_number = phone;
+    if (name !== undefined) accountUpdates.name = name;
+    if (allowedLoginMethods !== undefined) accountUpdates.allowed_login_methods = allowedLoginMethods;
+
+    console.log('Updating account record...', accountUpdates);
+    const { error: accountError } = await supabaseAdmin
+      .from('accounts')
+      .upsert({
+        id: userId,
+        ...accountUpdates
+      });
+
+    if (accountError) {
+      console.error('Account update error:', accountError);
+      // Don't fail the entire update if account update fails
+      console.warn('Failed to update account record, continuing...');
+    }
+
+    // Update user role if provided
+    if (role) {
+      console.log('Updating user role to:', role);
+      
+      try {
+        // First, get the role ID
+        const { data: roleData, error: roleError } = await supabaseAdmin
+          .from('roles')
+          .select('role_id')
+          .eq('role_name', role)
+          .single();
+
+        if (roleError || !roleData) {
+          console.error('Role not found:', role, roleError);
+          throw new Error(`Role '${role}' not found in system`);
+        }
+
+        // Delete existing role assignments for this user
+        await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+
+        // Assign the new role to the user
+        const { error: userRoleError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role_id: roleData.role_id,
+            assigned_at: new Date().toISOString()
+          });
+
+        if (userRoleError) {
+          console.error('Failed to assign role:', userRoleError);
+          throw new Error(`Failed to assign role: ${userRoleError.message}`);
+        }
+
+        console.log('Role updated successfully');
+      } catch (roleUpdateError) {
+        console.error('Error updating role:', roleUpdateError);
+        throw roleUpdateError;
+      }
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'User updated successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Admin update user error:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

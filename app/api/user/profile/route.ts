@@ -28,7 +28,21 @@ async function verifyUser(authHeader: string | null) {
   
   try {
     console.log('Verifying user token...');
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    // Create user-authenticated client
+    const userSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        }
+      }
+    );
+
+    const { data: { user }, error } = await userSupabase.auth.getUser();
     
     if (error) {
       console.error('Token verification error:', error.message);
@@ -41,7 +55,7 @@ async function verifyUser(authHeader: string | null) {
     }
     
     console.log(`User verified successfully: ${user.id}`);
-    return user;
+    return { user, userSupabase };
   } catch (error) {
     console.error('User verification exception:', error);
     return null;
@@ -55,9 +69,9 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     console.log('Authorization header present:', !!authHeader);
     
-    const user = await verifyUser(authHeader);
+    const result = await verifyUser(authHeader);
     
-    if (!user) {
+    if (!result) {
       console.error('User verification failed, returning 401');
       return NextResponse.json({ 
         success: false,
@@ -65,11 +79,12 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
+    const { user, userSupabase } = result;
     console.log(`Fetching profile data for user: ${user.id}`);
 
-    // Get account data
+    // Get account data using user's authenticated session
     console.log('Fetching account data...');
-    const { data: accountData, error: accountError } = await supabase
+    const { data: accountData, error: accountError } = await userSupabase
       .from('accounts')
       .select('*')
       .eq('id', user.id)
@@ -84,9 +99,9 @@ export async function GET(request: NextRequest) {
       console.log('Account data fetched successfully');
     }
 
-    // Get user role
+    // Get user role using user's authenticated session
     console.log('Fetching user role...');
-    const { data: roleData, error: roleError } = await supabase
+    const { data: roleData, error: roleError } = await userSupabase
       .from('user_roles')
       .select(`
         roles!inner(role_name, description)
@@ -132,11 +147,13 @@ export async function PATCH(request: NextRequest) {
     console.log('PATCH /api/user/profile - Updating user profile');
     
     const authHeader = request.headers.get('authorization');
-    const user = await verifyUser(authHeader);
+    const result = await verifyUser(authHeader);
     
-    if (!user) {
+    if (!result) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { user } = result;
 
     const body = await request.json();
     const { name, phone } = body;

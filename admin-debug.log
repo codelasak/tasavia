@@ -1,0 +1,136 @@
+[2025-08-25T15:05:19.798Z] [DEBUG] Environment check:
+[2025-08-25T15:05:19.799Z] [DEBUG] NEXT_PUBLIC_SUPABASE_URL: true (https://sup.tasavia....)
+[2025-08-25T15:05:19.799Z] [DEBUG] SUPABASE_SERVICE_ROLE_KEY: true (length: 180)
+[2025-08-25T15:05:19.799Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T15:05:19.799Z] [DEBUG] Extracted token length: 619
+[2025-08-25T15:05:19.799Z] [DEBUG] Verifying user token...
+[2025-08-25T15:05:19.994Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T15:05:19.994Z] [DEBUG] Checking admin status for user: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T15:05:20.192Z] [DEBUG] Test admin connection result: testQuery=null, testError=permission denied for schema public
+[2025-08-25T15:05:20.278Z] [DEBUG] Role query result: adminCheck=null, roleError=permission denied for schema public, roleCount=undefined
+[2025-08-25T15:05:20.279Z] [DEBUG] Final admin check result: undefined
+[2025-08-25T15:08:11.590Z] [DEBUG] Environment check:
+[2025-08-25T15:08:11.596Z] [DEBUG] NEXT_PUBLIC_SUPABASE_URL: true (https://sup.tasavia....)
+[2025-08-25T15:08:11.596Z] [DEBUG] SUPABASE_SERVICE_ROLE_KEY: true (length: 180)
+[2025-08-25T15:08:11.596Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T15:08:11.596Z] [DEBUG] Extracted token length: 619
+[2025-08-25T15:08:11.596Z] [DEBUG] Verifying user token...
+[2025-08-25T15:08:11.955Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T15:08:11.956Z] [DEBUG] Checking admin status for user: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T15:10:18.950Z] [DEBUG] Environment check:
+[2025-08-25T15:10:18.951Z] [DEBUG] NEXT_PUBLIC_SUPABASE_URL: true (https://sup.tasavia....)
+[2025-08-25T15:10:18.951Z] [DEBUG] SUPABASE_SERVICE_ROLE_KEY: true (length: 180)
+[2025-08-25T15:10:18.951Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T15:10:18.951Z] [DEBUG] Extracted token length: 619
+[2025-08-25T15:10:18.951Z] [DEBUG] Verifying user token...
+[2025-08-25T15:10:19.146Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T15:10:19.146Z] [DEBUG] Checking admin status for user: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T15:10:19.347Z] [DEBUG] Test admin connection result: testQuery=null, testError=permission denied for schema public
+[2025-08-25T15:10:19.405Z] [DEBUG] Role query result: adminCheck=null, roleError=permission denied for schema public, roleCount=undefined
+[2025-08-25T15:10:19.406Z] [DEBUG] Final admin check result: undefined
+[2025-08-25T17:16:31.696Z] [DEBUG] Environment check:
+[2025-08-25T17:16:31.696Z] [DEBUG] NEXT_PUBLIC_SUPABASE_URL: true (https://sup.tasavia....)
+[2025-08-25T17:16:31.696Z] [DEBUG] SUPABASE_SERVICE_ROLE_KEY: true (length: 180)
+[2025-08-25T17:16:31.696Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:16:31.697Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:16:31.697Z] [DEBUG] Verifying user token...
+[2025-08-25T17:16:31.892Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:16:31.893Z] [DEBUG] Checking admin status for user: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:16:32.081Z] [DEBUG] Test admin connection result: testQuery=null, testError=permission denied for schema public
+[2025-08-25T17:16:32.149Z] [DEBUG] Admin check result: adminCheck=null, roleError=permission denied for schema public
+[2025-08-25T17:16:32.149Z] [DEBUG] Final admin check result: false
+[2025-08-25T17:18:16.960Z] [DEBUG] Environment check:
+[2025-08-25T17:18:16.960Z] [DEBUG] NEXT_PUBLIC_SUPABASE_URL: true (https://sup.tasavia....)
+[2025-08-25T17:18:16.960Z] [DEBUG] SUPABASE_SERVICE_ROLE_KEY: true (length: 180)
+[2025-08-25T17:18:16.960Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:18:16.961Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:18:16.961Z] [DEBUG] Verifying user token...
+[2025-08-25T17:18:17.147Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:18:17.147Z] [DEBUG] Checking admin status for user: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:18:17.344Z] [DEBUG] Test admin connection result: testQuery=null, testError=permission denied for schema public
+[2025-08-25T17:18:17.402Z] [DEBUG] Direct admin check result: adminCheck=null, roleError=permission denied for schema public, roleCount=undefined
+[2025-08-25T17:18:17.402Z] [DEBUG] Final admin check result: null
+[2025-08-25T17:22:29.255Z] [DEBUG] Environment check:
+[2025-08-25T17:22:29.255Z] [DEBUG] NEXT_PUBLIC_SUPABASE_URL: true (https://sup.tasavia....)
+[2025-08-25T17:22:29.255Z] [DEBUG] SUPABASE_SERVICE_ROLE_KEY: true (length: 180)
+[2025-08-25T17:22:29.255Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:22:29.255Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:22:29.255Z] [DEBUG] Verifying user token...
+[2025-08-25T17:22:29.438Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:22:29.438Z] [DEBUG] Checking admin status for user: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:22:29.637Z] [DEBUG] Function admin check result: adminCheck=null, roleError=permission denied for schema public
+[2025-08-25T17:22:29.637Z] [DEBUG] Final admin check result: false
+[2025-08-25T17:23:00.238Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:23:00.239Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:23:00.239Z] [DEBUG] Verifying user token...
+[2025-08-25T17:23:00.429Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:23:00.429Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:23:00.637Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:23:00.638Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:23:00.638Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:23:53.887Z] [DEBUG] verifyAdmin called with authHeader present: false
+[2025-08-25T17:23:53.888Z] [DEBUG] No valid Bearer token found
+[2025-08-25T17:30:26.027Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:30:26.028Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:30:26.028Z] [DEBUG] Verifying user token...
+[2025-08-25T17:30:26.089Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:30:26.089Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:30:26.146Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:30:26.146Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:30:26.146Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:30:26.331Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:30:26.332Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:30:26.333Z] [DEBUG] Verifying user token...
+[2025-08-25T17:30:26.390Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:30:26.390Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:30:26.450Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:30:26.450Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:30:26.450Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:40:04.240Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:40:04.241Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:40:04.241Z] [DEBUG] Verifying user token...
+[2025-08-25T17:40:04.300Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:40:04.300Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:40:04.385Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:40:04.385Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:40:04.385Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:40:11.524Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:40:11.525Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:40:11.525Z] [DEBUG] Verifying user token...
+[2025-08-25T17:40:11.714Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:40:11.714Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:40:11.775Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:40:11.775Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:40:11.776Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:40:11.998Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:40:11.998Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:40:11.999Z] [DEBUG] Verifying user token...
+[2025-08-25T17:40:12.065Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:40:12.066Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:40:12.128Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:40:12.128Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:40:12.128Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:40:18.455Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:40:18.455Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:40:18.456Z] [DEBUG] Verifying user token...
+[2025-08-25T17:40:18.519Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:40:18.519Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:40:18.581Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:40:18.581Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:40:18.581Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:40:22.407Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:40:22.407Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:40:22.408Z] [DEBUG] Verifying user token...
+[2025-08-25T17:40:22.473Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:40:22.473Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:40:22.537Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:40:22.537Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:40:22.537Z] [DEBUG] Final admin check result: true
+[2025-08-25T17:40:22.747Z] [DEBUG] verifyAdmin called with authHeader present: true
+[2025-08-25T17:40:22.747Z] [DEBUG] Extracted token length: 619
+[2025-08-25T17:40:22.748Z] [DEBUG] Verifying user token...
+[2025-08-25T17:40:22.807Z] [DEBUG] User verification result: user=true, userId=4d8ad391-af83-4746-b6c2-f07db1f6546a, error=undefined
+[2025-08-25T17:40:22.807Z] [DEBUG] Checking admin status for user using authenticated session: 4d8ad391-af83-4746-b6c2-f07db1f6546a
+[2025-08-25T17:40:22.870Z] [DEBUG] User roles query result: userRoles=[{"role_id":"0ea733fd-629c-4d05-882f-28e7c523fcf4","roles":{"role_name":"super_admin"}}], roleError=undefined, roleCount=1
+[2025-08-25T17:40:22.871Z] [DEBUG] Checking role: super_admin
+[2025-08-25T17:40:22.871Z] [DEBUG] Final admin check result: true

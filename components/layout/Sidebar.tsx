@@ -20,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { auth } from '@/lib/auth'
 
 // Grouped and ordered navigation for better UX
 const groupedNavigation = [
@@ -59,11 +59,13 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     async function checkAdminStatus() {
       if (user) {
         try {
-          const { data, error } = await supabase
-            .rpc('is_admin', { user_id: user.id });
+          const result = await auth.profile.getProfile();
           
-          if (!error) {
-            setIsAdmin(data || false);
+          if (result.success && result.profile?.role) {
+            const userRole = result.profile.role.role_name;
+            setIsAdmin(userRole === 'admin' || userRole === 'super_admin');
+          } else {
+            setIsAdmin(false);
           }
         } catch (error) {
           console.error('Error checking admin status:', error);

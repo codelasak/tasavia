@@ -4,7 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 // Server-side Supabase client with service role key
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 );
 
 // Regular client for auth verification
@@ -25,7 +31,20 @@ async function verifyAdmin(authHeader: string | null) {
   console.log('verifyAdmin - Token extracted, length:', token.length);
   
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // Create user-authenticated client
+    const userSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        }
+      }
+    );
+
+    const { data: { user }, error } = await userSupabase.auth.getUser();
     console.log('verifyAdmin - getUser result:', { user: !!user, error: !!error });
     
     if (error || !user) {
@@ -35,8 +54,8 @@ async function verifyAdmin(authHeader: string | null) {
 
     console.log('verifyAdmin - User ID:', user.id);
 
-    // Check if user is admin by querying user_roles directly
-    const { data: adminCheck, error: adminError } = await supabaseAdmin
+    // Use user's authenticated session to check their own roles
+    const { data: adminCheck, error: adminError } = await userSupabase
       .from('user_roles')
       .select(`
         roles!inner(role_name)
@@ -80,13 +99,14 @@ export async function PATCH(
     const body = await request.json();
     console.log('Request body:', body);
     
-    const { status, allowedLoginMethods, email, phone } = body;
+    const { status, allowedLoginMethods, email, phone, name, role } = body;
 
     // Update user auth data if provided
-    if (email || phone) {
+    if (email || phone || name) {
       const updates: any = {};
       if (email) updates.email = email;
       if (phone) updates.phone = phone;
+      if (name) updates.user_metadata = { name };
 
       const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates);
       
@@ -100,16 +120,64 @@ export async function PATCH(
     if (status) accountUpdates.status = status;
     if (allowedLoginMethods) accountUpdates.allowed_login_methods = allowedLoginMethods;
     if (phone) accountUpdates.phone_number = phone;
+    if (name) accountUpdates.name = name;
     accountUpdates.updated_at = new Date().toISOString();
 
     if (Object.keys(accountUpdates).length > 0) {
       const { error } = await supabaseAdmin
         .from('accounts')
-        .update(accountUpdates)
-        .eq('id', userId);
+        .upsert({
+          id: userId,
+          ...accountUpdates
+        });
 
       if (error) {
-        throw new Error(error.message);
+        console.error('Account update error:', error);
+        // Don't fail the entire update if account update fails
+      }
+    }
+
+    // Update user role if provided
+    if (role) {
+      console.log('Updating user role to:', role);
+      
+      try {
+        // First, get the role ID
+        const { data: roleData, error: roleError } = await supabaseAdmin
+          .from('roles')
+          .select('role_id')
+          .eq('role_name', role)
+          .single();
+
+        if (roleError || !roleData) {
+          console.error('Role not found:', role, roleError);
+          throw new Error(`Role '${role}' not found in system`);
+        }
+
+        // Delete existing role assignments for this user
+        await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+
+        // Assign the new role to the user
+        const { error: userRoleError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role_id: roleData.role_id,
+            assigned_at: new Date().toISOString()
+          });
+
+        if (userRoleError) {
+          console.error('Failed to assign role:', userRoleError);
+          throw new Error(`Failed to assign role: ${userRoleError.message}`);
+        }
+
+        console.log('Role updated successfully');
+      } catch (roleUpdateError) {
+        console.error('Error updating role:', roleUpdateError);
+        throw roleUpdateError;
       }
     }
 
@@ -125,6 +193,14 @@ export async function PATCH(
       { status: 500 }
     );
   }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  // PUT and PATCH should do the same thing for user updates
+  return PATCH(request, { params });
 }
 
 export async function DELETE(
