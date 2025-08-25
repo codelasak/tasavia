@@ -200,3 +200,15 @@
     min-height: auto !important;
   }
 }
+
+/* Custom styles for hero section */
+.hero-aircraft-image {
+  filter: drop-shadow(0 20px 13px rgb(0 0 0 / 0.1)) drop-shadow(0 8px 5px rgb(0 0 0 / 0.1));
+}
+
+/* Ensure proper spacing for hero section */
+@media (min-width: 1024px) {
+  .hero-with-aircraft {
+    padding-bottom: 20rem;
+  }
+}

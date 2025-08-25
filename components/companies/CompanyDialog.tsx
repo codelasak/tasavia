@@ -359,18 +359,15 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
     if (!code.trim()) return { isUnique: true, suggestions: [] };
 
     try {
-      const tableName = isMyCompanyType ? 'my_companies' : 'companies';
-      const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
-      const idField = isMyCompanyType ? 'my_company_id' : 'company_id';
-      
+      // Use unified companies table for both internal and external companies
       let query = supabase
-        .from(tableName)
-        .select(`${codeField}, ${idField}`)
-        .ilike(codeField, code.trim());
+        .from('companies')
+        .select('company_code, company_id')
+        .ilike('company_code', code.trim());
 
       // Exclude current company when editing
       if (currentCompanyId) {
-        query = query.neq(idField, currentCompanyId);
+        query = query.neq('company_id', currentCompanyId);
       }
 
       const { data, error } = await query;
@@ -586,12 +583,21 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         const { formType, company_addresses, company_contacts, ship_via_info, ...companyData } = formData;
         
         if (isMyCompany(company)) {
-          // Update existing my_company
-          if (!company.my_company_id) throw new Error('Company ID is required for update');
+          // Update existing internal company in unified companies table
+          const companyId = company.my_company_id || company.company_id;
+          if (!companyId) throw new Error('Company ID is required for update');
+          
+          const unifiedCompanyData = {
+            company_name: companyData.my_company_name,
+            company_code: companyData.my_company_code,
+            is_self: true,
+            updated_at: new Date().toISOString()
+          };
+          
           const { error } = await supabase
-            .from('my_companies')
-            .update(companyData)
-            .eq('my_company_id', company.my_company_id);
+            .from('companies')
+            .update(unifiedCompanyData)
+            .eq('company_id', companyId);
           
           if (error) throw error;
           

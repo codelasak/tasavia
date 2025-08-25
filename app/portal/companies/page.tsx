@@ -15,10 +15,11 @@ type ExternalCompany = Database['public']['Tables']['companies']['Row'] & {
 async function getCompanies() {
   const supabase = createSupabaseServer()
   try {
-    // Fetch companies first
+    // Fetch external companies only (is_self = false)
     const { data: companiesData, error: companiesError } = await supabase
       .from('companies')
       .select('*')
+      .eq('is_self', false)
       .order('company_name')
 
     if (companiesError) throw companiesError

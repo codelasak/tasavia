@@ -373,7 +373,7 @@ export default function HomePage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section id="home" className="relative pt-28 pb-40 md:pt-36 md:pb-52 overflow-hidden" role="banner" aria-label="Welcome to TASAVIA">
+      <section id="home" className="relative pt-28 pb-40 md:pt-36 md:pb-52 overflow-hidden hero-with-aircraft" role="banner" aria-label="Welcome to TASAVIA">
         {/* Hero background image */}
         <div className="absolute inset-0 -z-10">
           <div 
@@ -458,7 +458,7 @@ export default function HomePage() {
             alt="Aircraft in flight"
             width={1474}
             height={426}
-            className="w-full h-auto opacity-95"
+            className="w-full h-auto opacity-95 hero-aircraft-image"
             priority
           />
         </div>
