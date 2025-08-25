@@ -43,3 +43,5 @@ node_modules/
 /playwright/.cache/
 
 .mcp.json
+.claude
+.codex

@@ -160,7 +160,7 @@ const structuredData = {
     },
     {
       "@type": "ContactPoint",
-      "email": "info@tasavia.com",
+      "email": "sales@tasavia.com",
       "contactType": "customer service",
       "areaServed": "US"
     }
@@ -823,8 +823,8 @@ export default function HomePage() {
                         </div>
                         <div className="flex items-center space-x-3">
                           <Mail className="h-5 w-5 text-slate-400" />
-                          <a href="mailto:info@tasavia.com" className="text-blue-400 hover:text-blue-300 transition-colors">
-                            info@tasavia.com
+                          <a href="mailto:sales@tasavia.com" className="text-blue-400 hover:text-blue-300 transition-colors">
+                            sales@tasavia.com
                           </a>
                         </div>
                       </div>
