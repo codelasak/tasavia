@@ -1,16 +1,29 @@
 /**
  * Server-side Company Service
- * Works with both current and future unified database structures
+ * Uses unified database structure with companies table
  * For use in Server Components only
  */
 
 import { createSupabaseServer } from '@/lib/supabase/server'
 import { UnifiedCompany } from './company-service'
 
+// Migration state cache to avoid repeated database checks
+let migrationStateCache: boolean | null = null
+let cacheTimestamp: number = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 /**
  * Checks if the database has been migrated to the unified structure
+ * Uses caching to avoid repeated database queries
  */
 async function isDatabaseMigrated(): Promise<boolean> {
+  const now = Date.now()
+  
+  // Return cached result if still valid
+  if (migrationStateCache !== null && (now - cacheTimestamp) < CACHE_TTL_MS) {
+    return migrationStateCache
+  }
+  
   try {
     const supabase = createSupabaseServer()
     // Check if companies table has is_self column
@@ -20,8 +33,17 @@ async function isDatabaseMigrated(): Promise<boolean> {
       .limit(1)
       .single()
     
-    return !error && data !== null
+    const isMigrated = !error && data !== null
+    
+    // Cache the result
+    migrationStateCache = isMigrated
+    cacheTimestamp = now
+    
+    return isMigrated
   } catch {
+    // Cache negative result as well
+    migrationStateCache = false
+    cacheTimestamp = now
     return false
   }
 }
@@ -30,38 +52,20 @@ async function isDatabaseMigrated(): Promise<boolean> {
  * Get internal companies (my companies) - Server-side
  */
 export async function getInternalCompaniesServer(): Promise<UnifiedCompany[]> {
-  const supabase = createSupabaseServer()
-  const migrated = await isDatabaseMigrated()
-  
-  if (migrated) {
-    // Use unified structure
-    return getUnifiedCompaniesServer(true)
-  } else {
-    // Use legacy structure
-    return getLegacyMyCompaniesServer()
-  }
+  return getCompaniesServer(true)
 }
 
 /**
  * Get external companies - Server-side
  */
 export async function getExternalCompaniesServer(): Promise<UnifiedCompany[]> {
-  const supabase = createSupabaseServer()
-  const migrated = await isDatabaseMigrated()
-  
-  if (migrated) {
-    // Use unified structure
-    return getUnifiedCompaniesServer(false)
-  } else {
-    // Use legacy structure
-    return getLegacyExternalCompaniesServer()
-  }
+  return getCompaniesServer(false)
 }
 
 /**
- * Get companies from unified structure (post-migration) - Server-side
+ * Get companies from unified structure - Server-side
  */
-async function getUnifiedCompaniesServer(isInternal: boolean): Promise<UnifiedCompany[]> {
+async function getCompaniesServer(isInternal: boolean): Promise<UnifiedCompany[]> {
   try {
     const supabase = createSupabaseServer()
     
@@ -100,83 +104,3 @@ async function getUnifiedCompaniesServer(isInternal: boolean): Promise<UnifiedCo
   }
 }
 
-/**
- * Get my companies from legacy structure (pre-migration) - Server-side
- */
-async function getLegacyMyCompaniesServer(): Promise<UnifiedCompany[]> {
-  try {
-    const supabase = createSupabaseServer()
-    
-    // Fetch my companies
-    const { data: companiesData, error: companiesError } = await supabase
-      .from('my_companies')
-      .select('*')
-      .order('my_company_name')
-
-    if (companiesError) throw companiesError
-
-    // Fetch related data
-    const [addressData, contactData, shipViaData] = await Promise.all([
-      supabase.from('company_addresses').select('*').eq('company_ref_type', 'my_companies'),
-      supabase.from('company_contacts').select('*').eq('company_ref_type', 'my_companies'),
-      supabase.from('company_ship_via').select('*').eq('company_ref_type', 'my_companies')
-    ])
-
-    // Combine the data
-    return companiesData?.map((company: any) => ({
-      id: company.my_company_id,
-      name: company.my_company_name,
-      code: company.my_company_code,
-      is_self: true,
-      company_addresses: addressData.data?.filter((addr: any) => addr.company_id === company.my_company_id) || [],
-      company_contacts: contactData.data?.filter((contact: any) => contact.company_id === company.my_company_id) || [],
-      company_ship_via: shipViaData.data?.filter((ship: any) => ship.company_id === company.my_company_id) || [],
-      created_at: company.created_at,
-      updated_at: company.updated_at
-    })) || []
-  } catch (error) {
-    console.error('Error fetching legacy my companies:', error)
-    return []
-  }
-}
-
-/**
- * Get external companies from legacy structure (pre-migration) - Server-side
- */
-async function getLegacyExternalCompaniesServer(): Promise<UnifiedCompany[]> {
-  try {
-    const supabase = createSupabaseServer()
-    
-    // Fetch companies
-    const { data: companiesData, error: companiesError } = await supabase
-      .from('companies')
-      .select('*')
-      .order('company_name')
-
-    if (companiesError) throw companiesError
-
-    // Fetch related data
-    const [addressData, contactData, shipViaData] = await Promise.all([
-      supabase.from('company_addresses').select('*').eq('company_ref_type', 'companies'),
-      supabase.from('company_contacts').select('*').eq('company_ref_type', 'companies'),
-      supabase.from('company_ship_via').select('*').eq('company_ref_type', 'companies')
-    ])
-
-    // Combine the data
-    return companiesData?.map((company: any) => ({
-      id: company.company_id,
-      name: company.company_name,
-      code: company.company_code,
-      is_self: false,
-      company_type: company.company_type,
-      company_addresses: addressData.data?.filter((addr: any) => addr.company_id === company.company_id) || [],
-      company_contacts: contactData.data?.filter((contact: any) => contact.company_id === company.company_id) || [],
-      company_ship_via: shipViaData.data?.filter((ship: any) => ship.company_id === company.company_id) || [],
-      created_at: company.created_at,
-      updated_at: company.updated_at
-    })) || []
-  } catch (error) {
-    console.error('Error fetching legacy external companies:', error)
-    return []
-  }
-}

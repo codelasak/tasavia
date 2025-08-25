@@ -23,7 +23,7 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
   useEffect(() => {
     const lowercasedTerm = searchTerm.toLowerCase()
     const filtered = companies.filter(company =>
-      company.name.toLowerCase().includes(lowercasedTerm) ||
+      (company.name && company.name.toLowerCase().includes(lowercasedTerm)) ||
       (company.code && company.code.toLowerCase().includes(lowercasedTerm)) ||
       company.company_addresses.some(a => 
         (a.city && a.city.toLowerCase().includes(lowercasedTerm)) ||

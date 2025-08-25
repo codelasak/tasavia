@@ -45,3 +45,6 @@ node_modules/
 .mcp.json
 .claude
 .codex
+.qwen
+QWEN.md 
+.gemini-clipboard

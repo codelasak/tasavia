@@ -1,8 +1,7 @@
 /**
  * Universal Company Service
- * Provides a unified interface for company operations that works with both:
- * 1. Current database structure (my_companies + companies)
- * 2. Future unified structure (single companies table with is_self flag)
+ * Unified interface for company operations using the companies table with is_self flag
+ * Migration completed - uses single unified structure
  */
 
 import { supabase } from '@/lib/supabase/client'
@@ -40,10 +39,23 @@ export interface UnifiedCompany {
   updated_at?: string | null
 }
 
+// Migration state cache to avoid repeated database checks
+let migrationStateCache: boolean | null = null
+let cacheTimestamp: number = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 /**
  * Checks if the database has been migrated to the unified structure
+ * Uses caching to avoid repeated database queries
  */
 async function isDatabaseMigrated(supabaseClient: any): Promise<boolean> {
+  const now = Date.now()
+  
+  // Return cached result if still valid
+  if (migrationStateCache !== null && (now - cacheTimestamp) < CACHE_TTL_MS) {
+    return migrationStateCache
+  }
+  
   try {
     // Check if companies table has is_self column
     const { data, error } = await supabaseClient
@@ -52,8 +64,17 @@ async function isDatabaseMigrated(supabaseClient: any): Promise<boolean> {
       .limit(1)
       .single()
     
-    return !error && data !== null
+    const isMigrated = !error && data !== null
+    
+    // Cache the result
+    migrationStateCache = isMigrated
+    cacheTimestamp = now
+    
+    return isMigrated
   } catch {
+    // Cache negative result as well
+    migrationStateCache = false
+    cacheTimestamp = now
     return false
   }
 }
@@ -62,32 +83,14 @@ async function isDatabaseMigrated(supabaseClient: any): Promise<boolean> {
  * Get internal companies (my companies) - Client-side only
  */
 export async function getInternalCompanies(): Promise<UnifiedCompany[]> {
-  const supabaseClient = supabase
-  const migrated = await isDatabaseMigrated(supabaseClient)
-  
-  if (migrated) {
-    // Use unified structure
-    return getUnifiedCompanies(supabaseClient, true)
-  } else {
-    // Use legacy structure
-    return getLegacyMyCompanies(supabaseClient)
-  }
+  return getCompanies(true)
 }
 
 /**
  * Get external companies - Client-side only
  */
 export async function getExternalCompanies(): Promise<UnifiedCompany[]> {
-  const supabaseClient = supabase
-  const migrated = await isDatabaseMigrated(supabaseClient)
-  
-  if (migrated) {
-    // Use unified structure
-    return getUnifiedCompanies(supabaseClient, false)
-  } else {
-    // Use legacy structure
-    return getLegacyExternalCompanies(supabaseClient)
-  }
+  return getCompanies(false)
 }
 
 /**
@@ -100,9 +103,10 @@ export async function getAllCompanies(): Promise<UnifiedCompany[]> {
 }
 
 /**
- * Get companies from unified structure (post-migration)
+ * Get companies from unified structure
  */
-async function getUnifiedCompanies(supabaseClient: any, isInternal: boolean): Promise<UnifiedCompany[]> {
+async function getCompanies(isInternal: boolean): Promise<UnifiedCompany[]> {
+  const supabaseClient = supabase
   try {
     // Fetch companies
     const { data: companiesData, error: companiesError } = await supabaseClient
@@ -139,110 +143,19 @@ async function getUnifiedCompanies(supabaseClient: any, isInternal: boolean): Pr
   }
 }
 
-/**
- * Get my companies from legacy structure (pre-migration)
- */
-async function getLegacyMyCompanies(supabaseClient: any): Promise<UnifiedCompany[]> {
-  try {
-    // Fetch my companies
-    const { data: companiesData, error: companiesError } = await supabaseClient
-      .from('my_companies')
-      .select('*')
-      .order('my_company_name')
-
-    if (companiesError) throw companiesError
-
-    // Fetch related data
-    const [addressData, contactData, shipViaData] = await Promise.all([
-      supabaseClient.from('company_addresses').select('*').eq('company_ref_type', 'my_companies'),
-      supabaseClient.from('company_contacts').select('*').eq('company_ref_type', 'my_companies'),
-      supabaseClient.from('company_ship_via').select('*').eq('company_ref_type', 'my_companies')
-    ])
-
-    // Combine the data
-    return companiesData?.map((company: any) => ({
-      id: company.my_company_id,
-      name: company.my_company_name,
-      code: company.my_company_code,
-      is_self: true,
-      company_addresses: addressData.data?.filter((addr: any) => addr.company_id === company.my_company_id) || [],
-      company_contacts: contactData.data?.filter((contact: any) => contact.company_id === company.my_company_id) || [],
-      company_ship_via: shipViaData.data?.filter((ship: any) => ship.company_id === company.my_company_id) || [],
-      created_at: company.created_at,
-      updated_at: company.updated_at
-    })) || []
-  } catch (error) {
-    console.error('Error fetching legacy my companies:', error)
-    return []
-  }
-}
 
 /**
- * Get external companies from legacy structure (pre-migration)
- */
-async function getLegacyExternalCompanies(supabaseClient: any): Promise<UnifiedCompany[]> {
-  try {
-    // Fetch companies
-    const { data: companiesData, error: companiesError } = await supabaseClient
-      .from('companies')
-      .select('*')
-      .order('company_name')
-
-    if (companiesError) throw companiesError
-
-    // Fetch related data
-    const [addressData, contactData, shipViaData] = await Promise.all([
-      supabaseClient.from('company_addresses').select('*').eq('company_ref_type', 'companies'),
-      supabaseClient.from('company_contacts').select('*').eq('company_ref_type', 'companies'),
-      supabaseClient.from('company_ship_via').select('*').eq('company_ref_type', 'companies')
-    ])
-
-    // Combine the data
-    return companiesData?.map((company: any) => ({
-      id: company.company_id,
-      name: company.company_name,
-      code: company.company_code,
-      is_self: false,
-      company_type: company.company_type,
-      company_addresses: addressData.data?.filter((addr: any) => addr.company_id === company.company_id) || [],
-      company_contacts: contactData.data?.filter((contact: any) => contact.company_id === company.company_id) || [],
-      company_ship_via: shipViaData.data?.filter((ship: any) => ship.company_id === company.company_id) || [],
-      created_at: company.created_at,
-      updated_at: company.updated_at
-    })) || []
-  } catch (error) {
-    console.error('Error fetching legacy external companies:', error)
-    return []
-  }
-}
-
-/**
- * Delete a company (works with both structures)
+ * Delete a company
  */
 export async function deleteCompany(companyId: string, isInternal: boolean): Promise<void> {
   const supabaseClient = supabase
-  const migrated = await isDatabaseMigrated(supabaseClient)
   
-  if (migrated) {
-    // Use unified structure
-    const { error } = await supabaseClient
-      .from('companies')
-      .delete()
-      .eq('company_id', companyId)
-    
-    if (error) throw error
-  } else {
-    // Use legacy structure
-    const tableName = isInternal ? 'my_companies' : 'companies'
-    const idColumn = isInternal ? 'my_company_id' : 'company_id'
-    
-    const { error } = await supabaseClient
-      .from(tableName)
-      .delete()
-      .eq(idColumn, companyId)
-    
-    if (error) throw error
-  }
+  const { error } = await supabaseClient
+    .from('companies')
+    .delete()
+    .eq('company_id', companyId)
+  
+  if (error) throw error
 }
 
 /**
@@ -250,26 +163,20 @@ export async function deleteCompany(companyId: string, isInternal: boolean): Pro
  */
 export async function checkCompanyReferences(companyId: string, isInternal: boolean): Promise<boolean> {
   const supabaseClient = supabase
-  const migrated = await isDatabaseMigrated(supabaseClient)
   
-  if (migrated) {
-    // Check unified structure
-    const { data } = await supabaseClient
-      .from('purchase_orders')
-      .select('po_id')
-      .eq('company_id', companyId)
-      .limit(1)
+  // Check purchase orders
+  const { data: poData } = await supabaseClient
+    .from('purchase_orders')
+    .select('po_id')
+    .eq('company_id', companyId)
+    .limit(1)
     
-    return (data?.length || 0) > 0
-  } else {
-    // Check legacy structure
-    const columnName = isInternal ? 'my_company_id' : 'vendor_company_id'
-    const { data } = await supabaseClient
-      .from('purchase_orders')
-      .select('po_id')
-      .eq(columnName, companyId)
-      .limit(1)
-    
-    return (data?.length || 0) > 0
-  }
+  // Check sales orders
+  const { data: soData } = await supabaseClient
+    .from('sales_orders')
+    .select('so_id')
+    .eq('company_id', companyId)
+    .limit(1)
+  
+  return (poData?.length || 0) > 0 || (soData?.length || 0) > 0
 }

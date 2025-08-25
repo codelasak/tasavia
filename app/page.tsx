@@ -231,6 +231,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
+      {/* Preload important images */}
+      <link rel="preload" as="image" href="/assets/images/hero-banner.png" />
+      <link rel="preload" as="image" href="/assets/images/hero-bg.jpg" />
+      <link rel="preload" as="image" href="/assets/images/footer-bg.png" />
+      
       {/* Structured Data */}
       <script
         type="application/ld+json"
@@ -368,7 +373,20 @@ export default function HomePage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section id="home" className="relative pt-28 pb-20 md:pt-36 md:pb-28 overflow-hidden" role="banner" aria-label="Welcome to TASAVIA">
+      <section id="home" className="relative pt-28 pb-40 md:pt-36 md:pb-52 overflow-hidden" role="banner" aria-label="Welcome to TASAVIA">
+        {/* Hero background image */}
+        <div className="absolute inset-0 -z-10">
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-multiply"
+            style={{ 
+              backgroundImage: "url('/assets/images/hero-bg.jpg')",
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              backgroundSize: 'cover'
+            }}
+          />
+        </div>
+        
         {/* Animated background elements */}
         <motion.div 
           className="absolute inset-0 -z-10"
@@ -381,7 +399,7 @@ export default function HomePage() {
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
         </motion.div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -431,6 +449,18 @@ export default function HomePage() {
               </Link>
             </motion.div>
           </div>
+        </div>
+        
+        {/* Hero banner image */}
+        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/3 w-full max-w-6xl hidden lg:block">
+          <Image
+            src="/assets/images/hero-banner.png"
+            alt="Aircraft in flight"
+            width={1474}
+            height={426}
+            className="w-full h-auto opacity-95"
+            priority
+          />
         </div>
       </section>
 
@@ -887,8 +917,19 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 pt-16 pb-8" role="contentinfo" aria-label="Website footer">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer 
+        className="bg-slate-900 text-slate-400 pt-16 pb-8 relative overflow-hidden" 
+        role="contentinfo" 
+        aria-label="Website footer"
+        style={{ 
+          backgroundImage: "url('/assets/images/footer-bg.png')",
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center 85%',
+          backgroundSize: 'cover'
+        }}
+      >
+        <div className="absolute inset-0 bg-slate-900/90"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <h4 className="text-white text-lg font-semibold mb-4">About Us</h4>
@@ -927,7 +968,7 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center">
+          <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center relative z-10">
             <div className="flex items-center space-x-6 mb-6 md:mb-0">
               <a href="https://www.linkedin.com/company/tasavia/" className="text-slate-400 hover:text-white transition-colors">
                 <span className="sr-only">LinkedIn</span>
