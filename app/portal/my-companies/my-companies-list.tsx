@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Search, Edit, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { CompanyDialog } from '@/components/companies/CompanyDialog'
 import { UnifiedCompany, getInternalCompanies, deleteCompany, checkCompanyReferences } from '@/lib/services/company-service'
 
 interface MyCompaniesListProps {
@@ -14,11 +14,10 @@ interface MyCompaniesListProps {
 }
 
 export default function MyCompaniesList({ initialCompanies }: MyCompaniesListProps) {
+  const router = useRouter()
   const [companies, setCompanies] = useState<UnifiedCompany[]>(initialCompanies)
   const [filteredCompanies, setFilteredCompanies] = useState<UnifiedCompany[]>(initialCompanies)
   const [searchTerm, setSearchTerm] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingCompany, setEditingCompany] = useState<UnifiedCompany | null>(null)
 
   useEffect(() => {
     const lowercasedTerm = searchTerm.toLowerCase()
@@ -45,19 +44,7 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
   }
 
   const handleEdit = (company: UnifiedCompany) => {
-    // Transform UnifiedCompany to MyCompanyDB format expected by CompanyDialog
-    const transformedCompany = {
-      my_company_id: company.id,
-      company_id: company.id, // Also include the real company_id for validation
-      my_company_name: company.name,
-      my_company_code: company.code || '',
-      created_at: company.created_at,
-      updated_at: company.updated_at,
-      company_contacts: company.company_contacts,
-      company_addresses: company.company_addresses
-    }
-    setEditingCompany(transformedCompany as any)
-    setDialogOpen(true)
+    router.push(`/portal/my-companies/${company.id}/edit`)
   }
 
   const handleDelete = async (company: UnifiedCompany) => {
@@ -91,10 +78,8 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
     }
   }
 
-  const handleDialogClose = () => {
-    setDialogOpen(false)
-    setEditingCompany(null)
-    fetchCompanies()
+  const handleNew = () => {
+    router.push('/portal/my-companies/new')
   }
 
   return (
@@ -108,10 +93,7 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
             </CardDescription>
           </div>
           <Button 
-            onClick={() => {
-              setEditingCompany(null)
-              setDialogOpen(true)
-            }}
+            onClick={handleNew}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -181,7 +163,6 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
           </div>
         )}
       </CardContent>
-      <CompanyDialog open={dialogOpen} onClose={handleDialogClose} company={editingCompany as any} type="my_company" />
     </Card>
   )
 }

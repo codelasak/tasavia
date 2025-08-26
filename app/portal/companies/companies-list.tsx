@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,7 +9,6 @@ import { Search, Edit, Trash2, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/database.types'
 import { toast } from 'sonner'
-import { CompanyDialog } from '@/components/companies/CompanyDialog'
 
 type ExternalCompany = Database['public']['Tables']['companies']['Row'] & {
   company_contacts: Database['public']['Tables']['company_contacts']['Row'][]
@@ -21,11 +21,10 @@ interface CompaniesListProps {
 }
 
 export default function CompaniesList({ initialCompanies }: CompaniesListProps) {
+  const router = useRouter()
   const [companies, setCompanies] = useState<ExternalCompany[]>(initialCompanies)
   const [filteredCompanies, setFilteredCompanies] = useState<ExternalCompany[]>(initialCompanies)
   const [searchTerm, setSearchTerm] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingCompany, setEditingCompany] = useState<ExternalCompany | null>(null)
   const [loading, setLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -96,8 +95,11 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
   }
 
   const handleEdit = (company: ExternalCompany) => {
-    setEditingCompany(company)
-    setDialogOpen(true)
+    router.push(`/portal/companies/${company.company_id}/edit`)
+  }
+
+  const handleNew = () => {
+    router.push('/portal/companies/new')
   }
 
   const handleDelete = async (company: ExternalCompany) => {
@@ -161,11 +163,6 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
     }
   }
 
-  const handleDialogClose = () => {
-    setDialogOpen(false)
-    setEditingCompany(null)
-    fetchCompanies()
-  }
 
   return (
     <Card>
@@ -178,10 +175,7 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
             </CardDescription>
           </div>
           <Button 
-            onClick={() => {
-              setEditingCompany(null)
-              setDialogOpen(true)
-            }}
+            onClick={handleNew}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -272,7 +266,6 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
           </div>
         )}
       </CardContent>
-      <CompanyDialog open={dialogOpen} onClose={handleDialogClose} company={editingCompany as any} type="external_company" />
     </Card>
   )
 }
