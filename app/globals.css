@@ -209,7 +209,7 @@
 /* Ensure proper spacing for hero section */
 @media (min-width: 1024px) {
   .hero-with-aircraft {
-    padding-bottom: 24rem;
+    padding-bottom: 20rem;
   }
 }
 

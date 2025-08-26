@@ -266,9 +266,9 @@ export default function HomePage() {
               <Image
                 src="/logo.png"
                 alt="TASAVIA"
-                width={110}
-                height={36}
-                className="h-12 w-36"
+                width={140}
+                height={50}
+                className="h-10 w-auto"
                 priority
               />
             </motion.div>
@@ -460,7 +460,7 @@ export default function HomePage() {
         </div>
         
         {/* Hero banner image */}
-        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/4 w-full max-w-6xl hidden lg:block">
+        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/6 w-full max-w-6xl hidden lg:block">
           <Image
             src="/assets/images/hero-banner.png"
             alt="Aircraft in flight"
@@ -930,17 +930,17 @@ export default function HomePage() {
         role="contentinfo" 
         aria-label="Website footer"
       >
-        <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 z-0">
           <Image
             src="/assets/images/footer-bg.png"
             alt="Footer background"
             fill
-            className="object-cover opacity-20"
-            style={{ objectPosition: 'center 85%' }}
+            className="object-cover opacity-60"
+            style={{ objectPosition: 'center bottom' }}
           />
-          <div className="absolute inset-0 bg-slate-900/90"></div>
+          <div className="absolute inset-0 bg-slate-900/60"></div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
             <div>
               <h4 className="text-white text-lg font-semibold mb-4 footer-heading-underline">About Us</h4>
