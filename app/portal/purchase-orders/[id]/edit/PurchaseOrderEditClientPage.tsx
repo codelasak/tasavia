@@ -597,11 +597,11 @@ export default function PurchaseOrderEditClientPage({
       po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
       status: data.status,
       total_amount: calculateTotal(),
-      my_companies: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
-        my_company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
-        my_company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
+      buyer_company: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
+        company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
+        company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
       } : null,
-      companies: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
+      vendor_company: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
         company_name: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
         company_code: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
       } : null,

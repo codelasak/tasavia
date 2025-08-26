@@ -10,11 +10,11 @@ interface PurchaseOrder {
   po_date: string
   status: string
   total_amount: number
-  my_companies: {
-    my_company_name: string
-    my_company_code: string
+  buyer_company: {
+    company_name: string
+    company_code: string
   } | null
-  companies: {
+  vendor_company: {
     company_name: string
     company_code: string
   } | null
@@ -41,11 +41,11 @@ export default function PurchaseOrdersLayout({ children }: PurchaseOrdersLayoutP
             status,
             total_amount,
             created_at,
-            my_companies (
-              my_company_name,
-              my_company_code
+            buyer_company:companies!company_id (
+              company_name,
+              company_code
             ),
-            companies (
+            vendor_company:companies!vendor_company_id (
               company_name,
               company_code
             )

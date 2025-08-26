@@ -333,11 +333,11 @@ export default function NewPurchaseOrderClientPage({
         po_date: poData.po_date,
         status: poData.status,
         total_amount: poData.total_amount || 0,
-        my_companies: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
-          my_company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
-          my_company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
+        buyer_company: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
+          company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
+          company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
         } : null,
-        companies: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
+        vendor_company: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
           company_name: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
           company_code: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
         } : null,

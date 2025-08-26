@@ -13,13 +13,13 @@ interface PurchaseOrderPageProps {
 async function fetchPurchaseOrder(poId: string) {
   const supabase = createSupabaseServer()
   try {
-    // First fetch the purchase order with basic company info
+    // First fetch the purchase order with company info using unified schema
     const { data: poData, error: poError } = await supabase
       .from('purchase_orders')
       .select(`
         *,
-        my_companies(*),
-        companies(*),
+        buyer_company:companies!company_id(*),
+        vendor_company:companies!vendor_company_id(*),
         company_ship_via!ship_via_id(*),
         po_items(
           *,
@@ -37,38 +37,53 @@ async function fetchPurchaseOrder(poId: string) {
     // Cast poData to any to avoid type issues
     const poDataAny = poData as any
 
-    // Fetch my company addresses and contacts (no more company_ref_type filter needed)
-    const { data: myCompanyAddresses } = await supabase
+    // Fetch buyer company addresses and contacts
+    const { data: buyerCompanyAddresses } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_id', poDataAny.my_companies.my_company_id as any)
+      .eq('company_id', poDataAny.buyer_company.company_id as any)
 
-    const { data: myCompanyContacts } = await supabase
+    const { data: buyerCompanyContacts } = await supabase
       .from('company_contacts')
       .select('*')
-      .eq('company_id', poDataAny.my_companies.my_company_id as any)
+      .eq('company_id', poDataAny.buyer_company.company_id as any)
 
-    // Fetch vendor company addresses and contacts (no more company_ref_type filter needed)
+    // Fetch vendor company addresses and contacts
     const { data: vendorAddresses } = await supabase
       .from('company_addresses')
       .select('*')
-      .eq('company_id', poDataAny.companies.company_id as any)
+      .eq('company_id', poDataAny.vendor_company.company_id as any)
 
     const { data: vendorContacts } = await supabase
       .from('company_contacts')
       .select('*')
-      .eq('company_id', poDataAny.companies.company_id as any)
+      .eq('company_id', poDataAny.vendor_company.company_id as any)
 
-    // Combine the data
+    // Combine the data with legacy field names for compatibility
     const enrichedData = {
       ...poDataAny,
+      // Keep both new and legacy field names for compatibility
+      buyer_company: {
+        ...poDataAny.buyer_company,
+        company_addresses: buyerCompanyAddresses || [],
+        company_contacts: buyerCompanyContacts || []
+      },
+      vendor_company: {
+        ...poDataAny.vendor_company,
+        company_addresses: vendorAddresses || [],
+        company_contacts: vendorContacts || []
+      },
+      // Legacy compatibility fields
       my_companies: {
-        ...poDataAny.my_companies,
-        company_addresses: myCompanyAddresses || [],
-        company_contacts: myCompanyContacts || []
+        ...poDataAny.buyer_company,
+        my_company_id: poDataAny.buyer_company.company_id,
+        my_company_name: poDataAny.buyer_company.company_name,
+        my_company_code: poDataAny.buyer_company.company_code,
+        company_addresses: buyerCompanyAddresses || [],
+        company_contacts: buyerCompanyContacts || []
       },
       companies: {
-        ...poDataAny.companies,
+        ...poDataAny.vendor_company,
         company_addresses: vendorAddresses || [],
         company_contacts: vendorContacts || []
       }

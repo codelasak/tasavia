@@ -9,11 +9,11 @@ interface PurchaseOrder {
   po_date: string
   status: string
   total_amount: number
-  my_companies: {
-    my_company_name: string
-    my_company_code: string
+  buyer_company: {
+    company_name: string
+    company_code: string
   } | null
-  companies: {
+  vendor_company: {
     company_name: string
     company_code: string
   } | null

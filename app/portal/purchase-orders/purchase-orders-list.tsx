@@ -19,11 +19,11 @@ interface PurchaseOrder {
   po_date: string
   status: string
   total_amount: number
-  my_companies: {
-    my_company_name: string
-    my_company_code: string
+  buyer_company: {
+    company_name: string
+    company_code: string
   } | null
-  companies: {
+  vendor_company: {
     company_name: string
     company_code: string
   } | null
@@ -45,8 +45,8 @@ export default function PurchaseOrdersList() {
   useEffect(() => {
     let filtered = purchaseOrders.filter(po =>
       po.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.my_companies?.my_company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.companies?.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+      po.buyer_company?.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      po.vendor_company?.company_name.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     if (statusFilter !== 'all') {
@@ -195,13 +195,13 @@ export default function PurchaseOrdersList() {
                       <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm md:grid-cols-3 md:gap-4">
                         <div>
                           <div className="text-slate-500">From</div>
-                          <div className="font-medium">{po.my_companies?.my_company_name}</div>
-                          <div className="text-slate-600">{po.my_companies?.my_company_code}</div>
+                          <div className="font-medium">{po.buyer_company?.company_name}</div>
+                          <div className="text-slate-600">{po.buyer_company?.company_code}</div>
                         </div>
                         <div>
                           <div className="text-slate-500">To</div>
-                          <div className="font-medium">{po.companies?.company_name}</div>
-                          <div className="text-slate-600">{po.companies?.company_code}</div>
+                          <div className="font-medium">{po.vendor_company?.company_name}</div>
+                          <div className="text-slate-600">{po.vendor_company?.company_code}</div>
                         </div>
                         <div>
                           <div className="text-slate-500">Total Amount</div>

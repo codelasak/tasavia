@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
-  }
   public: {
     Tables: {
       accounts: {
@@ -89,33 +84,6 @@ export type Database = {
         }
         Relationships: []
       }
-      announcements: {
-        Row: {
-          category: string
-          content: string
-          date: string
-          id: string
-          title: string
-          views: number
-        }
-        Insert: {
-          category?: string
-          content: string
-          date?: string
-          id?: string
-          title: string
-          views?: number
-        }
-        Update: {
-          category?: string
-          content?: string
-          date?: string
-          id?: string
-          title?: string
-          views?: number
-        }
-        Relationships: []
-      }
       companies: {
         Row: {
           company_code: string | null
@@ -124,6 +92,7 @@ export type Database = {
           company_type: string | null
           created_at: string | null
           customer_number: string | null
+          is_self: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -133,6 +102,7 @@ export type Database = {
           company_type?: string | null
           created_at?: string | null
           customer_number?: string | null
+          is_self?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -142,6 +112,7 @@ export type Database = {
           company_type?: string | null
           created_at?: string | null
           customer_number?: string | null
+          is_self?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -186,7 +157,15 @@ export type Database = {
           updated_at?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_addresses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       company_bank_details: {
         Row: {
@@ -243,7 +222,15 @@ export type Database = {
           swift_code?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_bank_details_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       company_contacts: {
         Row: {
@@ -253,7 +240,6 @@ export type Database = {
           contact_name: string
           created_at: string | null
           email: string | null
-          is_primary: boolean
           phone: string | null
           role: string | null
           updated_at: string | null
@@ -265,7 +251,6 @@ export type Database = {
           contact_name: string
           created_at?: string | null
           email?: string | null
-          is_primary?: boolean
           phone?: string | null
           role?: string | null
           updated_at?: string | null
@@ -277,54 +262,57 @@ export type Database = {
           contact_name?: string
           created_at?: string | null
           email?: string | null
-          is_primary?: boolean
           phone?: string | null
           role?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       company_ship_via: {
         Row: {
           account_no: string
           company_id: string
-          company_ref_type: string | null
-          custom_company_name: string | null
+          company_ref_type: string
           owner: string | null
-          predefined_company:
-            | Database["public"]["Enums"]["shipping_company_enum"]
-            | null
           ship_company_name: string
-          ship_model: Database["public"]["Enums"]["ship_model_enum"] | null
+          ship_model: string | null
           ship_via_id: string
         }
         Insert: {
           account_no: string
           company_id: string
-          company_ref_type?: string | null
-          custom_company_name?: string | null
+          company_ref_type?: string
           owner?: string | null
-          predefined_company?:
-            | Database["public"]["Enums"]["shipping_company_enum"]
-            | null
           ship_company_name: string
-          ship_model?: Database["public"]["Enums"]["ship_model_enum"] | null
+          ship_model?: string | null
           ship_via_id?: string
         }
         Update: {
           account_no?: string
           company_id?: string
-          company_ref_type?: string | null
-          custom_company_name?: string | null
+          company_ref_type?: string
           owner?: string | null
-          predefined_company?:
-            | Database["public"]["Enums"]["shipping_company_enum"]
-            | null
           ship_company_name?: string
-          ship_model?: Database["public"]["Enums"]["ship_model_enum"] | null
+          ship_model?: string | null
           ship_via_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_ship_via_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       inventory: {
         Row: {
@@ -332,32 +320,30 @@ export type Database = {
           business_status: Database["public"]["Enums"]["business_status_enum"]
           certificate_date: string | null
           certificate_reference: string | null
-          condition: string | null
           country_of_origin: string | null
           created_at: string | null
           dimensions: string | null
           inventory_id: string
           last_certified_agency: string | null
-          last_updated: string | null
           location: string | null
-          notes: string | null
           obtained_from: string | null
+          origin_country: string | null
+          origin_country_code: string | null
           part_status_certification: string | null
           physical_status: Database["public"]["Enums"]["physical_status_enum"]
           pn_id: string
           po_id_original: string | null
           po_number_original: string | null
           po_price: number | null
-          quantity: number | null
           remarks: string | null
-          serial_number: string | null
+          sn: string | null
+          source_of_traceability_documentation: string | null
           status: string | null
           status_updated_at: string | null
           status_updated_by: string | null
-          total_value: number | null
+          traceability_files_path: string | null
           traceability_source: string | null
           traceable_to: string | null
-          unit_cost: number | null
           updated_at: string | null
           weight: number | null
         }
@@ -366,32 +352,30 @@ export type Database = {
           business_status: Database["public"]["Enums"]["business_status_enum"]
           certificate_date?: string | null
           certificate_reference?: string | null
-          condition?: string | null
           country_of_origin?: string | null
           created_at?: string | null
           dimensions?: string | null
           inventory_id?: string
           last_certified_agency?: string | null
-          last_updated?: string | null
           location?: string | null
-          notes?: string | null
           obtained_from?: string | null
+          origin_country?: string | null
+          origin_country_code?: string | null
           part_status_certification?: string | null
           physical_status: Database["public"]["Enums"]["physical_status_enum"]
           pn_id: string
           po_id_original?: string | null
           po_number_original?: string | null
           po_price?: number | null
-          quantity?: number | null
           remarks?: string | null
-          serial_number?: string | null
+          sn?: string | null
+          source_of_traceability_documentation?: string | null
           status?: string | null
           status_updated_at?: string | null
           status_updated_by?: string | null
-          total_value?: number | null
+          traceability_files_path?: string | null
           traceability_source?: string | null
           traceable_to?: string | null
-          unit_cost?: number | null
           updated_at?: string | null
           weight?: number | null
         }
@@ -400,32 +384,30 @@ export type Database = {
           business_status?: Database["public"]["Enums"]["business_status_enum"]
           certificate_date?: string | null
           certificate_reference?: string | null
-          condition?: string | null
           country_of_origin?: string | null
           created_at?: string | null
           dimensions?: string | null
           inventory_id?: string
           last_certified_agency?: string | null
-          last_updated?: string | null
           location?: string | null
-          notes?: string | null
           obtained_from?: string | null
+          origin_country?: string | null
+          origin_country_code?: string | null
           part_status_certification?: string | null
           physical_status?: Database["public"]["Enums"]["physical_status_enum"]
           pn_id?: string
           po_id_original?: string | null
           po_number_original?: string | null
           po_price?: number | null
-          quantity?: number | null
           remarks?: string | null
-          serial_number?: string | null
+          sn?: string | null
+          source_of_traceability_documentation?: string | null
           status?: string | null
           status_updated_at?: string | null
           status_updated_by?: string | null
-          total_value?: number | null
+          traceability_files_path?: string | null
           traceability_source?: string | null
           traceable_to?: string | null
-          unit_cost?: number | null
           updated_at?: string | null
           weight?: number | null
         }
@@ -439,13 +421,6 @@ export type Database = {
           },
           {
             foreignKeyName: "inventory_po_id_original_cascade_fkey"
-            columns: ["po_id_original"]
-            isOneToOne: false
-            referencedRelation: "purchase_orders"
-            referencedColumns: ["po_id"]
-          },
-          {
-            foreignKeyName: "inventory_po_id_original_fkey"
             columns: ["po_id_original"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
@@ -497,36 +472,6 @@ export type Database = {
             referencedColumns: ["inventory_id"]
           },
         ]
-      }
-      my_companies: {
-        Row: {
-          bank_details: Json | null
-          created_at: string | null
-          default_payment_terms: string | null
-          my_company_code: string
-          my_company_id: string
-          my_company_name: string
-          updated_at: string | null
-        }
-        Insert: {
-          bank_details?: Json | null
-          created_at?: string | null
-          default_payment_terms?: string | null
-          my_company_code: string
-          my_company_id?: string
-          my_company_name: string
-          updated_at?: string | null
-        }
-        Update: {
-          bank_details?: Json | null
-          created_at?: string | null
-          default_payment_terms?: string | null
-          my_company_code?: string
-          my_company_id?: string
-          my_company_name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       part_number_history: {
         Row: {
@@ -656,15 +601,18 @@ export type Database = {
         Row: {
           condition: string | null
           created_at: string | null
-          description: string | null
+          description_override: string | null
           last_certified_agency: string | null
-          line_number: number
           line_total: number | null
+          origin_country: string | null
+          origin_country_code: string | null
           pn_id: string
           po_id: string
           po_item_id: string
           quantity: number
           sn: string | null
+          source_of_traceability_documentation: string | null
+          traceability_files_path: string | null
           traceability_source: string | null
           traceable_to: string | null
           unit_price: number
@@ -673,15 +621,18 @@ export type Database = {
         Insert: {
           condition?: string | null
           created_at?: string | null
-          description?: string | null
+          description_override?: string | null
           last_certified_agency?: string | null
-          line_number: number
           line_total?: number | null
+          origin_country?: string | null
+          origin_country_code?: string | null
           pn_id: string
           po_id: string
           po_item_id?: string
           quantity: number
           sn?: string | null
+          source_of_traceability_documentation?: string | null
+          traceability_files_path?: string | null
           traceability_source?: string | null
           traceable_to?: string | null
           unit_price: number
@@ -690,15 +641,18 @@ export type Database = {
         Update: {
           condition?: string | null
           created_at?: string | null
-          description?: string | null
+          description_override?: string | null
           last_certified_agency?: string | null
-          line_number?: number
           line_total?: number | null
+          origin_country?: string | null
+          origin_country_code?: string | null
           pn_id?: string
           po_id?: string
           po_item_id?: string
           quantity?: number
           sn?: string | null
+          source_of_traceability_documentation?: string | null
+          traceability_files_path?: string | null
           traceability_source?: string | null
           traceable_to?: string | null
           unit_price?: number
@@ -723,29 +677,18 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
-          airworthiness_status: string | null
           aviation_compliance_notes: string | null
           aviation_compliance_updated_at: string | null
           aviation_compliance_updated_by: string | null
-          aviation_compliance_verified: boolean | null
           awb_no: string | null
           certificate_expiry_date: string | null
-          certificate_reference_number: string | null
-          certificate_upload_path: string | null
-          compliance_notes: string | null
-          compliance_verified_by: string | null
-          compliance_verified_date: string | null
+          company_id: string
           created_at: string | null
           currency: string
-          end_use_country: string | null
           end_use_country_code: string | null
-          freight_charge: number | null
           last_certificate: string | null
           last_certificate_url: string | null
-          misc_charge: number | null
-          my_company_id: string
           obtained_from: string | null
-          origin_country: string | null
           origin_country_code: string | null
           payment_term: string | null
           po_date: string
@@ -757,95 +700,59 @@ export type Database = {
           remarks_1: string | null
           remarks_2: string | null
           ship_account_no_override: string | null
-          ship_to_address_details: string | null
-          ship_to_company_name: string | null
-          ship_to_contact_email: string | null
-          ship_to_contact_name: string | null
-          ship_to_contact_phone: string | null
           ship_via_id: string | null
-          status: string
-          subtotal: number | null
+          status: Database["public"]["Enums"]["po_status_enum"]
           total_amount: number | null
           traceable_to_airline: string | null
           traceable_to_msn: string | null
           updated_at: string | null
-          vat_percentage: number | null
           vendor_company_id: string
         }
         Insert: {
-          airworthiness_status?: string | null
           aviation_compliance_notes?: string | null
           aviation_compliance_updated_at?: string | null
           aviation_compliance_updated_by?: string | null
-          aviation_compliance_verified?: boolean | null
           awb_no?: string | null
           certificate_expiry_date?: string | null
-          certificate_reference_number?: string | null
-          certificate_upload_path?: string | null
-          compliance_notes?: string | null
-          compliance_verified_by?: string | null
-          compliance_verified_date?: string | null
+          company_id: string
           created_at?: string | null
           currency?: string
-          end_use_country?: string | null
           end_use_country_code?: string | null
-          freight_charge?: number | null
           last_certificate?: string | null
           last_certificate_url?: string | null
-          misc_charge?: number | null
-          my_company_id: string
           obtained_from?: string | null
-          origin_country?: string | null
           origin_country_code?: string | null
           payment_term?: string | null
           po_date?: string
           po_id?: string
-          po_number?: string
+          po_number: string
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
           regulatory_authority?: string | null
           remarks_1?: string | null
           remarks_2?: string | null
           ship_account_no_override?: string | null
-          ship_to_address_details?: string | null
-          ship_to_company_name?: string | null
-          ship_to_contact_email?: string | null
-          ship_to_contact_name?: string | null
-          ship_to_contact_phone?: string | null
           ship_via_id?: string | null
-          status?: string
-          subtotal?: number | null
+          status?: Database["public"]["Enums"]["po_status_enum"]
           total_amount?: number | null
           traceable_to_airline?: string | null
           traceable_to_msn?: string | null
           updated_at?: string | null
-          vat_percentage?: number | null
           vendor_company_id: string
         }
         Update: {
-          airworthiness_status?: string | null
           aviation_compliance_notes?: string | null
           aviation_compliance_updated_at?: string | null
           aviation_compliance_updated_by?: string | null
-          aviation_compliance_verified?: boolean | null
           awb_no?: string | null
           certificate_expiry_date?: string | null
-          certificate_reference_number?: string | null
-          certificate_upload_path?: string | null
-          compliance_notes?: string | null
-          compliance_verified_by?: string | null
-          compliance_verified_date?: string | null
+          company_id?: string
           created_at?: string | null
           currency?: string
-          end_use_country?: string | null
           end_use_country_code?: string | null
-          freight_charge?: number | null
           last_certificate?: string | null
           last_certificate_url?: string | null
-          misc_charge?: number | null
-          my_company_id?: string
           obtained_from?: string | null
-          origin_country?: string | null
           origin_country_code?: string | null
           payment_term?: string | null
           po_date?: string
@@ -857,35 +764,21 @@ export type Database = {
           remarks_1?: string | null
           remarks_2?: string | null
           ship_account_no_override?: string | null
-          ship_to_address_details?: string | null
-          ship_to_company_name?: string | null
-          ship_to_contact_email?: string | null
-          ship_to_contact_name?: string | null
-          ship_to_contact_phone?: string | null
           ship_via_id?: string | null
-          status?: string
-          subtotal?: number | null
+          status?: Database["public"]["Enums"]["po_status_enum"]
           total_amount?: number | null
           traceable_to_airline?: string | null
           traceable_to_msn?: string | null
           updated_at?: string | null
-          vat_percentage?: number | null
           vendor_company_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "purchase_orders_compliance_verified_by_fkey"
-            columns: ["compliance_verified_by"]
+            foreignKeyName: "purchase_orders_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_orders_my_company_id_fkey"
-            columns: ["my_company_id"]
-            isOneToOne: false
-            referencedRelation: "my_companies"
-            referencedColumns: ["my_company_id"]
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "purchase_orders_ship_via_id_fkey"
@@ -1080,6 +973,7 @@ export type Database = {
         Row: {
           actual_delivery_date: string | null
           awb_number: string | null
+          company_id: string
           contract_number: string | null
           country_of_origin: string | null
           created_at: string | null
@@ -1093,7 +987,6 @@ export type Database = {
           gross_weight_kgs: number | null
           invoice_number: string
           misc_charge: number | null
-          my_company_id: string
           package_dimensions: string | null
           payment_terms: string | null
           prepared_by_name: string | null
@@ -1120,6 +1013,7 @@ export type Database = {
         Insert: {
           actual_delivery_date?: string | null
           awb_number?: string | null
+          company_id: string
           contract_number?: string | null
           country_of_origin?: string | null
           created_at?: string | null
@@ -1133,7 +1027,6 @@ export type Database = {
           gross_weight_kgs?: number | null
           invoice_number?: string
           misc_charge?: number | null
-          my_company_id: string
           package_dimensions?: string | null
           payment_terms?: string | null
           prepared_by_name?: string | null
@@ -1160,6 +1053,7 @@ export type Database = {
         Update: {
           actual_delivery_date?: string | null
           awb_number?: string | null
+          company_id?: string
           contract_number?: string | null
           country_of_origin?: string | null
           created_at?: string | null
@@ -1173,7 +1067,6 @@ export type Database = {
           gross_weight_kgs?: number | null
           invoice_number?: string
           misc_charge?: number | null
-          my_company_id?: string
           package_dimensions?: string | null
           payment_terms?: string | null
           prepared_by_name?: string | null
@@ -1199,18 +1092,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "sales_orders_customer_company_id_fkey"
-            columns: ["customer_company_id"]
+            foreignKeyName: "sales_orders_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["company_id"]
           },
           {
-            foreignKeyName: "sales_orders_my_company_id_fkey"
-            columns: ["my_company_id"]
+            foreignKeyName: "sales_orders_customer_company_id_fkey"
+            columns: ["customer_company_id"]
             isOneToOne: false
-            referencedRelation: "my_companies"
-            referencedColumns: ["my_company_id"]
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "sales_orders_terms_and_conditions_id_fkey"
@@ -1279,9 +1172,109 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      company_entity_addresses: {
+        Row: {
+          address_id: string | null
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          entity_id: string | null
+          entity_kind: string | null
+          is_primary: boolean | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address_id?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_kind?: never
+          is_primary?: boolean | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address_id?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_kind?: never
+          is_primary?: boolean | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_addresses_company_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      company_entity_contacts: {
+        Row: {
+          contact_id: string | null
+          contact_name: string | null
+          created_at: string | null
+          email: string | null
+          entity_id: string | null
+          entity_kind: string | null
+          is_primary: boolean | null
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          entity_id?: string | null
+          entity_kind?: never
+          is_primary?: never
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          entity_id?: string | null
+          entity_kind?: never
+          is_primary?: never
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      check_user_admin_status: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
       create_inventory_from_po_completion: {
         Args: { po_id_param: string }
         Returns: {
@@ -1301,7 +1294,7 @@ export type Database = {
       }
       generate_po_number: {
         Args: Record<PropertyKey, never>
-        Returns: string
+        Returns: number
       }
       generate_repair_order_number: {
         Args: Record<PropertyKey, never>
@@ -1309,16 +1302,16 @@ export type Database = {
       }
       handle_company_operations: {
         Args: {
-          p_addresses?: Json
-          p_company_data?: Json
-          p_company_id?: string
-          p_contacts?: Json
+          p_addresses: Json
+          p_company_data: Json
+          p_company_id: string
+          p_contacts: Json
           p_operation: string
         }
         Returns: Json
       }
       is_admin: {
-        Args: { user_id?: string }
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       is_super_admin: {
@@ -1333,28 +1326,20 @@ export type Database = {
         Args: { target_table?: string }
         Returns: Json
       }
+      validate_company_reference: {
+        Args: { company_id: string; company_ref_type: string }
+        Returns: boolean
+      }
     }
     Enums: {
       business_status_enum: "available" | "reserved" | "sold"
       physical_status_enum: "depot" | "in_repair" | "in_transit"
-      ship_model_enum:
-        | "IMPORT"
-        | "THIRD_PARTY_EXPORT"
-        | "GROUND"
-        | "SEA"
-        | "AIRLINE"
-      shipping_company_enum:
-        | "DHL"
-        | "FEDEX"
-        | "UPS"
-        | "TNT"
-        | "ARAMEX"
-        | "DPD"
-        | "SCHENKER"
-        | "KUEHNE_NAGEL"
-        | "EXPEDITORS"
-        | "PANALPINA"
-        | "CUSTOM"
+      po_status_enum:
+        | "Draft"
+        | "Sent"
+        | "Acknowledged"
+        | "Completed"
+        | "Cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1484,26 +1469,14 @@ export const Constants = {
     Enums: {
       business_status_enum: ["available", "reserved", "sold"],
       physical_status_enum: ["depot", "in_repair", "in_transit"],
-      ship_model_enum: [
-        "IMPORT",
-        "THIRD_PARTY_EXPORT",
-        "GROUND",
-        "SEA",
-        "AIRLINE",
-      ],
-      shipping_company_enum: [
-        "DHL",
-        "FEDEX",
-        "UPS",
-        "TNT",
-        "ARAMEX",
-        "DPD",
-        "SCHENKER",
-        "KUEHNE_NAGEL",
-        "EXPEDITORS",
-        "PANALPINA",
-        "CUSTOM",
+      po_status_enum: [
+        "Draft",
+        "Sent",
+        "Acknowledged",
+        "Completed",
+        "Cancelled",
       ],
     },
   },
 } as const
+
