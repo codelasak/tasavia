@@ -212,8 +212,8 @@ interface CompanyDialogProps {
   type: 'my_company' | 'external_company';
 }
 
-// Helper function to generate company code preview
-const generateCompanyCodePreview = (companyName: string): string => {
+// Helper function to generate company code
+const generateCompanyCode = (companyName: string): string => {
   if (!companyName) return ''
   const prefix = companyName
     .replace(/[^A-Za-z]/g, '')
@@ -226,6 +226,43 @@ const generateCompanyCodePreview = (companyName: string): string => {
     .padStart(3, '0')
   
   return `${prefix}${randomSuffix}`
+}
+
+// Helper function to generate unique company code with database check
+const generateUniqueCompanyCode = async (companyName: string, excludeCompanyId?: string): Promise<string> => {
+  let attempts = 0
+  const maxAttempts = 10
+  
+  while (attempts < maxAttempts) {
+    const code = generateCompanyCode(companyName)
+    
+    // Check if code exists in database
+    let query = supabase
+      .from('companies')
+      .select('company_id')
+      .eq('company_code', code)
+    
+    if (excludeCompanyId) {
+      query = query.neq('company_id', excludeCompanyId)
+    }
+    
+    const { data, error } = await query
+    
+    if (error) {
+      console.error('Error checking code uniqueness:', error)
+      return code // Return the code anyway if we can't check
+    }
+    
+    if (!data || data.length === 0) {
+      return code // Code is unique
+    }
+    
+    attempts++
+  }
+  
+  // If we couldn't generate a unique code after maxAttempts, append timestamp
+  const fallbackCode = generateCompanyCode(companyName) + Date.now().toString().slice(-3)
+  return fallbackCode
 }
 
 export function CompanyDialog({ open, onClose, company, type }: CompanyDialogProps) {
@@ -477,7 +514,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       const companyName = form.watch('company_name');
       const companyCode = form.watch('company_code');
       if (companyName && !companyCode) {
-        setCodePreview(generateCompanyCodePreview(companyName));
+        setCodePreview(generateCompanyCode(companyName));
       } else {
         setCodePreview('');
       }
@@ -822,6 +859,20 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         
         // Handle External Company form submission
         const { formType, ship_via_info, company_addresses, company_contacts, ...companyData } = formData;
+        
+        // Auto-generate company code if empty
+        if (!companyData.company_code?.trim()) {
+          try {
+            companyData.company_code = await generateUniqueCompanyCode(
+              companyData.company_name, 
+              isExternalCompany(company) ? company.company_id : undefined
+            );
+          } catch (error) {
+            console.error('Error generating company code:', error);
+            // Use a simple generated code as fallback
+            companyData.company_code = generateCompanyCode(companyData.company_name);
+          }
+        }
         
         if (isExternalCompany(company)) {
           // Update existing company
@@ -1206,7 +1257,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setCodePreview(generateCompanyCodePreview(form.watch('company_name')))}
+                          onClick={() => setCodePreview(generateCompanyCode(form.watch('company_name')))}
                         >
                           <RefreshCw className="h-3 w-3" />
                         </Button>

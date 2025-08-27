@@ -268,8 +268,15 @@ export default function NewPurchaseOrderClientPage({
         }
       }
 
-      // Generate a unique PO number
-      const poNumber = `PO-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+      // Generate PO number using database sequence function
+      const { data: poNumberResult, error: poNumberError } = await supabase
+        .rpc('generate_po_number')
+      
+      if (poNumberError || !poNumberResult) {
+        throw new Error(`Failed to generate PO number: ${poNumberError?.message || 'Unknown error'}`)
+      }
+      
+      const poNumber = String(poNumberResult)
       
       // Create the purchase order
       const insertData = {
