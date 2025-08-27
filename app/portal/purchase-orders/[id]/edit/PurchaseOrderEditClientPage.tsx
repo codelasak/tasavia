@@ -530,7 +530,7 @@ export default function PurchaseOrderEditClientPage({
         freight_charge: data.freight_charge,
         misc_charge: data.misc_charge,
         vat_percentage: data.vat_percentage,
-        status: data.status,
+        status: data.status as 'Draft' | 'Sent' | 'Acknowledged' | 'Completed' | 'Cancelled',
         subtotal,
         total_amount: total,
       })

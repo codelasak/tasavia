@@ -41,22 +41,48 @@ export default function PurchaseOrdersLayout({ children }: PurchaseOrdersLayoutP
             status,
             total_amount,
             created_at,
-            buyer_company:companies!company_id (
-              company_name,
-              company_code
-            ),
-            vendor_company:companies!vendor_company_id (
-              company_name,
-              company_code
-            )
+            company_id,
+            vendor_company_id
           `)
           .order('created_at', { ascending: false })
 
         if (error) {
           console.error('Error fetching purchase orders:', error)
           setPurchaseOrders([])
+        } else if (data) {
+          // Get unique company IDs
+          const companyIds = [...new Set([
+            ...data.map((po: any) => po.company_id),
+            ...data.map((po: any) => po.vendor_company_id)
+          ].filter(Boolean))]
+
+          // Fetch company data
+          const { data: companiesData, error: companiesError } = await supabase
+            .from('companies')
+            .select('company_id, company_name, company_code')
+            .in('company_id', companyIds)
+
+          if (companiesError) {
+            console.error('Error fetching companies:', companiesError)
+            setPurchaseOrders([])
+          } else {
+            // Create a map of companies for quick lookup
+            const companiesMap = (companiesData || []).reduce((acc: any, company: any) => {
+              acc[company.company_id] = company
+              return acc
+            }, {})
+
+            // Merge purchase orders with company data
+            const enrichedData = data.map((po: any) => ({
+              ...po,
+              buyer_company: companiesMap[po.company_id] || null,
+              vendor_company: companiesMap[po.vendor_company_id] || null
+            }))
+
+            setPurchaseOrders(enrichedData)
+          }
         } else {
-          setPurchaseOrders(data as any || [])
+          setPurchaseOrders([])
         }
       } catch (error) {
         console.error('Error fetching purchase orders:', error)

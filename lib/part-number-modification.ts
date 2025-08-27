@@ -108,9 +108,7 @@ export class PartNumberModificationService {
         .from('inventory')
         .select(`
           inventory_id,
-          serial_number,
-          quantity,
-          condition,
+          sn,
           location,
           business_status,
           physical_status,
@@ -154,7 +152,7 @@ export class PartNumberModificationService {
           )
         `)
         .eq('inventory.pn_master_table.pn', currentPartNumber)
-        .in('purchase_orders.status', ['pending', 'confirmed', 'partial'])
+        .in('purchase_orders.status', ['Draft', 'Sent', 'Acknowledged'])
 
       purchaseOrders?.forEach(item => {
         if (item.purchase_orders) {
@@ -214,9 +212,9 @@ export class PartNumberModificationService {
         totalRecords: inventoryRecords?.length || 0,
         recordsAffected: inventoryRecords?.map(record => ({
           id: record.inventory_id,
-          serial_number: record.serial_number || 'N/A',
-          quantity: record.quantity || 0,
-          condition: record.condition || 'Unknown',
+          serial_number: record.sn || 'N/A',
+          quantity: 1, // Default quantity for inventory items
+          condition: 'Unknown', // Default condition since this field doesn't exist in current schema
           location: record.location || undefined,
           status: `${record.business_status}/${record.physical_status}`,
           last_updated: record.updated_at || 'Unknown'

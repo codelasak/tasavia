@@ -14,16 +14,14 @@ async function getFormData() {
         ship_company_name,
         account_no,
         owner,
-        ship_model,
-        predefined_company,
-        custom_company_name
+        ship_model
       `)
       .order('ship_company_name')
   ])
 
-  if (companiesResult.error) throw companiesResult.error
-  if (partNumbersResult.error) throw partNumbersResult.error
-  if (shipViaResult.error) throw shipViaResult.error
+  if (companiesResult.error) throw new Error(companiesResult.error.message || 'Failed to fetch companies')
+  if (partNumbersResult.error) throw new Error(partNumbersResult.error.message || 'Failed to fetch part numbers')
+  if (shipViaResult.error) throw new Error(shipViaResult.error.message || 'Failed to fetch shipping methods')
 
   // Fetch addresses and contacts for all companies
   const [companyAddresses, companyContacts] = await Promise.all([
@@ -38,10 +36,11 @@ async function getFormData() {
     .filter(company => company.is_self === true)
     .map(company => ({
       ...company,
+      is_self: company.is_self || false,
       // Keep legacy field names for compatibility with existing component
       my_company_id: company.company_id,
       my_company_name: company.company_name,
-      my_company_code: company.company_code,
+      my_company_code: company.company_code || '',
       company_addresses: companyAddresses.data?.filter(addr => addr.company_id === company.company_id) || [],
       company_contacts: companyContacts.data?.filter(contact => contact.company_id === company.company_id) || []
     }))
@@ -58,7 +57,16 @@ async function getFormData() {
     myCompanies: enrichedMyCompanies,
     externalCompanies: enrichedExternalCompanies,
     partNumbers: partNumbersResult.data || [],
-    shipViaList: shipViaResult.data || [],
+    // Derive UI-friendly fields expected by the client from ship_company_name
+    shipViaList: (shipViaResult.data || []).map((item: any) => {
+      const known = new Set(['DHL','FEDEX','UPS','TNT','ARAMEX','DPD','SCHENKER','KUEHNE_NAGEL','EXPEDITORS','PANALPINA'])
+      const isKnown = known.has(item.ship_company_name)
+      return {
+        ...item,
+        predefined_company: isKnown ? item.ship_company_name : 'CUSTOM',
+        custom_company_name: isKnown ? null : item.ship_company_name,
+      }
+    }),
   }
 }
 

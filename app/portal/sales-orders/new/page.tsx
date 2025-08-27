@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic'
 async function getFormData() {
   const supabase = createSupabaseServer()
   const [myCompaniesResult, customersResult, inventoryResult, termsResult] = await Promise.all([
-    supabase.from('my_companies').select('*').order('my_company_name'),
-    supabase.from('companies').select('*, customer_number').order('company_name'),
+    supabase.from('companies').select('*, company_name as my_company_name, company_code as my_company_code, company_id as my_company_id').eq('is_self', true).order('company_name'),
+    supabase.from('companies').select('*, customer_number').neq('is_self', true).order('company_name'),
     supabase.from('inventory')
       .select(`
         *,

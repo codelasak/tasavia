@@ -452,14 +452,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       
       if (error) throw error;
       
-      const shipViaData = data?.map(item => ({
-        ship_via_id: item.ship_via_id,
-        predefined_company: item.predefined_company,
-        custom_company_name: item.custom_company_name,
-        account_no: item.account_no,
-        owner: item.owner,
-        ship_model: item.ship_model
-      })) || [];
+      const shipViaData = data?.map((item: any) => {
+        const known = new Set(['DHL','FEDEX','UPS','TNT','ARAMEX','DPD','SCHENKER','KUEHNE_NAGEL','EXPEDITORS','PANALPINA'])
+        const isKnown = known.has(item.ship_company_name)
+        return {
+          ship_via_id: item.ship_via_id,
+          predefined_company: isKnown ? item.ship_company_name : 'CUSTOM',
+          custom_company_name: isKnown ? undefined : item.ship_company_name,
+          account_no: item.account_no,
+          owner: item.owner,
+          ship_model: item.ship_model
+        }
+      }) || [];
       
       form.setValue('ship_via_info', shipViaData);
     } catch (error) {
@@ -499,14 +503,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 .eq('company_id', companyId)
                 .eq('company_ref_type', 'companies');
               
-              shipViaData = data?.map(item => ({
-                ship_via_id: item.ship_via_id,
-                predefined_company: item.predefined_company,
-                custom_company_name: item.custom_company_name,
-                account_no: item.account_no,
-                owner: item.owner,
-                ship_model: item.ship_model
-              })) || [];
+              shipViaData = data?.map((item: any) => {
+                const known = new Set(['DHL','FEDEX','UPS','TNT','ARAMEX','DPD','SCHENKER','KUEHNE_NAGEL','EXPEDITORS','PANALPINA'])
+                const isKnown = known.has(item.ship_company_name)
+                return {
+                  ship_via_id: item.ship_via_id,
+                  predefined_company: isKnown ? item.ship_company_name : 'CUSTOM',
+                  custom_company_name: isKnown ? undefined : item.ship_company_name,
+                  account_no: item.account_no,
+                  owner: item.owner,
+                  ship_model: item.ship_model
+                }
+              }) || [];
             } catch (error) {
               console.error('Error loading ship via data:', error);
             }
@@ -544,14 +552,18 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
                 .eq('company_id', companyData.company_id)
                 .eq('company_ref_type', 'companies');
               
-              shipViaData = data?.map(item => ({
-                ship_via_id: item.ship_via_id,
-                predefined_company: item.predefined_company,
-                custom_company_name: item.custom_company_name,
-                account_no: item.account_no,
-                owner: item.owner,
-                ship_model: item.ship_model
-              })) || [];
+              shipViaData = data?.map((item: any) => {
+                const known = new Set(['DHL','FEDEX','UPS','TNT','ARAMEX','DPD','SCHENKER','KUEHNE_NAGEL','EXPEDITORS','PANALPINA'])
+                const isKnown = known.has(item.ship_company_name)
+                return {
+                  ship_via_id: item.ship_via_id,
+                  predefined_company: isKnown ? item.ship_company_name : 'CUSTOM',
+                  custom_company_name: isKnown ? undefined : item.ship_company_name,
+                  account_no: item.account_no,
+                  owner: item.owner,
+                  ship_model: item.ship_model
+                }
+              }) || [];
             } catch (error) {
               console.error('Error loading ship via data:', error);
             }

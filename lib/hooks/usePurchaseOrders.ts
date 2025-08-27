@@ -56,14 +56,8 @@ export function usePurchaseOrders() {
           status,
           total_amount,
           created_at,
-          my_companies (
-            my_company_name,
-            my_company_code
-          ),
-          companies (
-            company_name,
-            company_code
-          )
+          company_id,
+          vendor_company_id
         `)
         .order('created_at', { ascending: false })
 
@@ -71,7 +65,46 @@ export function usePurchaseOrders() {
         throw new Error(`Failed to fetch purchase orders: ${error.message}`)
       }
 
-      return data || []
+      if (!data || data.length === 0) {
+        return []
+      }
+
+      // Get unique company IDs
+      const companyIds = [...new Set([
+        ...data.map((po: any) => po.company_id),
+        ...data.map((po: any) => po.vendor_company_id)
+      ].filter(Boolean))]
+
+      // Fetch company data
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('company_id, company_name, company_code')
+        .in('company_id', companyIds)
+
+      if (companiesError) {
+        throw new Error(`Failed to fetch companies: ${companiesError.message}`)
+      }
+
+      // Create a map of companies for quick lookup
+      const companiesMap = (companiesData || []).reduce((acc: any, company: any) => {
+        acc[company.company_id] = company
+        return acc
+      }, {})
+
+      // Merge purchase orders with company data
+      const enrichedData = data.map((po: any) => ({
+        ...po,
+        my_companies: companiesMap[po.company_id] ? {
+          my_company_name: companiesMap[po.company_id].company_name,
+          my_company_code: companiesMap[po.company_id].company_code
+        } : null,
+        companies: companiesMap[po.vendor_company_id] ? {
+          company_name: companiesMap[po.vendor_company_id].company_name,
+          company_code: companiesMap[po.vendor_company_id].company_code
+        } : null
+      }))
+
+      return enrichedData
     },
     staleTime: 2 * 60 * 1000, // 2 minutes - purchase orders change more frequently
     gcTime: 5 * 60 * 1000, // 5 minutes
@@ -88,6 +121,7 @@ export function useSalesOrders() {
         .select(`
           sales_order_id,
           invoice_number,
+          company_id,
           customer_company_id,
           customer_po_number,
           sales_date,
@@ -96,14 +130,7 @@ export function useSalesOrders() {
           total_net,
           currency,
           tracking_number,
-          created_at,
-          companies (
-            company_name,
-            company_code
-          ),
-          my_companies (
-            my_company_name
-          )
+          created_at
         `)
         .order('created_at', { ascending: false })
 
@@ -111,7 +138,46 @@ export function useSalesOrders() {
         throw new Error(`Failed to fetch sales orders: ${error.message}`)
       }
 
-      return data || []
+      if (!data || data.length === 0) {
+        return []
+      }
+
+      // Get unique company IDs
+      const companyIds = [...new Set([
+        ...data.map((so: any) => so.company_id),
+        ...data.map((so: any) => so.customer_company_id)
+      ].filter(Boolean))]
+
+      // Fetch company data
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('company_id, company_name, company_code')
+        .in('company_id', companyIds)
+
+      if (companiesError) {
+        throw new Error(`Failed to fetch companies: ${companiesError.message}`)
+      }
+
+      // Create a map of companies for quick lookup
+      const companiesMap = (companiesData || []).reduce((acc: any, company: any) => {
+        acc[company.company_id] = company
+        return acc
+      }, {})
+
+      // Merge sales orders with company data
+      const enrichedData = data.map((so: any) => ({
+        ...so,
+        my_companies: companiesMap[so.company_id] ? {
+          my_company_name: companiesMap[so.company_id].company_name,
+          my_company_code: companiesMap[so.company_id].company_code
+        } : null,
+        companies: companiesMap[so.customer_company_id] ? {
+          company_name: companiesMap[so.customer_company_id].company_name,
+          company_code: companiesMap[so.customer_company_id].company_code
+        } : null
+      }))
+
+      return enrichedData
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes

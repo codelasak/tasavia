@@ -35,16 +35,16 @@ export default async function DashboardPage() {
 async function fetchDashboardStats(): Promise<DashboardStats> {
   const supabase = createSupabaseServer()
   try {
-    // Get companies count (my companies + external companies)
-    const [myCompaniesResult, companiesResult, partsResult, posResult, inventoryResult] = await Promise.all([
-      supabase.from('my_companies').select('my_company_id', { count: 'exact', head: true }),
-      supabase.from('companies').select('company_id', { count: 'exact', head: true }),
+    // Get companies count (internal + external companies from unified table)
+    const [internalCompaniesResult, externalCompaniesResult, partsResult, posResult, inventoryResult] = await Promise.all([
+      supabase.from('companies').select('company_id', { count: 'exact', head: true }).eq('is_self', true),
+      supabase.from('companies').select('company_id', { count: 'exact', head: true }).neq('is_self', true),
       supabase.from('pn_master_table').select('pn_id', { count: 'exact', head: true }),
       supabase.from('purchase_orders').select('total_amount, status, created_at'),
       supabase.from('inventory').select('total_value')
     ])
 
-    const totalCompanies = (myCompaniesResult.count || 0) + (companiesResult.count || 0)
+    const totalCompanies = (internalCompaniesResult.count || 0) + (externalCompaniesResult.count || 0)
     const totalParts = partsResult.count || 0
     const totalPOs = posResult.data?.length || 0
     

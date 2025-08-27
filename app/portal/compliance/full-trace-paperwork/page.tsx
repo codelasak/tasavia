@@ -60,7 +60,7 @@ export default async function FullTracePaperworkServerPage() {
   return (
     <FullTracePaperworkPage 
       companyData={companyData}
-      recentParts={recentParts || []}
+      recentParts={recentParts as any || []}
     />
   )
 }

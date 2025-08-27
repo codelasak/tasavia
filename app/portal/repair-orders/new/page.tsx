@@ -38,7 +38,7 @@ export default async function NewRepairOrderPage() {
   return (
     <NewRepairOrderClientPage
       vendors={formData.vendors}
-      inventoryItems={formData.inventoryItems}
+      inventoryItems={formData.inventoryItems as any}
     />
   )
 }

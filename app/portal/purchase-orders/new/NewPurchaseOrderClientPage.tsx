@@ -268,9 +268,13 @@ export default function NewPurchaseOrderClientPage({
         }
       }
 
-      // Create the purchase order - omit po_number to let database generate it
+      // Generate a unique PO number
+      const poNumber = `PO-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+      
+      // Create the purchase order
       const insertData = {
-        my_company_id: data.my_company_id,
+        po_number: poNumber,
+        company_id: data.my_company_id,
         vendor_company_id: data.vendor_company_id,
         po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
         ...shipToData,

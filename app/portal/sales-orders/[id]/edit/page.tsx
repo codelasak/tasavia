@@ -18,8 +18,6 @@ async function getSalesOrderData(salesOrderId: string) {
       .from('sales_orders')
       .select(`
         *,
-        my_companies(*),
-        companies(*),
         terms_and_conditions(*)
       `)
       .eq('sales_order_id', salesOrderId as any)
@@ -27,6 +25,22 @@ async function getSalesOrderData(salesOrderId: string) {
 
     if (salesOrderError) {
       return null
+    }
+
+    // Fetch company data separately
+    const [sellerCompanyResult, customerCompanyResult] = await Promise.all([
+      supabase.from('companies').select('*').eq('company_id', salesOrderData.company_id).single(),
+      supabase.from('companies').select('*').eq('company_id', salesOrderData.customer_company_id).single()
+    ])
+
+    // Enrich sales order with company data for compatibility
+    const enrichedSalesOrderData = {
+      ...salesOrderData,
+      // Add legacy field for compatibility
+      my_company_id: salesOrderData.company_id,
+      // Add company objects for compatibility
+      my_companies: sellerCompanyResult.data,
+      companies: customerCompanyResult.data
     }
 
     // Fetch sales order items with inventory and part number details
@@ -51,7 +65,7 @@ async function getSalesOrderData(salesOrderId: string) {
     }
 
     return {
-      salesOrder: salesOrderData,
+      salesOrder: enrichedSalesOrderData,
       items: itemsData || []
     }
   } catch (error) {
@@ -62,8 +76,8 @@ async function getSalesOrderData(salesOrderId: string) {
 async function getEditFormData() {
   const supabase = createSupabaseServer()
   const [myCompaniesResult, customersResult, inventoryResult, termsResult] = await Promise.all([
-    supabase.from('my_companies').select('*').order('my_company_name'),
-    supabase.from('companies').select('*, customer_number').order('company_name'),
+    supabase.from('companies').select('*, company_name as my_company_name, company_code as my_company_code, company_id as my_company_id').eq('is_self', true).order('company_name'),
+    supabase.from('companies').select('*, customer_number').neq('is_self', true).order('company_name'),
     supabase.from('inventory')
       .select(`
         *,
