@@ -26,24 +26,24 @@ export default function PDFFinancialSummaryCompact({
               <td className="py-0.5 text-xs">Sub Total:</td>
               <td className="py-0.5 text-xs text-right">${subtotal.toFixed(2)}</td>
             </tr>
-            {misc_charge && misc_charge > 0 && (
+            {misc_charge && misc_charge > 0 ? (
               <tr>
                 <td className="py-0.5 text-xs">Misc Charge:</td>
                 <td className="py-0.5 text-xs text-right">${misc_charge.toFixed(2)}</td>
               </tr>
-            )}
-            {freight_charge && freight_charge > 0 && (
+            ) : null}
+            {freight_charge && freight_charge > 0 ? (
               <tr>
                 <td className="py-0.5 text-xs">Freight/Forwarding:</td>
                 <td className="py-0.5 text-xs text-right">${freight_charge.toFixed(2)}</td>
               </tr>
-            )}
-            {vat_amount && vat_amount > 0 && (
+            ) : null}
+            {vat_amount && vat_amount > 0 ? (
               <tr>
                 <td className="py-0.5 text-xs">VAT ({vat_percentage || 0}%):</td>
                 <td className="py-0.5 text-xs text-right">${vat_amount.toFixed(2)}</td>
               </tr>
-            )}
+            ) : null}
             <tr className="border-t border-slate-300">
               <td className="py-1 font-bold text-xs">Total NET ({currency}):</td>
               <td className="py-1 font-bold text-right text-sm">${total_net.toFixed(2)}</td>

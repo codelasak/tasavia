@@ -26,24 +26,24 @@ export default function PDFFinancialSummary({
               <td className="py-1 text-sm">Sub Total:</td>
               <td className="py-1 text-sm text-right">${subtotal.toFixed(2)}</td>
             </tr>
-            {misc_charge && misc_charge > 0 && (
+            {misc_charge && misc_charge > 0 ? (
               <tr>
                 <td className="py-1 text-sm">Misc Charge:</td>
                 <td className="py-1 text-sm text-right">${misc_charge.toFixed(2)}</td>
               </tr>
-            )}
-            {freight_charge && freight_charge > 0 && (
+            ) : null}
+            {freight_charge && freight_charge > 0 ? (
               <tr>
                 <td className="py-1 text-sm">Freight/Forwarding:</td>
                 <td className="py-1 text-sm text-right">${freight_charge.toFixed(2)}</td>
               </tr>
-            )}
-            {vat_amount && vat_amount > 0 && (
+            ) : null}
+            {vat_amount && vat_amount > 0 ? (
               <tr>
                 <td className="py-1 text-sm">VAT ({vat_percentage || 0}%):</td>
                 <td className="py-1 text-sm text-right">${vat_amount.toFixed(2)}</td>
               </tr>
-            )}
+            ) : null}
             <tr className="border-t border-slate-300">
               <td className="py-2 font-bold">Total NET ({currency}):</td>
               <td className="py-2 font-bold text-right text-lg">${total_net.toFixed(2)}</td>
