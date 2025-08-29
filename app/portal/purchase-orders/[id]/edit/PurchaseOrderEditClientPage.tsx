@@ -24,27 +24,13 @@ import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
 import { fetchCountries } from '@/lib/external-apis'
 import FileUpload from '@/components/ui/file-upload'
 
-interface MyCompany {
-  my_company_id: string
-  my_company_name: string
-  my_company_code: string
-  company_addresses: Array<{
-    address_line1: string
-    address_line2: string | null
-    city: string | null
-    country: string | null
-  }>
-  company_contacts: Array<{
-    contact_name: string
-    email: string | null
-    phone: string | null
-  }>
-}
-
-interface ExternalCompany {
+// Simplified interfaces to match database structure directly
+interface Company {
   company_id: string
   company_name: string
   company_code: string | null
+  is_self: boolean
+  company_type: string | null
   company_addresses: Array<{
     address_line1: string
     address_line2: string | null
@@ -70,8 +56,15 @@ interface ShipVia {
   account_no: string
   owner?: string | null
   ship_model?: string | null
-  predefined_company?: string | null
-  custom_company_name?: string | null
+}
+
+interface PurchaseOrderEditData {
+  purchaseOrder: any // Full PO data from database
+  items: any[] // PO items with part number references
+  myCompanies: Company[]
+  externalCompanies: Company[]
+  partNumbers: PartNumber[]
+  shipViaList: ShipVia[]
 }
 
 const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
@@ -102,7 +95,7 @@ const poItemSchema = z.object({
 })
 
 const purchaseOrderSchema = z.object({
-  my_company_id: z.string().min(1, 'My company is required'),
+  company_id: z.string().min(1, 'My company is required'),
   vendor_company_id: z.string().min(1, 'Vendor is required'),
   po_date: z.date(),
   ship_to_company_id: z.string().optional(),
@@ -123,23 +116,14 @@ type PurchaseOrderFormValues = z.infer<typeof purchaseOrderSchema>
 
 interface PurchaseOrderEditClientPageProps {
   poId: string
-  initialPurchaseOrder: any
-  initialItems: any[]
-  myCompanies: MyCompany[]
-  externalCompanies: ExternalCompany[]
-  partNumbers: PartNumber[]
-  shipViaList: ShipVia[]
+  initialData: PurchaseOrderEditData
 }
 
 export default function PurchaseOrderEditClientPage({ 
   poId, 
-  initialPurchaseOrder, 
-  initialItems, 
-  myCompanies, 
-  externalCompanies, 
-  partNumbers, 
-  shipViaList 
+  initialData
 }: PurchaseOrderEditClientPageProps) {
+  const { purchaseOrder, items, myCompanies, externalCompanies, partNumbers, shipViaList } = initialData
   const router = useRouter()
   const { user } = useAuth()
   const { updatePurchaseOrder: updatePOInContext } = usePurchaseOrdersContext()
@@ -155,7 +139,7 @@ export default function PurchaseOrderEditClientPage({
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
-      my_company_id: '',
+      company_id: '',
       vendor_company_id: '',
       po_date: new Date(),
       ship_to_company_id: '',
@@ -191,38 +175,39 @@ export default function PurchaseOrderEditClientPage({
     loadExternalData()
   }, [])
 
-  // Initialize form with pre-fetched data
+  // Initialize form with simplified data structure
   useEffect(() => {
-    // Form initialization started
-    
-    if (initialPurchaseOrder) {
-      const formattedItems = (initialItems || []).map(item => {
-        // Processing item
-        return {
-          po_item_id: item.po_item_id,
-          pn_id: item.pn_id || item.pn_master_table?.pn_id || '',
-          description: item.description || item.pn_master_table?.description || '',
-          sn: item.sn || '',
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          condition: item.condition || '',
-          // Enhanced traceability fields
-          traceability_source: item.traceability_source || '',
-          traceable_to: item.traceable_to || '',
-          origin_country: item.origin_country || '',
-          origin_country_code: item.origin_country_code || '',
-          last_certified_agency: item.last_certified_agency || '',
-          traceability_files_path: item.traceability_files_path ? 
-            JSON.parse(item.traceability_files_path).map((file: any) => ({
+    if (!purchaseOrder || !myCompanies.length || !externalCompanies.length) {
+      console.warn('Missing required data for form initialization')
+      return
+    }
+
+    console.log('Initializing form with PO:', purchaseOrder.po_number)
+
+    try {
+      // Format items directly from database structure
+      const formattedItems = (items || []).map((item) => ({
+        po_item_id: item.po_item_id,
+        pn_id: item.pn_id || '',
+        description: item.description || item.pn_master_table?.description || '',
+        sn: item.sn || '',
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.unit_price) || 0,
+        condition: item.condition || '',
+        traceability_source: item.traceability_source || '',
+        traceable_to: item.traceable_to || '',
+        origin_country: item.origin_country || '',
+        origin_country_code: item.origin_country_code || '',
+        last_certified_agency: item.last_certified_agency || '',
+        traceability_files_path: item.traceability_files_path 
+          ? JSON.parse(item.traceability_files_path).map((file: any) => ({
               ...file,
               uploadedAt: new Date(file.uploadedAt)
-            })) : [],
-        }
-      })
-      
-      // Items formatted successfully
-      
-      // Ensure at least one item exists for the form
+            }))
+          : [],
+      }))
+
+      // Ensure at least one item
       const itemsToSet = formattedItems.length > 0 ? formattedItems : [{
         pn_id: '',
         description: '',
@@ -237,24 +222,22 @@ export default function PurchaseOrderEditClientPage({
         last_certified_agency: '',
         traceability_files_path: [],
       }]
-      
-      // Determine ship-to company info from existing data
+
+      // Determine ship-to company from existing ship-to data
       let shipToCompanyId = ''
       let shipToCompanyType: 'my_company' | 'external_company' | undefined = undefined
       
-      if (initialPurchaseOrder.ship_to_company_name) {
-        // Try to find matching my company first
+      if (purchaseOrder.ship_to_company_name) {
         const matchingMyCompany = myCompanies.find(c => 
-          c.my_company_name === initialPurchaseOrder.ship_to_company_name
+          c.company_name === purchaseOrder.ship_to_company_name
         )
         
         if (matchingMyCompany) {
-          shipToCompanyId = matchingMyCompany.my_company_id
+          shipToCompanyId = matchingMyCompany.company_id
           shipToCompanyType = 'my_company'
         } else {
-          // Try to find matching external company
           const matchingExternalCompany = externalCompanies.find(c => 
-            c.company_name === initialPurchaseOrder.ship_to_company_name
+            c.company_name === purchaseOrder.ship_to_company_name
           )
           
           if (matchingExternalCompany) {
@@ -263,34 +246,59 @@ export default function PurchaseOrderEditClientPage({
           }
         }
       }
-      
-      // Resetting form with initial data
-      
-      // Reset the entire form with all data to ensure useFieldArray updates properly
+
+      // Set form data using database field names directly
       form.reset({
-        my_company_id: initialPurchaseOrder.my_company_id,
-        vendor_company_id: initialPurchaseOrder.vendor_company_id,
-        po_date: new Date(initialPurchaseOrder.po_date),
+        company_id: purchaseOrder.company_id || '',
+        vendor_company_id: purchaseOrder.vendor_company_id || '',
+        po_date: new Date(purchaseOrder.po_date),
         ship_to_company_id: shipToCompanyId,
         ship_to_company_type: shipToCompanyType,
-        prepared_by_name: initialPurchaseOrder.prepared_by_name || 'System User',
-        currency: initialPurchaseOrder.currency || 'USD',
-        ship_via_id: initialPurchaseOrder.ship_via_id || '',
-        payment_term: initialPurchaseOrder.payment_term || '',
-        remarks_1: initialPurchaseOrder.remarks_1 || '',
-        freight_charge: initialPurchaseOrder.freight_charge || 0,
-        misc_charge: initialPurchaseOrder.misc_charge || 0,
-        vat_percentage: initialPurchaseOrder.vat_percentage || 0,
-        status: initialPurchaseOrder.status,
+        prepared_by_name: purchaseOrder.prepared_by_name || 'System User',
+        currency: purchaseOrder.currency || 'USD',
+        ship_via_id: purchaseOrder.ship_via_id || '',
+        payment_term: purchaseOrder.payment_term || '',
+        remarks_1: purchaseOrder.remarks_1 || '',
+        freight_charge: Number(purchaseOrder.freight_charge) || 0,
+        misc_charge: Number(purchaseOrder.misc_charge) || 0,
+        vat_percentage: Number(purchaseOrder.vat_percentage) || 0,
+        status: purchaseOrder.status || 'Draft',
         items: itemsToSet,
       })
       
-      setCurrentPoNumber(initialPurchaseOrder.po_number)
-      // Form reset complete
-    } else {
-      // No initial data available
+      setCurrentPoNumber(purchaseOrder.po_number || '')
+      console.log('Form initialization completed')
+      
+    } catch (error) {
+      console.error('Form initialization error:', error)
+      // Fallback to minimal state
+      form.reset({
+        company_id: '',
+        vendor_company_id: '',
+        po_date: new Date(),
+        prepared_by_name: 'System User',
+        currency: 'USD',
+        status: 'Draft',
+        items: [{
+          pn_id: '',
+          description: '',
+          sn: '',
+          quantity: 1,
+          unit_price: 0,
+          condition: '',
+          traceability_source: '',
+          traceable_to: '',
+          origin_country: '',
+          origin_country_code: '',
+          last_certified_agency: '',
+          traceability_files_path: [],
+        }],
+        freight_charge: 0,
+        misc_charge: 0,
+        vat_percentage: 0,
+      })
     }
-  }, [initialPurchaseOrder, initialItems, form, myCompanies, externalCompanies])
+  }, [purchaseOrder, items, myCompanies, externalCompanies, form])
 
   // Auto-populate prepared by with current user if editing and field is empty
   useEffect(() => {
@@ -473,68 +481,53 @@ export default function PurchaseOrderEditClientPage({
 
   const updatePurchaseOrder = async (data: PurchaseOrderFormValues) => {
     try {
-      // Starting purchase order update
       const subtotal = calculateSubtotal()
       const total = calculateTotal()
-      // Totals calculated
 
-    // Get ship-to company information if selected
-    let shipToData = {}
-    // Processing ship-to selection
-    
-    if (data.ship_to_company_id && data.ship_to_company_type) {
-      const shipToCompany = data.ship_to_company_type === 'my_company' 
-        ? myCompanies.find(c => c.my_company_id === data.ship_to_company_id)
-        : externalCompanies.find(c => c.company_id === data.ship_to_company_id)
+      // Get ship-to company information if selected
+      let shipToData = {}
       
-      // Ship-to company found
-      
-      if (shipToCompany) {
-        const companyName = 'my_company_name' in shipToCompany 
-          ? shipToCompany.my_company_name 
-          : shipToCompany.company_name
+      if (data.ship_to_company_id && data.ship_to_company_type) {
+        const shipToCompany = data.ship_to_company_type === 'my_company' 
+          ? myCompanies.find(c => c.company_id === data.ship_to_company_id)
+          : externalCompanies.find(c => c.company_id === data.ship_to_company_id)
         
-        const address = shipToCompany.company_addresses[0]
-        const contact = shipToCompany.company_contacts[0]
-        
-        shipToData = {
-          ship_to_company_name: companyName,
-          ship_to_address_details: address ? `${address.address_line1}${address.address_line2 ? ', ' + address.address_line2 : ''}${address.city || address.country ? ', ' + [address.city, address.country].filter(Boolean).join(', ') : ''}` : null,
-          ship_to_contact_name: contact?.contact_name || null,
-          ship_to_contact_phone: contact?.phone || null,
-          ship_to_contact_email: contact?.email || null,
+        if (shipToCompany) {
+          const companyName = shipToCompany.company_name
+          const address = shipToCompany.company_addresses[0]
+          const contact = shipToCompany.company_contacts[0]
+          
+          shipToData = {
+            ship_to_company_name: companyName,
+            ship_to_address_details: address ? `${address.address_line1}${address.address_line2 ? ', ' + address.address_line2 : ''}${address.city || address.country ? ', ' + [address.city, address.country].filter(Boolean).join(', ') : ''}` : null,
+            ship_to_contact_name: contact?.contact_name || null,
+            ship_to_contact_phone: contact?.phone || null,
+            ship_to_contact_email: contact?.email || null,
+          }
         }
-        // Ship-to data prepared
       }
-    } else {
-      // IMPORTANT: Don't clear existing ship-to fields if no new selection is made
-      // This preserves existing ship-to information in the database
-      // Preserving existing ship-to data
-      // shipToData remains empty, so existing ship-to fields won't be updated
-    }
 
-    // Update the purchase order
-    // Updating purchase order in database
-    const { error: poUpdateError } = await supabase
-      .from('purchase_orders')
-      .update({
-        my_company_id: data.my_company_id,
-        vendor_company_id: data.vendor_company_id,
-        po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
-        ...shipToData,
-        prepared_by_name: data.prepared_by_name,
-        currency: data.currency,
-        ship_via_id: data.ship_via_id || null,
-        payment_term: data.payment_term || null,
-        remarks_1: data.remarks_1 || null,
-        freight_charge: data.freight_charge,
-        misc_charge: data.misc_charge,
-        vat_percentage: data.vat_percentage,
-        status: data.status as 'Draft' | 'Sent' | 'Acknowledged' | 'Completed' | 'Cancelled',
-        subtotal,
-        total_amount: total,
-      })
-      .eq('po_id', poId)
+      // Update the purchase order using correct field names
+      const { error: poUpdateError } = await supabase
+        .from('purchase_orders')
+        .update({
+          company_id: data.company_id,
+          vendor_company_id: data.vendor_company_id,
+          po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
+          ...shipToData,
+          prepared_by_name: data.prepared_by_name,
+          currency: data.currency,
+          ship_via_id: data.ship_via_id || null,
+          payment_term: data.payment_term || null,
+          remarks_1: data.remarks_1 || null,
+          freight_charge: data.freight_charge,
+          misc_charge: data.misc_charge,
+          vat_percentage: data.vat_percentage,
+          status: data.status as 'Draft' | 'Sent' | 'Acknowledged' | 'Completed' | 'Cancelled',
+          subtotal,
+          total_amount: total,
+        })
+        .eq('po_id', poId)
 
     if (poUpdateError) {
       // Purchase order update failed
@@ -597,15 +590,15 @@ export default function PurchaseOrderEditClientPage({
       po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
       status: data.status,
       total_amount: calculateTotal(),
-      buyer_company: myCompanies.find(c => c.my_company_id === data.my_company_id) ? {
-        company_name: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_name,
-        company_code: myCompanies.find(c => c.my_company_id === data.my_company_id)!.my_company_code
+      buyer_company: myCompanies.find(c => c.company_id === data.company_id) ? {
+        company_name: myCompanies.find(c => c.company_id === data.company_id)!.company_name,
+        company_code: myCompanies.find(c => c.company_id === data.company_id)!.company_code
       } : null,
       vendor_company: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
         company_name: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
         company_code: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
       } : null,
-      created_at: initialPurchaseOrder?.created_at || new Date().toISOString()
+      created_at: purchaseOrder?.created_at || new Date().toISOString()
     }
     
     updatePOInContext(updatedPOForList)
@@ -658,29 +651,26 @@ export default function PurchaseOrderEditClientPage({
     }
   }
 
-  const selectedMyCompany = myCompanies.find(c => c.my_company_id === form.watch('my_company_id'))
+  const selectedMyCompany = myCompanies.find(c => c.company_id === form.watch('company_id'))
   const selectedVendor = externalCompanies.find(c => c.company_id === form.watch('vendor_company_id'))
   const selectedShipToCompany = form.watch('ship_to_company_type') === 'my_company' 
-    ? myCompanies.find(c => c.my_company_id === form.watch('ship_to_company_id'))
+    ? myCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
     : externalCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
   
   // Filter Ship Via options based on Ship-To company (if selected), otherwise fallback to My Company
   const getShipViaFilterCompany = () => {
     // Priority: Ship-To company first, then My Company as fallback
     if (selectedShipToCompany) {
-      const companyName = 'my_company_name' in selectedShipToCompany 
-        ? selectedShipToCompany.my_company_name 
-        : selectedShipToCompany.company_name
-      const companyCode = 'my_company_code' in selectedShipToCompany 
-        ? selectedShipToCompany.my_company_code 
-        : selectedShipToCompany.company_code
-      return { name: companyName, code: companyCode }
+      return { 
+        name: selectedShipToCompany.company_name, 
+        code: selectedShipToCompany.company_code 
+      }
     }
     
     if (selectedMyCompany) {
       return { 
-        name: selectedMyCompany.my_company_name, 
-        code: selectedMyCompany.my_company_code 
+        name: selectedMyCompany.company_name, 
+        code: selectedMyCompany.company_code 
       }
     }
     
@@ -718,18 +708,18 @@ export default function PurchaseOrderEditClientPage({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="my_company_id">My Company</Label>
+                <Label htmlFor="company_id">My Company</Label>
                 <Select
-                  value={form.watch('my_company_id')}
-                  onValueChange={(value) => form.setValue('my_company_id', value)}
+                  value={form.watch('company_id')}
+                  onValueChange={(value) => form.setValue('company_id', value)}
                 >
-                  <SelectTrigger id="my_company_id" className={form.formState.errors.my_company_id ? 'border-red-500' : ''}>
+                  <SelectTrigger id="company_id" className={form.formState.errors.company_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select your company" />
                   </SelectTrigger>
                   <SelectContent>
                     {myCompanies.map((company) => (
-                      <SelectItem key={company.my_company_id} value={company.my_company_id}>
-                        {company.my_company_code} - {company.my_company_name}
+                      <SelectItem key={company.company_id} value={company.company_id}>
+                        {company.company_code} - {company.company_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -836,8 +826,8 @@ export default function PurchaseOrderEditClientPage({
                   <div>
                     <h4 className="font-semibold text-slate-900 mb-2">From (My Company)</h4>
                     <div className="text-sm text-slate-600 space-y-1">
-                      <div className="font-medium">{selectedMyCompany.my_company_name}</div>
-                      <div>{selectedMyCompany.my_company_code}</div>
+                      <div className="font-medium">{selectedMyCompany.company_name}</div>
+                      <div>{selectedMyCompany.company_code}</div>
                       {selectedMyCompany?.company_addresses?.length > 0 && (
                         <>
                           {selectedMyCompany.company_addresses.map((addr, idx) => (
@@ -936,8 +926,8 @@ export default function PurchaseOrderEditClientPage({
                   <SelectContent>
                     {form.watch('ship_to_company_type') === 'my_company' 
                       ? myCompanies.map((company) => (
-                          <SelectItem key={company.my_company_id} value={company.my_company_id}>
-                            {company.my_company_code} - {company.my_company_name}
+                          <SelectItem key={company.company_id} value={company.company_id}>
+                            {company.company_code} - {company.company_name}
                           </SelectItem>
                         ))
                       : externalCompanies.map((company) => (
@@ -957,9 +947,7 @@ export default function PurchaseOrderEditClientPage({
                 <h4 className="font-semibold text-slate-900 mb-2">Selected Ship To Company</h4>
                 <div className="text-sm text-slate-600 space-y-1">
                   <div className="font-medium">
-                    {'my_company_name' in selectedShipToCompany 
-                      ? selectedShipToCompany.my_company_name 
-                      : selectedShipToCompany.company_name}
+                    {selectedShipToCompany.company_name}
                   </div>
                   {selectedShipToCompany?.company_addresses?.length > 0 && (
                     <>
@@ -995,24 +983,24 @@ export default function PurchaseOrderEditClientPage({
             )}
 
             {/* Current Ship To Information Display */}
-            {initialPurchaseOrder && (initialPurchaseOrder.ship_to_company_name || initialPurchaseOrder.ship_to_address_details) && !selectedShipToCompany && (
+            {purchaseOrder && (purchaseOrder.ship_to_company_name || purchaseOrder.ship_to_address_details) && !selectedShipToCompany && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-semibold text-blue-800 mb-2">Current Ship To Information</h4>
                 <div className="text-sm text-blue-700 space-y-1">
-                  {initialPurchaseOrder.ship_to_company_name && (
-                    <div className="font-medium">{initialPurchaseOrder.ship_to_company_name}</div>
+                  {purchaseOrder.ship_to_company_name && (
+                    <div className="font-medium">{purchaseOrder.ship_to_company_name}</div>
                   )}
-                  {initialPurchaseOrder.ship_to_address_details && (
-                    <div className="whitespace-pre-line">{initialPurchaseOrder.ship_to_address_details}</div>
+                  {purchaseOrder.ship_to_address_details && (
+                    <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
                   )}
-                  {initialPurchaseOrder.ship_to_contact_name && (
-                    <div>Contact: {initialPurchaseOrder.ship_to_contact_name}</div>
+                  {purchaseOrder.ship_to_contact_name && (
+                    <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
                   )}
-                  {initialPurchaseOrder.ship_to_contact_phone && (
-                    <div>Phone: {initialPurchaseOrder.ship_to_contact_phone}</div>
+                  {purchaseOrder.ship_to_contact_phone && (
+                    <div>Phone: {purchaseOrder.ship_to_contact_phone}</div>
                   )}
-                  {initialPurchaseOrder.ship_to_contact_email && (
-                    <div>Email: {initialPurchaseOrder.ship_to_contact_email}</div>
+                  {purchaseOrder.ship_to_contact_email && (
+                    <div>Email: {purchaseOrder.ship_to_contact_email}</div>
                   )}
                 </div>
                 <div className="text-xs text-blue-600 mt-2">
@@ -1051,9 +1039,7 @@ export default function PurchaseOrderEditClientPage({
                       <SelectItem key={shipVia.ship_via_id} value={shipVia.ship_via_id}>
                         <div className="flex flex-col">
                           <div className="font-medium">
-                            {shipVia.predefined_company === 'CUSTOM' && shipVia.custom_company_name 
-                              ? shipVia.custom_company_name 
-                              : shipVia.ship_company_name}
+                            {shipVia.ship_company_name}
                           </div>
                           <div className="text-sm text-slate-600">
                             Account: {shipVia.account_no}

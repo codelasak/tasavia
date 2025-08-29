@@ -10,234 +10,137 @@ interface PurchaseOrderEditPageProps {
   }
 }
 
-async function getPurchaseOrderData(poId: string) {
+async function getEditPageData(poId: string) {
   const supabase = createSupabaseServer()
+  
   try {
-    // First fetch the basic purchase order data
-    const { data: poData, error: poError } = await supabase
-      .from('purchase_orders')
-      .select('*')
-      .eq('po_id', poId)
-      .single()
-    
-    if (poError) {
-      console.error('PO fetch error:', poError)
-      return null
-    }
-
-    // Fetch po_items with part number details
-    const { data: poItems } = await supabase
-      .from('po_items')
-      .select(`
-        *,
-        pn_master_table(pn, description)
-      `)
-      .eq('po_id', poId)
-
-    // Fetch buyer company (my company)
-    const { data: buyerCompany } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('company_id', poData.company_id)
-      .single()
-
-    // Fetch vendor company
-    const { data: vendorCompany } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('company_id', poData.vendor_company_id)
-      .single()
-
-    // Fetch ship via info if exists
-    let shipViaInfo = null
-    if (poData.ship_via_id) {
-      const { data: shipVia } = await supabase
+    // Fetch all data in parallel with simple structure
+    const [
+      purchaseOrderResult,
+      poItemsResult,
+      companiesResult,
+      partNumbersResult,
+      shipViaResult
+    ] = await Promise.all([
+      // Purchase order basic data
+      supabase
+        .from('purchase_orders')
+        .select('*')
+        .eq('po_id', poId)
+        .single(),
+        
+      // PO items with part number reference
+      supabase
+        .from('po_items')
+        .select(`
+          *,
+          pn_master_table (pn_id, pn, description)
+        `)
+        .eq('po_id', poId)
+        .order('line_number'),
+        
+      // All companies with related data
+      supabase
+        .from('companies')
+        .select(`
+          *,
+          company_addresses(*),
+          company_contacts(*)
+        `)
+        .order('company_name'),
+        
+      // Part numbers
+      supabase
+        .from('pn_master_table')
+        .select('pn_id, pn, description')
+        .order('pn'),
+        
+      // Ship via options
+      supabase
         .from('company_ship_via')
         .select('*')
-        .eq('ship_via_id', poData.ship_via_id)
-        .single()
-      shipViaInfo = shipVia
-    }
+        .order('ship_company_name')
+    ])
 
-    // Fetch buyer company addresses and contacts
-    const { data: buyerCompanyAddresses } = await supabase
-      .from('company_addresses')
-      .select('*')
-      .eq('company_id', poData.company_id)
-      .eq('company_ref_type', 'companies')
-
-    const { data: buyerCompanyContacts } = await supabase
-      .from('company_contacts')
-      .select('*')
-      .eq('company_id', poData.company_id)
-      .eq('company_ref_type', 'companies')
-
-    // Fetch vendor company addresses and contacts
-    const { data: vendorAddresses } = await supabase
-      .from('company_addresses')
-      .select('*')
-      .eq('company_id', poData.vendor_company_id)
-      .eq('company_ref_type', 'companies')
-
-    const { data: vendorContacts } = await supabase
-      .from('company_contacts')
-      .select('*')
-      .eq('company_id', poData.vendor_company_id)
-      .eq('company_ref_type', 'companies')
-
-    // Cast to any to handle dynamic fields
-    const poDataAny = poData as any
-
-    // Combine the data with correct field names for client component
-    const enrichedData = {
-      ...poData,
-      po_items: poItems || [],
-      company_ship_via: shipViaInfo,
-      // Map database fields to client-expected field names
-      my_company_id: poData.company_id,
-      vendor_company_id: poData.vendor_company_id,
-      // Ensure required fields are present with defaults
-      subtotal: poDataAny.subtotal || 0,
-      freight_charge: poDataAny.freight_charge || 0,
-      misc_charge: poDataAny.misc_charge || 0,
-      vat_percentage: poDataAny.vat_percentage || 0,
-      ship_to_company_name: poDataAny.ship_to_company_name || null,
-      ship_to_address_details: poDataAny.ship_to_address_details || null,
-      ship_to_contact_name: poDataAny.ship_to_contact_name || null,
-      ship_to_contact_phone: poDataAny.ship_to_contact_phone || null,
-      ship_to_contact_email: poDataAny.ship_to_contact_email || null,
-      // Keep both new and legacy field names for compatibility
-      buyer_company: buyerCompany ? {
-        ...buyerCompany,
-        company_addresses: buyerCompanyAddresses || [],
-        company_contacts: buyerCompanyContacts || []
-      } : null,
-      vendor_company: vendorCompany ? {
-        ...vendorCompany,
-        company_addresses: vendorAddresses || [],
-        company_contacts: vendorContacts || []
-      } : null,
-      // Legacy compatibility fields
-      my_companies: buyerCompany ? {
-        ...buyerCompany,
-        my_company_id: buyerCompany.company_id,
-        my_company_name: buyerCompany.company_name,
-        my_company_code: buyerCompany.company_code || 'UNK',
-        company_addresses: buyerCompanyAddresses || [],
-        company_contacts: buyerCompanyContacts || []
-      } : {
-        my_company_name: 'Unknown Company',
-        my_company_code: 'UNK',
-        company_addresses: [],
-        company_contacts: []
-      },
-      companies: vendorCompany ? {
-        ...vendorCompany,
-        company_addresses: vendorAddresses || [],
-        company_contacts: vendorContacts || []
-      } : {
-        company_name: 'Unknown Company',
-        company_code: 'UNK',
-        company_addresses: [],
-        company_contacts: []
-      }
+    // Check for errors
+    if (purchaseOrderResult.error) {
+      console.error('PO fetch error:', purchaseOrderResult.error)
+      throw new Error(`Failed to fetch purchase order: ${purchaseOrderResult.error.message}`)
     }
     
+    if (!purchaseOrderResult.data) {
+      throw new Error('Purchase order not found')
+    }
+
+    if (poItemsResult.error) {
+      console.error('PO items error:', poItemsResult.error)
+      throw new Error(`Failed to fetch PO items: ${poItemsResult.error.message}`)
+    }
+
+    if (companiesResult.error) {
+      console.error('Companies error:', companiesResult.error)
+      throw new Error(`Failed to fetch companies: ${companiesResult.error.message}`)
+    }
+
+    if (partNumbersResult.error) {
+      console.error('Part numbers error:', partNumbersResult.error)
+      throw new Error(`Failed to fetch part numbers: ${partNumbersResult.error.message}`)
+    }
+
+    if (shipViaResult.error) {
+      console.error('Ship via error:', shipViaResult.error)
+      throw new Error(`Failed to fetch ship via options: ${shipViaResult.error.message}`)
+    }
+
+    // Separate companies by type (minimal processing)
+    const companies = companiesResult.data || []
+    const myCompanies = companies.filter(c => c.is_self === true)
+    const externalCompanies = companies.filter(c => c.is_self !== true)
+
     return {
-      purchaseOrder: enrichedData,
-      items: poItems || []
+      purchaseOrder: purchaseOrderResult.data,
+      items: poItemsResult.data || [],
+      myCompanies,
+      externalCompanies,
+      partNumbers: partNumbersResult.data || [],
+      shipViaList: shipViaResult.data || []
     }
   } catch (error) {
-    console.error('Failed to fetch purchase order:', error)
-    return null
-  }
-}
-
-async function getFormData() {
-  const supabase = createSupabaseServer()
-  const [companiesResult, partNumbersResult, shipViaResult] = await Promise.all([
-    supabase.from('companies').select('company_id, company_name, company_code, company_type, is_self, created_at, updated_at, customer_number').order('company_name'),
-    supabase.from('pn_master_table').select('pn_id, pn, description').order('pn'),
-    supabase.from('company_ship_via')
-      .select(`
-        ship_via_id,
-        ship_company_name,
-        account_no,
-        owner,
-        ship_model
-      `)
-      .order('ship_company_name')
-  ])
-
-  if (companiesResult.error) throw new Error(companiesResult.error.message || 'Failed to fetch companies')
-  if (partNumbersResult.error) throw new Error(partNumbersResult.error.message || 'Failed to fetch part numbers')
-  if (shipViaResult.error) throw new Error(shipViaResult.error.message || 'Failed to fetch shipping methods')
-
-  // Fetch addresses and contacts for all companies
-  const [companyAddresses, companyContacts] = await Promise.all([
-    supabase.from('company_addresses').select('*'),
-    supabase.from('company_contacts').select('*')
-  ])
-
-  // Separate internal and external companies, and enrich with addresses/contacts
-  const allCompanies = companiesResult.data || []
-  
-  const enrichedMyCompanies = allCompanies
-    .filter(company => company.is_self === true)
-    .map(company => ({
-      ...company,
-      is_self: company.is_self || false,
-      // Keep legacy field names for compatibility with existing component
-      my_company_id: company.company_id,
-      my_company_name: company.company_name,
-      my_company_code: company.company_code || '',
-      company_addresses: companyAddresses.data?.filter(addr => addr.company_id === company.company_id) || [],
-      company_contacts: companyContacts.data?.filter(contact => contact.company_id === company.company_id) || []
-    }))
-
-  const enrichedExternalCompanies = allCompanies
-    .filter(company => company.is_self !== true)
-    .map(company => ({
-      ...company,
-      company_addresses: companyAddresses.data?.filter(addr => addr.company_id === company.company_id) || [],
-      company_contacts: companyContacts.data?.filter(contact => contact.company_id === company.company_id) || []
-    }))
-
-  return {
-    myCompanies: enrichedMyCompanies,
-    externalCompanies: enrichedExternalCompanies,
-    partNumbers: partNumbersResult.data || [],
-    shipViaList: (shipViaResult.data || []).map((item: any) => {
-      const known = new Set(['DHL','FEDEX','UPS','TNT','ARAMEX','DPD','SCHENKER','KUEHNE_NAGEL','EXPEDITORS','PANALPINA'])
-      const isKnown = known.has(item.ship_company_name)
-      return {
-        ...item,
-        predefined_company: isKnown ? item.ship_company_name : 'CUSTOM',
-        custom_company_name: isKnown ? null : item.ship_company_name,
-      }
-    }),
+    console.error('Failed to fetch edit page data:', error)
+    throw error
   }
 }
 
 export default async function PurchaseOrderEditPage({ params }: PurchaseOrderEditPageProps) {
-  const [purchaseOrderData, formData] = await Promise.all([
-    getPurchaseOrderData(params.id),
-    getFormData()
-  ])
+  try {
+    const data = await getEditPageData(params.id)
 
-  if (!purchaseOrderData) {
-    notFound()
+    // Validate required data
+    if (!data.myCompanies.length) {
+      throw new Error('No internal companies configured')
+    }
+
+    console.log('Purchase order edit page data loaded:', {
+      poId: params.id,
+      poNumber: data.purchaseOrder.po_number,
+      myCompanies: data.myCompanies.length,
+      externalCompanies: data.externalCompanies.length,
+      items: data.items.length,
+      partNumbers: data.partNumbers.length,
+      shipViaOptions: data.shipViaList.length
+    })
+
+    return (
+      <PurchaseOrderEditClientPage
+        poId={params.id}
+        initialData={data}
+      />
+    )
+  } catch (error) {
+    console.error('Failed to load purchase order edit page:', error)
+    if ((error as any)?.message?.includes('not found')) {
+      notFound()
+    }
+    throw error
   }
-
-  return (
-    <PurchaseOrderEditClientPage
-      poId={params.id}
-      initialPurchaseOrder={purchaseOrderData.purchaseOrder}
-      initialItems={purchaseOrderData.items}
-      myCompanies={formData.myCompanies}
-      externalCompanies={formData.externalCompanies}
-      partNumbers={formData.partNumbers as any}
-      shipViaList={formData.shipViaList as any}
-    />
-  )
 }
