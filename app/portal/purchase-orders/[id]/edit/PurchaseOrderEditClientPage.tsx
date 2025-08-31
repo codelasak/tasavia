@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -29,7 +29,7 @@ interface Company {
   company_id: string
   company_name: string
   company_code: string | null
-  is_self: boolean
+  is_self: boolean | null
   company_type: string | null
   company_addresses: Array<{
     address_line1: string
@@ -129,12 +129,125 @@ export default function PurchaseOrderEditClientPage({
   const { updatePurchaseOrder: updatePOInContext } = usePurchaseOrdersContext()
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<string>('')
-  const [currentPoNumber, setCurrentPoNumber] = useState<string>(initialPurchaseOrder?.po_number || '')
+  const [currentPoNumber, setCurrentPoNumber] = useState<string>(purchaseOrder?.po_number || '')
   const [isCompleting, setIsCompleting] = useState(false)
+  
+  // Loading states for different data types
+  const [isInitializingForm, setIsInitializingForm] = useState(true)
+  const [formInitError, setFormInitError] = useState<string | null>(null)
+  const [isFormStable, setIsFormStable] = useState(false) // Guard against Select clearing during initialization
+  const [dataValidationResults, setDataValidationResults] = useState({
+    myCompanies: { isValid: false, count: 0 },
+    externalCompanies: { isValid: false, count: 0 },
+    partNumbers: { isValid: false, count: 0 },
+    shipViaList: { isValid: false, count: 0 }
+  })
   
   // State for external API data
   const [countries, setCountries] = useState<{ name: string; code: string; region: string }[]>([])
   const [loadingCountries, setLoadingCountries] = useState(false)
+
+  // Enhanced helper functions for data validation and select values
+  const safeSelectValue = (value: string | undefined | null): string => {
+    if (value === null || value === undefined) return ''
+    const trimmed = String(value).trim()
+    return trimmed !== '' ? trimmed : ''
+  }
+
+  // Safe form setter that prevents clearing during initialization
+  const safeFormSetValue = (fieldName: string, value: string | undefined, validOptions: any[]) => {
+    console.log(`🔒 Safe form setValue called for ${fieldName}:`, { 
+      value, 
+      isFormStable, 
+      hasValidOptions: validOptions.length > 0,
+      optionExists: validOptions.some(opt => opt.company_id === value)
+    })
+
+    // Don't update if form is not stable yet (initialization phase)
+    if (!isFormStable) {
+      console.log(`⏳ Ignoring ${fieldName} update - form not stable yet`)
+      return
+    }
+
+    // Don't update if value is empty/undefined
+    if (!value || value.trim() === '') {
+      console.log(`❌ Ignoring ${fieldName} update - empty value`)
+      return
+    }
+
+    // Don't update if value doesn't exist in valid options
+    if (validOptions.length > 0 && !validOptions.some(opt => opt.company_id === value)) {
+      console.log(`❌ Ignoring ${fieldName} update - value not found in options`)
+      return
+    }
+
+    console.log(`✅ Setting ${fieldName} to:`, value)
+    form.setValue(fieldName as any, value)
+  }
+
+  // Data validation function
+  const validateInitialData = useCallback(() => {
+    const validation = {
+      myCompanies: { isValid: false, count: 0 },
+      externalCompanies: { isValid: false, count: 0 },
+      partNumbers: { isValid: false, count: 0 },
+      shipViaList: { isValid: false, count: 0 }
+    }
+
+    // Validate myCompanies
+    const validMyCompanies = myCompanies?.filter(c => 
+      c && 
+      typeof c === 'object' && 
+      c.company_id && 
+      typeof c.company_id === 'string' && 
+      c.company_id.trim() !== '' &&
+      c.company_name &&
+      typeof c.company_name === 'string' &&
+      c.company_name.trim() !== ''
+    ) || []
+    validation.myCompanies = { isValid: validMyCompanies.length > 0, count: validMyCompanies.length }
+
+    // Validate externalCompanies  
+    const validExternalCompanies = externalCompanies?.filter(c =>
+      c && 
+      typeof c === 'object' && 
+      c.company_id && 
+      typeof c.company_id === 'string' && 
+      c.company_id.trim() !== '' &&
+      c.company_name &&
+      typeof c.company_name === 'string' &&
+      c.company_name.trim() !== ''
+    ) || []
+    validation.externalCompanies = { isValid: validExternalCompanies.length > 0, count: validExternalCompanies.length }
+
+    // Validate partNumbers
+    const validPartNumbers = partNumbers?.filter(pn =>
+      pn && 
+      typeof pn === 'object' && 
+      pn.pn_id && 
+      typeof pn.pn_id === 'string' && 
+      pn.pn_id.trim() !== '' &&
+      pn.pn &&
+      typeof pn.pn === 'string' &&
+      pn.pn.trim() !== ''
+    ) || []
+    validation.partNumbers = { isValid: validPartNumbers.length > 0, count: validPartNumbers.length }
+
+    // Validate shipViaList
+    const validShipViaList = shipViaList?.filter(sv =>
+      sv && 
+      typeof sv === 'object' && 
+      sv.ship_via_id && 
+      typeof sv.ship_via_id === 'string' && 
+      sv.ship_via_id.trim() !== '' &&
+      sv.ship_company_name &&
+      typeof sv.ship_company_name === 'string' &&
+      sv.ship_company_name.trim() !== ''
+    ) || []
+    validation.shipViaList = { isValid: validShipViaList.length > 0, count: validShipViaList.length }
+
+    return validation
+  }, [myCompanies, externalCompanies, partNumbers, shipViaList])
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -143,7 +256,7 @@ export default function PurchaseOrderEditClientPage({
       vendor_company_id: '',
       po_date: new Date(),
       ship_to_company_id: '',
-      ship_to_company_type: undefined,
+      ship_to_company_type: 'my_company',
       prepared_by_name: 'Current User',
       currency: 'USD',
       ship_via_id: '',
@@ -157,58 +270,38 @@ export default function PurchaseOrderEditClientPage({
     }
   })
 
-  // Load external data
+  // Effect 1: Validate initial data and set validation state
   useEffect(() => {
-    const loadExternalData = async () => {
-      // Load countries for origin country field in line items
-      setLoadingCountries(true)
-      try {
-        const countriesData = await fetchCountries()
-        setCountries(countriesData)
-      } catch (error) {
-        console.error('Failed to load countries:', error)
-      } finally {
-        setLoadingCountries(false)
-      }
-    }
+    console.log('🔍 Validating initial data...', {
+      myCompaniesLength: myCompanies?.length || 0,
+      externalCompaniesLength: externalCompanies?.length || 0,
+      partNumbersLength: partNumbers?.length || 0,
+      shipViaListLength: shipViaList?.length || 0
+    })
 
-    loadExternalData()
-  }, [])
+    const validation = validateInitialData()
+    setDataValidationResults(validation)
 
-  // Initialize form with simplified data structure
-  useEffect(() => {
-    if (!purchaseOrder || !myCompanies.length || !externalCompanies.length) {
-      console.warn('Missing required data for form initialization')
+    // Log validation results for debugging
+    console.log('📊 Data validation results:', validation)
+
+    // Check if we have any critical validation failures
+    if (!validation.myCompanies.isValid) {
+      console.warn('⚠️ No valid internal companies found')
+      setFormInitError('No internal companies available. Please configure your company first.')
       return
     }
 
-    console.log('Initializing form with PO:', purchaseOrder.po_number)
+    // Clear any previous errors if validation passes
+    if (validation.myCompanies.isValid || validation.externalCompanies.isValid) {
+      setFormInitError(null)
+    }
+  }, [myCompanies, externalCompanies, partNumbers, shipViaList, validateInitialData])
 
-    try {
-      // Format items directly from database structure
-      const formattedItems = (items || []).map((item) => ({
-        po_item_id: item.po_item_id,
-        pn_id: item.pn_id || '',
-        description: item.description || item.pn_master_table?.description || '',
-        sn: item.sn || '',
-        quantity: Number(item.quantity) || 1,
-        unit_price: Number(item.unit_price) || 0,
-        condition: item.condition || '',
-        traceability_source: item.traceability_source || '',
-        traceable_to: item.traceable_to || '',
-        origin_country: item.origin_country || '',
-        origin_country_code: item.origin_country_code || '',
-        last_certified_agency: item.last_certified_agency || '',
-        traceability_files_path: item.traceability_files_path 
-          ? JSON.parse(item.traceability_files_path).map((file: any) => ({
-              ...file,
-              uploadedAt: new Date(file.uploadedAt)
-            }))
-          : [],
-      }))
-
-      // Ensure at least one item
-      const itemsToSet = formattedItems.length > 0 ? formattedItems : [{
+  // Helper function to format line items
+  const formatLineItems = useCallback((itemsData: any[]) => {
+    if (!itemsData || itemsData.length === 0) {
+      return [{
         pn_id: '',
         description: '',
         sn: '',
@@ -222,83 +315,172 @@ export default function PurchaseOrderEditClientPage({
         last_certified_agency: '',
         traceability_files_path: [],
       }]
+    }
 
-      // Determine ship-to company from existing ship-to data
-      let shipToCompanyId = ''
-      let shipToCompanyType: 'my_company' | 'external_company' | undefined = undefined
+    return itemsData.map((item) => ({
+      po_item_id: item.po_item_id,
+      pn_id: item.pn_id || '',
+      description: item.description || item.pn_master_table?.description || '',
+      sn: item.sn || '',
+      quantity: Number(item.quantity) || 1,
+      unit_price: Number(item.unit_price) || 0,
+      condition: item.condition || '',
+      traceability_source: item.traceability_source || '',
+      traceable_to: item.traceable_to || '',
+      origin_country: item.origin_country || '',
+      origin_country_code: item.origin_country_code || '',
+      last_certified_agency: item.last_certified_agency || '',
+      traceability_files_path: item.traceability_files_path 
+        ? JSON.parse(item.traceability_files_path).map((file: any) => ({
+            ...file,
+            uploadedAt: new Date(file.uploadedAt)
+          }))
+        : [],
+    }))
+  }, [])
+
+  // Helper function to resolve ship-to company
+  const resolveShipToCompany = useCallback((po: any) => {
+    let shipToCompanyId = ''
+    let shipToCompanyType: 'my_company' | 'external_company' | undefined = undefined
+    
+    if (po.ship_to_company_name) {
+      // Check internal companies first
+      const matchingMyCompany = myCompanies.find(c => 
+        c.company_name === po.ship_to_company_name
+      )
       
-      if (purchaseOrder.ship_to_company_name) {
-        const matchingMyCompany = myCompanies.find(c => 
-          c.company_name === purchaseOrder.ship_to_company_name
+      if (matchingMyCompany) {
+        shipToCompanyId = matchingMyCompany.company_id
+        shipToCompanyType = 'my_company'
+      } else {
+        // Check external companies
+        const matchingExternalCompany = externalCompanies.find(c => 
+          c.company_name === po.ship_to_company_name
         )
         
-        if (matchingMyCompany) {
-          shipToCompanyId = matchingMyCompany.company_id
-          shipToCompanyType = 'my_company'
-        } else {
-          const matchingExternalCompany = externalCompanies.find(c => 
-            c.company_name === purchaseOrder.ship_to_company_name
-          )
-          
-          if (matchingExternalCompany) {
-            shipToCompanyId = matchingExternalCompany.company_id
-            shipToCompanyType = 'external_company'
-          }
+        if (matchingExternalCompany) {
+          shipToCompanyId = matchingExternalCompany.company_id
+          shipToCompanyType = 'external_company'
         }
       }
-
-      // Set form data using database field names directly
-      form.reset({
-        company_id: purchaseOrder.company_id || '',
-        vendor_company_id: purchaseOrder.vendor_company_id || '',
-        po_date: new Date(purchaseOrder.po_date),
-        ship_to_company_id: shipToCompanyId,
-        ship_to_company_type: shipToCompanyType,
-        prepared_by_name: purchaseOrder.prepared_by_name || 'System User',
-        currency: purchaseOrder.currency || 'USD',
-        ship_via_id: purchaseOrder.ship_via_id || '',
-        payment_term: purchaseOrder.payment_term || '',
-        remarks_1: purchaseOrder.remarks_1 || '',
-        freight_charge: Number(purchaseOrder.freight_charge) || 0,
-        misc_charge: Number(purchaseOrder.misc_charge) || 0,
-        vat_percentage: Number(purchaseOrder.vat_percentage) || 0,
-        status: purchaseOrder.status || 'Draft',
-        items: itemsToSet,
-      })
-      
-      setCurrentPoNumber(purchaseOrder.po_number || '')
-      console.log('Form initialization completed')
-      
-    } catch (error) {
-      console.error('Form initialization error:', error)
-      // Fallback to minimal state
-      form.reset({
-        company_id: '',
-        vendor_company_id: '',
-        po_date: new Date(),
-        prepared_by_name: 'System User',
-        currency: 'USD',
-        status: 'Draft',
-        items: [{
-          pn_id: '',
-          description: '',
-          sn: '',
-          quantity: 1,
-          unit_price: 0,
-          condition: '',
-          traceability_source: '',
-          traceable_to: '',
-          origin_country: '',
-          origin_country_code: '',
-          last_certified_agency: '',
-          traceability_files_path: [],
-        }],
-        freight_charge: 0,
-        misc_charge: 0,
-        vat_percentage: 0,
-      })
     }
-  }, [purchaseOrder, items, myCompanies, externalCompanies, form])
+
+    return { shipToCompanyId, shipToCompanyType }
+  }, [myCompanies, externalCompanies])
+
+  // Separate function for form initialization logic
+  const initializeFormData = useCallback(() => {
+    if (!purchaseOrder) return
+
+    // Format line items with proper error handling
+    const formattedItems = formatLineItems(items || [])
+
+    // Handle ship-to company resolution
+    const { shipToCompanyId, shipToCompanyType } = resolveShipToCompany(purchaseOrder)
+
+    // Create form data object
+    const formData: PurchaseOrderFormValues = {
+      company_id: purchaseOrder.company_id || '',
+      vendor_company_id: purchaseOrder.vendor_company_id || '',
+      po_date: new Date(purchaseOrder.po_date),
+      ship_to_company_id: shipToCompanyId || '',
+      ship_to_company_type: shipToCompanyType || 'my_company',
+      prepared_by_name: purchaseOrder.prepared_by_name || 'System User',
+      currency: purchaseOrder.currency || 'USD',
+      ship_via_id: safeSelectValue(purchaseOrder.ship_via_id) || '',
+      payment_term: safeSelectValue(purchaseOrder.payment_term) || '',
+      remarks_1: purchaseOrder.remarks_1 || '',
+      freight_charge: Number(purchaseOrder.freight_charge) || 0,
+      misc_charge: Number(purchaseOrder.misc_charge) || 0,
+      vat_percentage: Number(purchaseOrder.vat_percentage) || 0,
+      status: purchaseOrder.status || 'Draft',
+      items: formattedItems,
+    }
+
+    // Reset form with new data
+    form.reset(formData)
+    setCurrentPoNumber(purchaseOrder.po_number || '')
+
+    console.log('✅ Form initialized successfully with data:', {
+      company_id: formData.company_id,
+      vendor_company_id: formData.vendor_company_id,
+      itemsCount: formData.items.length,
+      ship_to_company_id: formData.ship_to_company_id,
+      ship_to_company_type: formData.ship_to_company_type
+    })
+
+    // Force a re-render after form initialization to ensure Select components update
+    setTimeout(() => {
+      console.log('🔄 Form values after initialization:', {
+        company_id: form.getValues('company_id'),
+        vendor_company_id: form.getValues('vendor_company_id'),
+        ship_to_company_id: form.getValues('ship_to_company_id')
+      })
+      
+      // Mark form as stable after Select components have had time to render
+      setTimeout(() => {
+        console.log('🛡️ Form marked as stable - Select components can now safely update')
+        setIsFormStable(true)
+      }, 500) // Additional delay to ensure Select options are rendered
+    }, 100)
+  }, [purchaseOrder, items, form, formatLineItems, resolveShipToCompany])
+
+  // Effect 2: Load external data (countries)
+  useEffect(() => {
+    const loadExternalData = async () => {
+      console.log('🌍 Loading countries data...')
+      setLoadingCountries(true)
+      try {
+        const countriesData = await fetchCountries()
+        setCountries(countriesData)
+        console.log('✅ Countries loaded:', countriesData?.length || 0)
+      } catch (error) {
+        console.error('❌ Failed to load countries:', error)
+      } finally {
+        setLoadingCountries(false)
+      }
+    }
+
+    loadExternalData()
+  }, [])
+
+  // Effect 3: Initialize form once data validation passes
+  useEffect(() => {
+    if (!purchaseOrder) {
+      console.log('⏳ Purchase order data not yet loaded')
+      return
+    }
+
+    // Check if we have critical validation failures
+    if (formInitError) {
+      console.log('❌ Skipping form initialization due to validation error:', formInitError)
+      return
+    }
+
+    // Wait for data validation to complete
+    if (!dataValidationResults.myCompanies.isValid) {
+      console.log('⏳ Waiting for valid company data before initializing form')
+      return
+    }
+
+    console.log('🚀 Starting form initialization...', {
+      poNumber: purchaseOrder.po_number,
+      dataValidation: dataValidationResults
+    })
+
+    setIsInitializingForm(true)
+    setIsFormStable(false) // Reset form stability on new initialization
+
+    try {
+      initializeFormData()
+    } catch (error) {
+      console.error('❌ Form initialization failed:', error)
+      setFormInitError(error instanceof Error ? error.message : 'Form initialization failed')
+    } finally {
+      setIsInitializingForm(false)
+    }
+  }, [purchaseOrder, dataValidationResults, formInitError, initializeFormData])
 
   // Auto-populate prepared by with current user if editing and field is empty
   useEffect(() => {
@@ -322,6 +504,88 @@ export default function PurchaseOrderEditClientPage({
     
     fetchUserName()
   }, [user, form])
+
+  // Use validated data arrays with enhanced filtering - MUST come before useEffect that references them
+  const validMyCompanies = useMemo(() => {
+    return myCompanies?.filter(c => 
+      c && 
+      typeof c === 'object' && 
+      c.company_id && 
+      typeof c.company_id === 'string' && 
+      c.company_id.trim() !== '' &&
+      c.company_name &&
+      typeof c.company_name === 'string' &&
+      c.company_name.trim() !== ''
+    ) || []
+  }, [myCompanies])
+
+  const validExternalCompanies = useMemo(() => {
+    return externalCompanies?.filter(c =>
+      c && 
+      typeof c === 'object' && 
+      c.company_id && 
+      typeof c.company_id === 'string' && 
+      c.company_id.trim() !== '' &&
+      c.company_name &&
+      typeof c.company_name === 'string' &&
+      c.company_name.trim() !== ''
+    ) || []
+  }, [externalCompanies])
+
+  const validPartNumbers = useMemo(() => {
+    return partNumbers?.filter(pn =>
+      pn && 
+      typeof pn === 'object' && 
+      pn.pn_id && 
+      typeof pn.pn_id === 'string' && 
+      pn.pn_id.trim() !== '' &&
+      pn.pn &&
+      typeof pn.pn === 'string' &&
+      pn.pn.trim() !== ''
+    ) || []
+  }, [partNumbers])
+
+  const validShipViaList = useMemo(() => {
+    return shipViaList?.filter(sv =>
+      sv && 
+      typeof sv === 'object' && 
+      sv.ship_via_id && 
+      typeof sv.ship_via_id === 'string' && 
+      sv.ship_via_id.trim() !== '' &&
+      sv.ship_company_name &&
+      typeof sv.ship_company_name === 'string' &&
+      sv.ship_company_name.trim() !== ''
+    ) || []
+  }, [shipViaList])
+
+  const validCountries = useMemo(() => {
+    return countries?.filter(country => 
+      country && 
+      typeof country === 'object' && 
+      country.code && 
+      typeof country.code === 'string' && 
+      country.code.trim() !== '' &&
+      country.name &&
+      typeof country.name === 'string' &&
+      country.name.trim() !== ''
+    ) || []
+  }, [countries])
+
+  // Watch form values for debugging and to ensure Select components re-render
+  const watchedCompanyId = form.watch('company_id')
+  const watchedVendorId = form.watch('vendor_company_id')
+  const watchedShipToId = form.watch('ship_to_company_id')
+
+  // Debug effect to log current form values
+  useEffect(() => {
+    console.log('🔍 Form values changed:', {
+      company_id: watchedCompanyId,
+      vendor_company_id: watchedVendorId,
+      ship_to_company_id: watchedShipToId,
+      myCompaniesCount: validMyCompanies.length,
+      externalCompaniesCount: validExternalCompanies.length
+    })
+  }, [watchedCompanyId, watchedVendorId, watchedShipToId, validMyCompanies.length, validExternalCompanies.length])
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -590,13 +854,13 @@ export default function PurchaseOrderEditClientPage({
       po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
       status: data.status,
       total_amount: calculateTotal(),
-      buyer_company: myCompanies.find(c => c.company_id === data.company_id) ? {
-        company_name: myCompanies.find(c => c.company_id === data.company_id)!.company_name,
-        company_code: myCompanies.find(c => c.company_id === data.company_id)!.company_code
+      buyer_company: validMyCompanies.find(c => c.company_id === data.company_id) ? {
+        company_name: validMyCompanies.find(c => c.company_id === data.company_id)!.company_name,
+        company_code: validMyCompanies.find(c => c.company_id === data.company_id)!.company_code || ''
       } : null,
-      vendor_company: externalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
-        company_name: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
-        company_code: externalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
+      vendor_company: validExternalCompanies.find(c => c.company_id === data.vendor_company_id) ? {
+        company_name: validExternalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_name,
+        company_code: validExternalCompanies.find(c => c.company_id === data.vendor_company_id)!.company_code || ''
       } : null,
       created_at: purchaseOrder?.created_at || new Date().toISOString()
     }
@@ -651,12 +915,14 @@ export default function PurchaseOrderEditClientPage({
     }
   }
 
-  const selectedMyCompany = myCompanies.find(c => c.company_id === form.watch('company_id'))
-  const selectedVendor = externalCompanies.find(c => c.company_id === form.watch('vendor_company_id'))
+  // All validation arrays are now defined above
+
+  const selectedMyCompany = validMyCompanies.find(c => c.company_id === form.watch('company_id'))
+  const selectedVendor = validExternalCompanies.find(c => c.company_id === form.watch('vendor_company_id'))
   const selectedShipToCompany = form.watch('ship_to_company_type') === 'my_company' 
-    ? myCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
-    : externalCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
-  
+    ? validMyCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
+    : validExternalCompanies.find(c => c.company_id === form.watch('ship_to_company_id'))
+
   // Filter Ship Via options based on Ship-To company (if selected), otherwise fallback to My Company
   const getShipViaFilterCompany = () => {
     // Priority: Ship-To company first, then My Company as fallback
@@ -679,12 +945,12 @@ export default function PurchaseOrderEditClientPage({
   
   const filterCompany = getShipViaFilterCompany()
   const filteredShipViaList = filterCompany
-    ? shipViaList.filter(shipVia => 
+    ? validShipViaList.filter(shipVia => 
         shipVia.owner === filterCompany.name || 
         shipVia.owner === filterCompany.code ||
         !shipVia.owner
       )
-    : shipViaList
+    : validShipViaList
 
 
   return (
@@ -698,6 +964,49 @@ export default function PurchaseOrderEditClientPage({
           <h1 className="text-3xl font-bold text-slate-900">Edit Purchase Order</h1>        </div>
       </div>
 
+      {/* Form initialization error display */}
+      {formInitError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Form Initialization Error
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                {formInitError}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading state display */}
+      {isInitializingForm && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">
+                Initializing Form
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                Loading purchase order data and preparing form...
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Header Information */}
         <Card>
@@ -710,18 +1019,38 @@ export default function PurchaseOrderEditClientPage({
               <div>
                 <Label htmlFor="company_id">My Company</Label>
                 <Select
-                  value={form.watch('company_id')}
-                  onValueChange={(value) => form.setValue('company_id', value)}
+                  value={safeSelectValue(watchedCompanyId)}
+                  onValueChange={(value) => {
+                    console.log('🏢 My Company Select onChange triggered:', value)
+                    safeFormSetValue('company_id', value, validMyCompanies)
+                  }}
+                  disabled={isInitializingForm}
                 >
                   <SelectTrigger id="company_id" className={form.formState.errors.company_id ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Select your company" />
+                    <SelectValue placeholder={
+                      isInitializingForm 
+                        ? "Initializing form..." 
+                        : !dataValidationResults.myCompanies.isValid
+                        ? "Loading companies..."
+                        : validMyCompanies.length 
+                        ? "Select your company" 
+                        : "No companies available"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {myCompanies.map((company) => (
-                      <SelectItem key={company.company_id} value={company.company_id}>
-                        {company.company_code} - {company.company_name}
-                      </SelectItem>
-                    ))}
+                    {isInitializingForm ? (
+                      <SelectItem value="__initializing__" disabled>Initializing form...</SelectItem>
+                    ) : validMyCompanies.length > 0 ? (
+                      validMyCompanies.map((company) => (
+                        <SelectItem key={company.company_id} value={company.company_id}>
+                          {company.company_code} - {company.company_name}
+                        </SelectItem>
+                      ))
+                    ) : dataValidationResults.myCompanies.isValid ? (
+                      <SelectItem value="__no_companies__" disabled>No internal companies found</SelectItem>
+                    ) : (
+                      <SelectItem value="__loading__" disabled>Loading companies...</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -729,18 +1058,38 @@ export default function PurchaseOrderEditClientPage({
               <div>
                 <Label htmlFor="vendor_company_id">Vendor</Label>
                 <Select
-                  value={form.watch('vendor_company_id')}
-                  onValueChange={(value) => form.setValue('vendor_company_id', value)}
+                  value={safeSelectValue(watchedVendorId)}
+                  onValueChange={(value) => {
+                    console.log('🏪 Vendor Company Select onChange triggered:', value)
+                    safeFormSetValue('vendor_company_id', value, validExternalCompanies)
+                  }}
+                  disabled={isInitializingForm}
                 >
                   <SelectTrigger id="vendor_company_id" className={form.formState.errors.vendor_company_id ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Select vendor" />
+                    <SelectValue placeholder={
+                      isInitializingForm 
+                        ? "Initializing form..." 
+                        : !dataValidationResults.externalCompanies.isValid
+                        ? "Loading vendors..."
+                        : validExternalCompanies.length 
+                        ? "Select vendor" 
+                        : "No vendors available"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {externalCompanies.map((company) => (
-                      <SelectItem key={company.company_id} value={company.company_id}>
-                        {company.company_code} - {company.company_name}
-                      </SelectItem>
-                    ))}
+                    {isInitializingForm ? (
+                      <SelectItem value="__initializing__" disabled>Initializing form...</SelectItem>
+                    ) : validExternalCompanies.length > 0 ? (
+                      validExternalCompanies.map((company) => (
+                        <SelectItem key={company.company_id} value={company.company_id}>
+                          {company.company_code} - {company.company_name}
+                        </SelectItem>
+                      ))
+                    ) : dataValidationResults.externalCompanies.isValid ? (
+                      <SelectItem value="__no_vendors__" disabled>No vendor companies found</SelectItem>
+                    ) : (
+                      <SelectItem value="__loading__" disabled>Loading vendors...</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -891,12 +1240,12 @@ export default function PurchaseOrderEditClientPage({
               <div>
                 <Label>Company Type</Label>
                 <Select
-                  value={form.watch('ship_to_company_type') || ''}
+                  value={safeSelectValue(form.watch('ship_to_company_type'))}
                   onValueChange={(value) => {
                     form.setValue('ship_to_company_type', value as 'my_company' | 'external_company')
-                    form.setValue('ship_to_company_id', '')
+                    form.setValue('ship_to_company_id', undefined)
                     // Clear Ship Via selection when Ship-To company type changes
-                    form.setValue('ship_via_id', '')
+                    form.setValue('ship_via_id', undefined)
                   }}
                 >
                   <SelectTrigger>
@@ -912,11 +1261,17 @@ export default function PurchaseOrderEditClientPage({
               <div>
                 <Label>Ship To Company</Label>
                 <Select
-                  value={form.watch('ship_to_company_id') || ''}
+                  value={safeSelectValue(watchedShipToId)}
                   onValueChange={(value) => {
-                    form.setValue('ship_to_company_id', value)
+                    console.log('🚚 Ship To Company Select onChange triggered:', value)
+                    const shipToCompanies = form.watch('ship_to_company_type') === 'my_company' 
+                      ? validMyCompanies 
+                      : validExternalCompanies
+                    safeFormSetValue('ship_to_company_id', value, shipToCompanies)
                     // Clear Ship Via selection when Ship-To company changes
-                    form.setValue('ship_via_id', '')
+                    if (isFormStable && value) {
+                      form.setValue('ship_via_id', undefined)
+                    }
                   }}
                   disabled={!form.watch('ship_to_company_type')}
                 >
@@ -924,18 +1279,29 @@ export default function PurchaseOrderEditClientPage({
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent>
-                    {form.watch('ship_to_company_type') === 'my_company' 
-                      ? myCompanies.map((company) => (
+                    {form.watch('ship_to_company_type') === 'my_company' ? (
+                      validMyCompanies.length > 0 ? (
+                        validMyCompanies.map((company) => (
                           <SelectItem key={company.company_id} value={company.company_id}>
                             {company.company_code} - {company.company_name}
                           </SelectItem>
                         ))
-                      : externalCompanies.map((company) => (
+                      ) : (
+                        <SelectItem value="__no_internal_companies__" disabled>No internal companies available</SelectItem>
+                      )
+                    ) : form.watch('ship_to_company_type') === 'external_company' ? (
+                      validExternalCompanies.length > 0 ? (
+                        validExternalCompanies.map((company) => (
                           <SelectItem key={company.company_id} value={company.company_id}>
                             {company.company_code} - {company.company_name}
                           </SelectItem>
                         ))
-                    }
+                      ) : (
+                        <SelectItem value="__no_external_companies__" disabled>No external companies available</SelectItem>
+                      )
+                    ) : (
+                      <SelectItem value="__select_company_type__" disabled>Select company type first</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1028,27 +1394,48 @@ export default function PurchaseOrderEditClientPage({
                   )}
                 </Label>
                 <Select
-                  value={form.watch('ship_via_id')}
+                  value={safeSelectValue(form.watch('ship_via_id'))}
                   onValueChange={(value) => form.setValue('ship_via_id', value)}
+                  disabled={isInitializingForm}
                 >
                   <SelectTrigger id="ship_via_id" className={form.formState.errors.ship_via_id ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Select shipping method" />
+                    <SelectValue placeholder={
+                      isInitializingForm 
+                        ? "Initializing form..."
+                        : !dataValidationResults.shipViaList.isValid
+                        ? "Loading shipping methods..." 
+                        : filteredShipViaList.length === 0 
+                        ? "No shipping methods available"
+                        : "Select shipping method"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredShipViaList.map((shipVia) => (
-                      <SelectItem key={shipVia.ship_via_id} value={shipVia.ship_via_id}>
-                        <div className="flex flex-col">
-                          <div className="font-medium">
-                            {shipVia.ship_company_name}
+                    {isInitializingForm ? (
+                      <SelectItem value="__initializing__" disabled>Initializing form...</SelectItem>
+                    ) : filteredShipViaList.length > 0 ? (
+                      filteredShipViaList.map((shipVia) => (
+                        <SelectItem key={shipVia.ship_via_id} value={shipVia.ship_via_id}>
+                          <div className="flex flex-col">
+                            <div className="font-medium">
+                              {shipVia.ship_company_name}
+                            </div>
+                            <div className="text-sm text-slate-600">
+                              Account: {shipVia.account_no}
+                              {shipVia.owner && ` • Owner: ${shipVia.owner}`}
+                              {shipVia.ship_model && ` • ${shipVia.ship_model}`}
+                            </div>
                           </div>
-                          <div className="text-sm text-slate-600">
-                            Account: {shipVia.account_no}
-                            {shipVia.owner && ` • Owner: ${shipVia.owner}`}
-                            {shipVia.ship_model && ` • ${shipVia.ship_model}`}
-                          </div>
-                        </div>
+                        </SelectItem>
+                      ))
+                    ) : validShipViaList.length > 0 ? (
+                      <SelectItem value="__no_ship_via_filtered__" disabled>
+                        No shipping methods available for selected company
                       </SelectItem>
-                    ))}
+                    ) : dataValidationResults.shipViaList.isValid ? (
+                      <SelectItem value="__no_ship_via__" disabled>No shipping methods found</SelectItem>
+                    ) : (
+                      <SelectItem value="__loading_ship_via__" disabled>Loading shipping methods...</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1076,7 +1463,7 @@ export default function PurchaseOrderEditClientPage({
               <div>
                 <Label htmlFor="payment_term">Payment Term</Label>
                 <Select
-                  value={form.watch('payment_term')}
+                  value={safeSelectValue(form.watch('payment_term'))}
                   onValueChange={(value) => form.setValue('payment_term', value)}
                 >
                   <SelectTrigger id="payment_term" className={form.formState.errors.payment_term ? 'border-red-500' : ''}>
@@ -1161,29 +1548,46 @@ export default function PurchaseOrderEditClientPage({
                     <div>
                       <Label htmlFor={`items.${index}.pn_id`}>Part Number</Label>
                       <Select
-                        value={form.watch(`items.${index}.pn_id`)}
+                        value={safeSelectValue(form.watch(`items.${index}.pn_id`))}
                         onValueChange={(value) => {
                           form.setValue(`items.${index}.pn_id`, value)
-                          const selectedPart = partNumbers.find(pn => pn.pn_id === value)
+                          const selectedPart = validPartNumbers.find(pn => pn.pn_id === value)
                           if (selectedPart && selectedPart.description) {
                             form.setValue(`items.${index}.description`, selectedPart.description)
                           }
                         }}
+                        disabled={isInitializingForm}
                       >
                         <SelectTrigger id={`pn_id_trigger_${index}`} className={form.formState.errors.items?.[index]?.pn_id ? 'border-red-500' : ''}>
-                          <SelectValue placeholder="Select part number" />
+                          <SelectValue placeholder={
+                            isInitializingForm 
+                              ? "Initializing form..." 
+                              : !dataValidationResults.partNumbers.isValid
+                              ? "Loading part numbers..."
+                              : validPartNumbers.length 
+                              ? "Select part number" 
+                              : "No part numbers available"
+                          } />
                         </SelectTrigger>
                         <SelectContent>
-                          {partNumbers.map((pn) => (
-                            <SelectItem key={pn.pn_id} value={pn.pn_id}>
-                              <div>
-                                <div className="font-mono">{pn.pn}</div>
-                                {pn.description && (
-                                  <div className="text-sm text-slate-600">{pn.description}</div>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
+                          {isInitializingForm ? (
+                            <SelectItem value="__initializing__" disabled>Initializing form...</SelectItem>
+                          ) : validPartNumbers.length > 0 ? (
+                            validPartNumbers.map((pn) => (
+                              <SelectItem key={pn.pn_id} value={pn.pn_id}>
+                                <div>
+                                  <div className="font-mono">{pn.pn}</div>
+                                  {pn.description && (
+                                    <div className="text-sm text-slate-600">{pn.description}</div>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : dataValidationResults.partNumbers.isValid ? (
+                            <SelectItem value="__no_part_numbers__" disabled>No part numbers available</SelectItem>
+                          ) : (
+                            <SelectItem value="__loading_part_numbers__" disabled>Loading part numbers...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       {form.formState.errors.items?.[index]?.pn_id && (
@@ -1220,7 +1624,7 @@ export default function PurchaseOrderEditClientPage({
                     <div>
                       <Label htmlFor={`items.${index}.condition`}>Condition</Label>
                       <Select
-                        value={form.watch(`items.${index}.condition`)}
+                        value={safeSelectValue(form.watch(`items.${index}.condition`))}
                         onValueChange={(value) => form.setValue(`items.${index}.condition`, value)}
                       >
                         <SelectTrigger id={`condition_trigger_${index}`}>
@@ -1311,9 +1715,9 @@ export default function PurchaseOrderEditClientPage({
                       <div>
                         <Label htmlFor={`items.${index}.origin_country`}>Origin Country</Label>
                         <Select
-                          value={form.watch(`items.${index}.origin_country`) || ''}
+                          value={safeSelectValue(form.watch(`items.${index}.origin_country`))}
                           onValueChange={(value) => {
-                            const selectedCountry = countries.find(c => c.name === value)
+                            const selectedCountry = validCountries.find(c => c.name === value)
                             if (selectedCountry) {
                               form.setValue(`items.${index}.origin_country`, selectedCountry.name)
                               form.setValue(`items.${index}.origin_country_code`, selectedCountry.code)
@@ -1324,7 +1728,7 @@ export default function PurchaseOrderEditClientPage({
                             <SelectValue placeholder={loadingCountries ? "Loading countries..." : "Select origin country"} />
                           </SelectTrigger>
                           <SelectContent>
-                            {countries.map((country) => (
+                            {validCountries.map((country) => (
                               <SelectItem key={country.code} value={country.name}>
                                 <div className="flex items-center gap-2">
                                   <span>{country.name}</span>
@@ -1463,15 +1867,41 @@ export default function PurchaseOrderEditClientPage({
 
         {/* Form Actions */}
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:space-x-4">
-          <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => router.back()} 
+            className="w-full sm:w-auto"
+            disabled={isInitializingForm}
+          >
             Cancel
           </Button>
           <Button 
             type="submit" 
-            disabled={form.formState.isSubmitting} 
+            disabled={form.formState.isSubmitting || isInitializingForm || !!formInitError} 
             className="w-full sm:w-auto"
           >
-            {form.formState.isSubmitting ? 'Updating...' : 'Update Purchase Order'}
+            {isInitializingForm ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Initializing...
+              </>
+            ) : form.formState.isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Updating...
+              </>
+            ) : formInitError ? (
+              'Form Error - Cannot Submit'
+            ) : (
+              'Update Purchase Order'
+            )}
           </Button>
         </div>
       </form>
