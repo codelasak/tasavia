@@ -17,10 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test -- --watch` - Run Jest tests in watch mode
 - `npm run test -- --coverage` - Run tests with coverage report
 
-### Database Operations
-- `npx supabase db push` - Apply database migrations to remote Supabase instance
-- `npx supabase db diff` - Show differences between local and remote schema
-- `npx supabase db reset` - Reset local database (if using local development)
+
 
 ### Single Test Execution
 - `npm run test -- --testNamePattern="specific test name"` - Run specific Jest test
@@ -36,8 +33,8 @@ This is a **dual-purpose Next.js 13+ application** using the App Router:
 
 ### Core Technology Stack
 - **Framework**: Next.js 13.5.1 with App Router and Server Components
-- **Database**: Supabase (PostgreSQL) with real-time features
-- **Authentication**: Supabase Auth with phone-based OTP verification
+- **Database**: self hosted Supabase (PostgreSQL) with real-time features
+- **Authentication**: self hosted Supabase Auth with phone-based OTP verification
 - **UI**: Radix UI primitives + Tailwind CSS + shadcn/ui components
 - **State Management**: React Hook Form + TanStack Query for server state
 - **Validation**: Zod schemas for type-safe form validation

@@ -48,10 +48,7 @@ BEGIN
         -- Generate new inventory ID
         new_inventory_id := gen_random_uuid();
         
-        -- Insert inventory record with 'Available' status
-        -- Note: This was fixed to match the inventory table schema.
-        -- quantity and condition from po_items are now correctly included.
-        -- unit_price from po_items is inserted into po_price.
+        -- Insert inventory record with corrected status fields
         INSERT INTO inventory (
             inventory_id,
             pn_id,
@@ -59,14 +56,13 @@ BEGIN
             sn,
             po_id_original,
             po_number_original,
-            status,
+            physical_status,
+            business_status,
             traceability_source,
             traceable_to,
             last_certified_agency,
             created_at,
-            updated_at,
-            quantity,
-            condition
+            updated_at
         ) VALUES (
             new_inventory_id,
             po_item_record.pn_id,
@@ -74,14 +70,13 @@ BEGIN
             po_item_record.sn,
             po_id_param,
             po_record.po_number,
-            'Available',  -- Set initial status as Available
+            'In Stock',  -- Set initial physical status
+            'Available', -- Set initial business status
             po_item_record.traceability_source,
             po_item_record.traceable_to,
             po_item_record.last_certified_agency,
             NOW(),
-            NOW(),
-            po_item_record.quantity,
-            po_item_record.condition
+            NOW()
         );
         
         -- Add to inventory ID array

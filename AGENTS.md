@@ -35,7 +35,7 @@
 
 ## Security & Configuration
 - Secrets: never commit `.env`; copy from `.env.example` to `.env.local`.
-- Supabase: set URLs/keys for local dev and CI before running.
+- self hosted Supabase: set URLs/keys for local dev and CI before running.
 - Review middleware and `app/api` routes for auth and data access patterns.
 
 ## Architecture Notes

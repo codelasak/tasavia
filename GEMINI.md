@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the TASAVIA Dashboard project
 
 ## Project Overview
 
-The TASAVIA Dashboard is a full-stack web application built with Next.js and Supabase. It serves two primary purposes:
+The TASAVIA Dashboard is a full-stack web application built with Next.js and self hosted Supabase. It serves two primary purposes:
 
 1.  **Public-Facing Website:** A modern, professional website to showcase the company's services and provide contact information.
 2.  **Internal Portal:** A secure, authenticated portal for managing internal business operations, including inventory, purchase orders, and company data.
