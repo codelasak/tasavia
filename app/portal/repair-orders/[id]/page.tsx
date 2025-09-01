@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Edit, FileText, Package, Calendar, Clock, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/components/auth/AuthProvider'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import PartNumberModificationModal from '@/components/repair-orders/PartNumberModificationModal'
@@ -62,6 +63,7 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
   const router = useRouter()
   const [repairOrder, setRepairOrder] = useState<RepairOrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
+  const { user, loading: authLoading } = useAuth()
 
   const fetchRepairOrder = useCallback(async () => {
     try {
@@ -93,8 +95,11 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
   }, [params.id, router]);
 
   useEffect(() => {
-    fetchRepairOrder()
-  }, [fetchRepairOrder])
+    // Only fetch once auth is ready and user exists
+    if (!authLoading && user) {
+      fetchRepairOrder()
+    }
+  }, [authLoading, user, fetchRepairOrder])
 
   const handlePartNumberModification = () => {
     // Refresh the repair order data when a part number is modified
@@ -176,7 +181,7 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
     return actions
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-slate-500">Loading repair order...</div>

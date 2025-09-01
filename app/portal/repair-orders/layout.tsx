@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { RepairOrdersProvider } from '@/hooks/useRepairOrdersContext'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 interface RepairOrder {
   repair_order_id: string
@@ -36,10 +37,17 @@ interface RepairOrdersLayoutProps {
 export default function RepairOrdersLayout({ children }: RepairOrdersLayoutProps) {
   const [repairOrders, setRepairOrders] = useState<RepairOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { user, loading } = useAuth()
 
   useEffect(() => {
     const fetchRepairOrders = async () => {
       try {
+        // Ensure we have an authenticated session before querying
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData.session) {
+          // No session yet; wait for auth provider to finish
+          return
+        }
         const { data, error } = await supabase
           .from('repair_orders')
           .select(`
@@ -68,11 +76,13 @@ export default function RepairOrdersLayout({ children }: RepairOrdersLayoutProps
         setIsLoading(false)
       }
     }
+    // Only fetch once auth is ready and user exists
+    if (!loading && user) {
+      fetchRepairOrders()
+    }
+  }, [loading, user])
 
-    fetchRepairOrders()
-  }, [])
-
-  if (isLoading) {
+  if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-slate-500">Loading...</div>

@@ -457,6 +457,7 @@ export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder
                     width={150}
                     height={75}
                     className="max-h-12 max-w-full object-contain opacity-80"
+                    style={{ height: 'auto' }}
                   />
                 </div>
               </div>
