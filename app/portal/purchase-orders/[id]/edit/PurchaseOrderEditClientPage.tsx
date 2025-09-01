@@ -632,80 +632,69 @@ export default function PurchaseOrderEditClientPage({
       console.log('Updating PO status to Completed for:', poId)
       await updatePurchaseOrder(formData)
       
-      // Call the Edge Function to create inventory items
-      console.log('Calling po-completion-handler Edge Function for PO:', poId)
-      const { data: result, error: edgeFunctionError } = await supabase.functions.invoke('po-completion-handler', {
-        body: {
-          po_id: poId,
-          action: 'complete_po'
-        }
+      // Call the database function directly to create inventory items
+      console.log('Calling create_inventory_from_po_completion database function for PO:', poId)
+      const { data: result, error: edgeFunctionError } = await supabase.rpc('create_inventory_from_po_completion', {
+        po_id_param: poId
       })
       
-      console.log('Edge Function response:', { result, edgeFunctionError })
+      console.log('Database function response:', { result, edgeFunctionError })
+      
+      // Extract the first result from the array (RPC functions return arrays)
+      const dbResult = result?.[0]
+      console.log('Parsed database result:', dbResult)
       
       if (edgeFunctionError) {
-        console.error('Edge Function error:', edgeFunctionError)
+        console.error('Database function error:', edgeFunctionError)
         
         // Create detailed error message
-        let errorMessage = 'Failed to call Edge Function'
+        let errorMessage = 'Failed to call database function'
         let errorDetails = null
         
         if (edgeFunctionError.message) {
           errorMessage = edgeFunctionError.message
         }
         
-        // Check if it's a network or authentication error
-        if (edgeFunctionError.status === 401) {
-          errorMessage = 'Authentication failed. Please log in again.'
-        } else if (edgeFunctionError.status === 403) {
-          errorMessage = 'Permission denied. You do not have access to complete this operation.'
-        } else if (edgeFunctionError.status >= 500) {
-          errorMessage = 'Server error occurred. Please try again later.'
-          errorDetails = `Status: ${edgeFunctionError.status}`
+        if (edgeFunctionError.code) {
+          errorDetails = `Database error code: ${edgeFunctionError.code}`
         }
         
         const finalError = new Error(JSON.stringify({
           error: errorMessage,
           details: errorDetails,
-          code: edgeFunctionError.status,
+          code: edgeFunctionError.code,
           originalError: edgeFunctionError
         }))
         
         throw finalError
       }
       
-      if (!result?.success) {
-        console.error('Edge Function returned failure:', result)
+      if (!dbResult?.success) {
+        console.error('Database function returned failure:', dbResult)
         
         // Handle specific error cases
-        if (result?.code === 'INVENTORY_CREATION_FAILED' && result?.error && result.error.includes('already exist')) {
+        if (dbResult?.error_message && dbResult.error_message.includes('already exist')) {
           toast.success('Purchase order completed successfully! Inventory items already exist for this order.')
         } else {
           // Create detailed error for modal display
-          let errorMessage = result?.error || 'Failed to create inventory items'
+          let errorMessage = dbResult?.error_message || 'Failed to create inventory items'
           let errorDetails = null
           
-          if (result?.code) {
-            errorDetails = `Error code: ${result.code}`
-            if (result?.details) {
-              errorDetails += ` - ${result.details}`
-            }
+          if (dbResult?.created_count !== undefined) {
+            errorDetails = `Items created: ${dbResult.created_count}`
           }
           
           const finalError = new Error(JSON.stringify({
             error: errorMessage,
             details: errorDetails,
-            code: result?.code,
-            created_count: result?.created_count
+            created_count: dbResult?.created_count
           }))
           
           throw finalError
         }
       } else {
-        console.log(`Successfully completed PO and created ${result.created_count} inventory items`)
-        const successMessage = result.po_number 
-          ? `Purchase order ${result.po_number} completed successfully! ${result.created_count} inventory items created.`
-          : `Purchase order completed successfully! ${result.created_count} inventory items created.`
+        console.log(`Successfully completed PO and created ${dbResult.created_count} inventory items`)
+        const successMessage = `Purchase order completed successfully! ${dbResult.created_count} inventory items created.`
         
         toast.success(successMessage)
       }

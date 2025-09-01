@@ -17,12 +17,19 @@ import { toast } from 'sonner'
 interface InventoryItem {
   inventory_id: string
   pn_id: string
-  serial_number: string | null
-  condition?: string
+  sn: string | null
   location: string | null
-  quantity?: number
-  unit_cost?: number
-  notes?: string | null
+  po_price: number | null
+  remarks: string | null
+  status: string | null
+  physical_status: 'depot' | 'in_repair' | 'in_transit'
+  business_status: 'available' | 'reserved' | 'sold'
+  status_updated_at: string | null
+  status_updated_by: string | null
+  po_id_original: string | null
+  po_number_original: string | null
+  created_at: string | null
+  updated_at: string | null
   pn_master_table?: {
     pn: string
     description: string | null
@@ -35,20 +42,13 @@ interface PartNumber {
   description: string | null
 }
 
-const CONDITION_OPTIONS = [
-  'AR', 'SVC', 'AS-IS', 'OHC', 'INS', 'REP', 'MOD'
-];
 
 const inventorySchema = z.object({
   pn_id: z.string().min(1, 'Part number is required'),
-  serial_number: z.string().optional(),
-  condition: z.enum(CONDITION_OPTIONS as [string, ...string[]], {
-    errorMap: () => ({ message: 'Condition is required' })
-  }),
+  sn: z.string().optional(),
   location: z.string().optional(),
-  quantity: z.number().min(1, 'Quantity must be at least 1'),
-  unit_cost: z.number().min(0, 'Unit cost must be positive'),
-  notes: z.string().optional(),
+  po_price: z.number().min(0, 'Price must be positive'),
+  remarks: z.string().optional(),
   physical_status: z.enum(['depot', 'in_repair', 'in_transit'], {
     errorMap: () => ({ message: 'Physical status is required' })
   }),
@@ -74,12 +74,10 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
     resolver: zodResolver(inventorySchema),
     defaultValues: {
       pn_id: '',
-      serial_number: '',
-      condition: 'AR',
+      sn: '',
       location: '',
-      quantity: 1,
-      unit_cost: 0,
-      notes: '',
+      po_price: 0,
+      remarks: '',
       physical_status: 'depot',
       business_status: 'available',
     }
@@ -95,24 +93,20 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
     if (item) {
       form.reset({
         pn_id: item.pn_id,
-        serial_number: item.serial_number || '',
-        condition: item.condition || 'AR',
+        sn: item.sn || '',
         location: item.location || '',
-        quantity: item.quantity || 1,
-        unit_cost: item.unit_cost || 0,
-        notes: item.notes || '',
+        po_price: item.po_price || 0,
+        remarks: item.remarks || '',
         physical_status: (item as any).physical_status || 'depot',
         business_status: (item as any).business_status || 'available',
       })
     } else {
       form.reset({
         pn_id: '',
-        serial_number: '',
-        condition: 'AR',
+        sn: '',
         location: '',
-        quantity: 1,
-        unit_cost: 0,
-        notes: '',
+        po_price: 0,
+        remarks: '',
         physical_status: 'depot',
         business_status: 'available',
       })
@@ -146,9 +140,9 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
     try {
       const submitData = {
         ...data,
-        serial_number: data.serial_number || null,
+        sn: data.sn || null,
         location: data.location || null,
-        notes: data.notes || null,
+        remarks: data.remarks || null,
         status: data.business_status === 'available' ? 'Available' : 
                data.business_status === 'reserved' ? 'Reserved' : 'Sold', // Legacy status for backward compatibility
       }
@@ -232,35 +226,13 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="serial_number">Serial Number</Label>
-              <Input
-                id="serial_number"
-                {...form.register('serial_number')}
-                placeholder="Optional"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="condition">Condition</Label>
-              <Select
-                value={form.watch('condition')}
-                onValueChange={value => form.setValue('condition', value)}
-              >
-                <SelectTrigger id="condition" className={form.formState.errors.condition ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select condition" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONDITION_OPTIONS.map(opt => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.condition && (
-                <div className="text-red-500 text-xs mt-1">{form.formState.errors.condition.message}</div>
-              )}
-            </div>
+          <div>
+            <Label htmlFor="sn">Serial Number</Label>
+            <Input
+              id="sn"
+              {...form.register('sn')}
+              placeholder="Optional"
+            />
           </div>
 
           <div>
@@ -314,55 +286,28 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                {...form.register('quantity', { valueAsNumber: true })}
-                className={form.formState.errors.quantity ? 'border-red-500' : ''}
-              />
-              {form.formState.errors.quantity && (
-                <div className="text-red-500 text-sm mt-1">
-                  {form.formState.errors.quantity.message}
-                </div>
-              )}
-            </div>
-            
-            <div>
-              <Label htmlFor="unit_cost">Unit Cost ($)</Label>
-              <Input
-                id="unit_cost"
-                type="number"
-                step="0.01"
-                min="0"
-                {...form.register('unit_cost', { valueAsNumber: true })}
-                className={form.formState.errors.unit_cost ? 'border-red-500' : ''}
-              />
-              {form.formState.errors.unit_cost && (
-                <div className="text-red-500 text-sm mt-1">
-                  {form.formState.errors.unit_cost.message}
-                </div>
-              )}
-            </div>
+          <div>
+            <Label htmlFor="po_price">Unit Cost ($)</Label>
+            <Input
+              id="po_price"
+              type="number"
+              step="0.01"
+              min="0"
+              {...form.register('po_price', { valueAsNumber: true })}
+              className={form.formState.errors.po_price ? 'border-red-500' : ''}
+            />
+            {form.formState.errors.po_price && (
+              <div className="text-red-500 text-sm mt-1">
+                {form.formState.errors.po_price.message}
+              </div>
+            )}
           </div>
 
-          {form.watch('quantity') && form.watch('unit_cost') && (
-            <div className="bg-slate-50 p-3 rounded-lg">
-              <div className="text-sm text-slate-600">Total Value</div>
-              <div className="text-lg font-bold text-green-600">
-                ${(form.watch('quantity') * form.watch('unit_cost')).toFixed(2)}
-              </div>
-            </div>
-          )}
-
           <div>
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="remarks">Notes</Label>
             <Textarea
-              id="notes"
-              {...form.register('notes')}
+              id="remarks"
+              {...form.register('remarks')}
               rows={3}
               placeholder="Additional notes (optional)"
             />

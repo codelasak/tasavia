@@ -16,22 +16,20 @@ import DualStatusBadges from '@/components/inventory/DualStatusBadges'
 interface InventoryItem {
   inventory_id: string
   pn_id: string
-  serial_number: string | null
-  condition?: string
+  sn: string | null
   location: string | null
-  quantity?: number
-  unit_cost?: number
-  total_value?: number
-  notes?: string | null
-  last_updated?: string
-  status?: string // Legacy status for compatibility
+  po_price: number | null
+  remarks: string | null
+  status: string | null
   physical_status: 'depot' | 'in_repair' | 'in_transit'
   business_status: 'available' | 'reserved' | 'sold'
-  status_updated_at?: string
-  status_updated_by?: string
-  po_id_original?: string | null
-  po_number_original?: string | null
-  pn_master_table: {
+  status_updated_at: string | null
+  status_updated_by: string | null
+  po_id_original: string | null
+  po_number_original: string | null 
+  created_at: string | null
+  updated_at: string | null
+  pn_master_table?: {
     pn: string
     description: string | null
   }
@@ -46,13 +44,11 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory)
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>(initialInventory)
   const [searchTerm, setSearchTerm] = useState('')
-  const [conditionFilter, setConditionFilter] = useState<string>('all')
   const [locationFilter, setLocationFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [locations, setLocations] = useState<string[]>([])
-  const [conditions, setConditions] = useState<string[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
   const [physicalStatuses, setPhysicalStatuses] = useState<string[]>([])
   const [businessStatuses, setBusinessStatuses] = useState<string[]>([])
@@ -63,21 +59,18 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Extract unique locations, conditions, and statuses for filters
+    // Extract unique locations and statuses for filters
     const locationData = inventory?.map(item => item.location).filter(Boolean) || []
-    const conditionData = inventory?.map(item => item.condition).filter(Boolean) || []
     const statusData = inventory?.map(item => item.status).filter(Boolean) || []
     const physicalStatusData = inventory?.map(item => item.physical_status).filter(Boolean) || []
     const businessStatusData = inventory?.map(item => item.business_status).filter(Boolean) || []
     
     const uniqueLocations = Array.from(new Set(locationData)) as string[]
-    const uniqueConditions = Array.from(new Set(conditionData)) as string[]
     const uniqueStatuses = Array.from(new Set(statusData)) as string[]
     const uniquePhysicalStatuses = Array.from(new Set(physicalStatusData)) as string[]
     const uniqueBusinessStatuses = Array.from(new Set(businessStatusData)) as string[]
     
     setLocations(uniqueLocations)
-    setConditions(uniqueConditions)
     setStatuses(uniqueStatuses)
     setPhysicalStatuses(uniquePhysicalStatuses)
     setBusinessStatuses(uniqueBusinessStatuses)
@@ -85,15 +78,11 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
 
   useEffect(() => {
     let filtered = inventory.filter(item =>
-      item.pn_master_table.pn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.pn_master_table.description && item.pn_master_table.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.pn_master_table?.pn && item.pn_master_table.pn.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.pn_master_table?.description && item.pn_master_table.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.sn && item.sn.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (item.location && item.location.toLowerCase().includes(searchTerm.toLowerCase()))
     )
-
-    if (conditionFilter !== 'all') {
-      filtered = filtered.filter(item => item.condition === conditionFilter)
-    }
 
     if (locationFilter !== 'all') {
       filtered = filtered.filter(item => item.location === locationFilter)
@@ -112,42 +101,69 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
     }
 
     setFilteredInventory(filtered)
-  }, [inventory, searchTerm, conditionFilter, locationFilter, statusFilter, physicalStatusFilter, businessStatusFilter])
+  }, [inventory, searchTerm, locationFilter, statusFilter, physicalStatusFilter, businessStatusFilter])
 
   const fetchInventory = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const { data, error } = await supabase
-        .from('inventory')
-        .select(`
-          inventory_id,
-          pn_id,
-          serial_number,
-          condition,
-          location,
-          quantity,
-          unit_cost,
-          total_value,
-          notes,
-          last_updated,
-          status,
-          physical_status,
-          business_status,
-          status_updated_at,
-          status_updated_by,
-          po_id_original,
-          po_number_original,
-          created_at,
-          updated_at,
-          pn_master_table(pn, description)
-        `)
-        .order('updated_at', { ascending: false })
+      // Use the RPC function to avoid PostgREST relationship ambiguity
+      const { data, error } = await supabase.rpc('get_inventory_with_parts')
 
       if (error) {
-        console.error('Fetch inventory error:', error)
-        throw new Error(error.message || 'Failed to fetch inventory')
+        console.error('RPC query failed, trying direct query:', error)
+        
+        // Fallback to direct query without relationship
+        const { data: inventoryData, error: inventoryError } = await supabase
+          .from('inventory')
+          .select(`
+            inventory_id,
+            pn_id,
+            sn,
+            location,
+            po_price,
+            remarks,
+            status,
+            physical_status,
+            business_status,
+            status_updated_at,
+            status_updated_by,
+            po_id_original,
+            po_number_original,
+            created_at,
+            updated_at
+          `)
+          .order('updated_at', { ascending: false })
+
+        if (inventoryError) {
+          console.error('Direct inventory query error:', inventoryError)
+          throw inventoryError
+        }
+
+        // Manually fetch part numbers for each inventory item
+        if (inventoryData && inventoryData.length > 0) {
+          const pnIds = inventoryData.map(item => item.pn_id)
+          const { data: partNumbers, error: pnError } = await supabase
+            .from('pn_master_table')
+            .select('pn_id, pn, description')
+            .in('pn_id', pnIds)
+
+          if (pnError) {
+            console.error('Part numbers query error:', pnError)
+          } else {
+            // Join the data manually
+            const joinedData = inventoryData.map(item => ({
+              ...item,
+              pn_master_table: partNumbers?.find(pn => pn.pn_id === item.pn_id) || { pn: '', description: null }
+            }))
+            setInventory(joinedData as any || [])
+            return
+          }
+        }
+
+        setInventory(inventoryData as any || [])
+        return
       }
       
       setInventory(data as any || [])
@@ -207,18 +223,6 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
     fetchInventory()
   }
 
-  const getConditionBadge = (condition: string | undefined) => {
-    if (!condition) return 'bg-gray-100 text-gray-800'
-    
-    const colors = {
-      'New': 'bg-green-100 text-green-800',
-      'Used': 'bg-yellow-100 text-yellow-800',
-      'Refurbished': 'bg-blue-100 text-blue-800',
-      'Damaged': 'bg-red-100 text-red-800',
-      'AR': 'bg-purple-100 text-purple-800'
-    }
-    return colors[condition as keyof typeof colors] || 'bg-gray-100 text-gray-800'
-  }
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -250,17 +254,6 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
               className="pl-10 w-full"
             />
           </div>
-          <Select value={conditionFilter} onValueChange={setConditionFilter}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="All Conditions" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Conditions</SelectItem>
-              {conditions.map(condition => (
-                <SelectItem key={condition} value={condition}>{condition}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Select value={locationFilter} onValueChange={setLocationFilter}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="All Locations" />
@@ -316,12 +309,11 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
           {filteredInventory.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-slate-500">No inventory items found</div>
-              {(searchTerm || conditionFilter !== 'all' || locationFilter !== 'all' || statusFilter !== 'all' || physicalStatusFilter !== 'all' || businessStatusFilter !== 'all') && (
+              {(searchTerm || locationFilter !== 'all' || statusFilter !== 'all' || physicalStatusFilter !== 'all' || businessStatusFilter !== 'all') && (
                 <Button
                   variant="link"
                   onClick={() => {
                     setSearchTerm('')
-                    setConditionFilter('all')
                     setLocationFilter('all')
                     setStatusFilter('all')
                     setPhysicalStatusFilter('all')
@@ -341,7 +333,7 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table.pn}</span>
+                          <span className="font-mono font-bold text-base text-slate-900">{item.pn_master_table?.pn || 'N/A'}</span>
                           <DualStatusBadges
                             inventory_id={item.inventory_id}
                             physical_status={item.physical_status}
@@ -364,18 +356,16 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                               ))
                             }}
                           />
-                          <Badge className={getConditionBadge(item.condition)}>{item.condition || 'Unknown'}</Badge>
                           {item.location && (
                             <span className="flex items-center text-xs text-slate-500"><MapPin className="h-4 w-4 mr-1" />{item.location}</span>
                           )}
                         </div>
-                        {item.pn_master_table.description && (
+                        {item.pn_master_table?.description && (
                           <div className="text-xs text-slate-500 line-clamp-2 mb-1">{item.pn_master_table.description}</div>
                         )}
                         <div className="flex gap-4 text-xs">
-                          <span>Qty: <b>{item.quantity || 1}</b></span>
-                          <span>Value: <b>${(item.total_value || 0).toFixed(2)}</b></span>
-                          {item.serial_number && <span>S/N: <b>{item.serial_number}</b></span>}
+                          <span>Price: <b>${(item.po_price || 0).toFixed(2)}</b></span>
+                          {item.sn && <span>S/N: <b>{item.sn}</b></span>}
                         </div>
                         {item.po_number_original && (
                           <div className="text-xs text-slate-400 mt-1">

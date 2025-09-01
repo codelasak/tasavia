@@ -15,8 +15,8 @@ import { toast } from 'sonner'
 interface DualStatus {
   physical_status: 'depot' | 'in_repair' | 'in_transit'
   business_status: 'available' | 'reserved' | 'sold'
-  status_updated_at?: string
-  status_updated_by?: string
+  status_updated_at: string | null
+  status_updated_by: string | null
 }
 
 interface StatusChange {
@@ -31,8 +31,8 @@ interface DualStatusBadgesProps {
   inventory_id: string
   physical_status: string
   business_status: string
-  status_updated_at?: string
-  status_updated_by?: string
+  status_updated_at: string | null
+  status_updated_by: string | null
   size?: 'sm' | 'md' | 'lg'
   showHistory?: boolean
   onStatusChange?: (newStatus: DualStatus) => void
@@ -175,7 +175,8 @@ export default function DualStatusBadges({
       onStatusChange?.({
         physical_status: newPhysicalStatus as any,
         business_status: newBusinessStatus as any,
-        status_updated_at: new Date().toISOString()
+        status_updated_at: new Date().toISOString(),
+        status_updated_by: null
       })
       
       resetForm()

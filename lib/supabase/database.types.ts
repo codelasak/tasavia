@@ -1300,6 +1300,27 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_inventory_with_parts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          inventory_id: string
+          pn_id: string
+          sn: string | null
+          location: string | null
+          po_price: number | null
+          remarks: string | null
+          status: string | null
+          physical_status: "depot" | "in_repair" | "in_transit"
+          business_status: "available" | "reserved" | "sold"
+          status_updated_at: string | null
+          status_updated_by: string | null
+          po_id_original: string | null
+          po_number_original: string | null
+          created_at: string | null
+          updated_at: string | null
+          pn_master_table: Json
+        }[]
+      }
       handle_company_operations: {
         Args: {
           p_addresses: Json
