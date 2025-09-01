@@ -11,6 +11,7 @@ import { Search, Eye, Edit, Trash2, FileText, Calendar } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { useRepairOrdersContext } from '@/hooks/useRepairOrdersContext'
 
 interface RepairOrder {
   repair_order_id: string
@@ -37,16 +38,18 @@ interface RepairOrder {
   }>
 }
 
-interface RepairOrdersListProps {
-  initialRepairOrders: RepairOrder[]
-}
-
-export default function RepairOrdersList({ initialRepairOrders }: RepairOrdersListProps) {
+export default function RepairOrdersList() {
   const router = useRouter()
-  const [repairOrders, setRepairOrders] = useState<RepairOrder[]>(initialRepairOrders)
-  const [filteredOrders, setFilteredOrders] = useState<RepairOrder[]>(initialRepairOrders)
+  const [filteredOrders, setFilteredOrders] = useState<RepairOrder[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Use context for global repair order state management
+  const {
+    repairOrders,
+    deleteRepairOrder,
+    isOptimistic
+  } = useRepairOrdersContext()
 
   useEffect(() => {
     let filtered = repairOrders.filter(order =>
@@ -62,21 +65,55 @@ export default function RepairOrdersList({ initialRepairOrders }: RepairOrdersLi
   }, [repairOrders, searchTerm, statusFilter])
 
   const handleDelete = async (order: RepairOrder) => {
-    if (!confirm(`Are you sure you want to delete repair order ${order.repair_order_number}?`)) return
+    if (!confirm(`Are you sure you want to delete repair order ${order.repair_order_number}? This action cannot be undone.`)) {
+      return
+    }
 
     try {
-      const { error } = await supabase
-        .from('repair_orders')
-        .delete()
-        .eq('repair_order_id', order.repair_order_id)
+      // Use context delete for immediate UI feedback
+      await deleteRepairOrder(order.repair_order_id, async () => {
+        // First check if there are any references to this RO in inventory or other tables
+        const { data: inventoryReferences, error: inventoryCheckError } = await supabase
+          .from('inventory')
+          .select('inventory_id')
+          .eq('ro_id', order.repair_order_id)
+          .limit(1)
 
-      if (error) throw error
-      
-      setRepairOrders(repairOrders.filter(o => o.repair_order_id !== order.repair_order_id))
-      toast.success('Repair order deleted successfully')
-    } catch (error) {
-      console.error('Error deleting repair order:', error)
-      toast.error('Failed to delete repair order')
+        if (inventoryCheckError) {
+          throw new Error('Failed to check repair order references')
+        }
+
+        if (inventoryReferences && inventoryReferences.length > 0) {
+          throw new Error('Cannot delete repair order: It is referenced in inventory records')
+        }
+
+        // Delete RO items first (due to foreign key constraint)
+        const { error: itemsDeleteError } = await supabase
+          .from('repair_order_items')
+          .delete()
+          .eq('repair_order_id', order.repair_order_id)
+
+        if (itemsDeleteError) {
+          throw itemsDeleteError
+        }
+
+        // Then delete the repair order
+        const { error: roDeleteError } = await supabase
+          .from('repair_orders')
+          .delete()
+          .eq('repair_order_id', order.repair_order_id)
+
+        if (roDeleteError) {
+          throw roDeleteError
+        }
+      })
+    } catch (error: any) {
+      // Handle specific error cases
+      if (error.message.includes('referenced')) {
+        toast.error(error.message)
+      } else if (error.message.includes('foreign key')) {
+        toast.error('Cannot delete repair order: It is referenced in other records')
+      }
     }
   }
 
@@ -215,8 +252,11 @@ export default function RepairOrdersList({ initialRepairOrders }: RepairOrdersLi
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className={`h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 ${
+                            isOptimistic(order.repair_order_id) ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                           onClick={() => handleDelete(order)}
+                          disabled={isOptimistic(order.repair_order_id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

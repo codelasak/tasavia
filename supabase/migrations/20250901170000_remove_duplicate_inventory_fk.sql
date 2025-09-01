@@ -1,0 +1,1 @@
+ALTER TABLE public.inventory DROP CONSTRAINT IF EXISTS inventory_pn_id_fkey;
