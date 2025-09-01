@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -47,14 +47,7 @@ export default function PDFValidationPanel({
   const [showDetails, setShowDetails] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
 
-  // Run validation when data changes
-  useEffect(() => {
-    if (documentData) {
-      validateDocument()
-    }
-  }, [documentData, aviationCompliance, documentType])
-
-  const validateDocument = async () => {
+  const validateDocument = useCallback(async () => {
     setIsValidating(true)
     
     try {
@@ -91,7 +84,14 @@ export default function PDFValidationPanel({
     } finally {
       setIsValidating(false)
     }
-  }
+  }, [documentData, aviationCompliance, documentType]);
+
+  // Run validation when data changes
+  useEffect(() => {
+    if (documentData) {
+      validateDocument()
+    }
+  }, [documentData, aviationCompliance, documentType, validateDocument])
 
   if (!validationResult || isValidating) {
     return (

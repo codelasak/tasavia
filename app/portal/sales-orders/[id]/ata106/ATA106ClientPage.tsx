@@ -451,7 +451,7 @@ export default function ATA106ClientPage({ salesOrder }: ATA106ClientPageProps) 
               <div className="text-sm text-slate-900 font-semibold mb-3">CERTIFICATION STATEMENT:</div>
               <div className="text-xs text-slate-700 leading-relaxed mb-4">
                 I hereby certify that the information contained in this Aircraft Parts Traceability Form is complete and accurate to the best of my knowledge and belief. 
-                The parts described herein have been maintained in accordance with applicable airworthiness regulations, manufacturer's instructions, and industry standards.
+                The parts described herein have been maintained in accordance with applicable airworthiness regulations, manufacturer&apos;s instructions, and industry standards.
               </div>
             </div>
             

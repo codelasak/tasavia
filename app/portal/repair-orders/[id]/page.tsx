@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -63,11 +63,7 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
   const [repairOrder, setRepairOrder] = useState<RepairOrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchRepairOrder()
-  }, [params.id])
-
-  const fetchRepairOrder = async () => {
+  const fetchRepairOrder = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('repair_orders')
@@ -94,7 +90,11 @@ export default function RepairOrderViewPage({ params }: RepairOrderViewPageProps
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id, router]);
+
+  useEffect(() => {
+    fetchRepairOrder()
+  }, [fetchRepairOrder])
 
   const handlePartNumberModification = () => {
     // Refresh the repair order data when a part number is modified

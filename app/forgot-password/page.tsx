@@ -175,7 +175,7 @@ export default function ForgotPasswordPage() {
               Forgot Password?
             </h1>
             <p className="text-center text-slate-600 dark:text-slate-400 mb-8">
-              No worries! Enter your email and we'll send you reset instructions.
+              No worries! Enter your email and we&apos;ll send you reset instructions.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -241,13 +241,13 @@ export default function ForgotPasswordPage() {
             </h1>
             
             <p className="text-slate-600 dark:text-slate-400 mb-6">
-              We've sent password reset instructions to{" "}
+              We&apos;ve sent password reset instructions to{" "}
               <span className="font-medium text-slate-900 dark:text-slate-100">{email}</span>
             </p>
 
             <div className="space-y-4">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Didn't receive the email? Check your spam folder or click below to resend.
+                Didn&apos;t receive the email? Check your spam folder or click below to resend.
               </p>
 
               <Button

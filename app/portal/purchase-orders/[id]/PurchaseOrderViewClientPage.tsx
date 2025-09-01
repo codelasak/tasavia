@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Edit, FileText, Printer, Trash2, RefreshCw } from 'lucide-react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -450,9 +451,11 @@ export default function PurchaseOrderViewClientPage({ poId, initialPurchaseOrder
               <div>
                 <div className="text-sm font-semibold text-slate-900 mb-2">Authorized Sign:</div>
                 <div className="border border-slate-300 rounded h-20 bg-gray-50 flex items-center justify-center">
-                  <img 
+                  <Image 
                     src="/signature.png" 
                     alt="Signature" 
+                    width={150}
+                    height={75}
                     className="max-h-12 max-w-full object-contain opacity-80"
                   />
                 </div>

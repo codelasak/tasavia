@@ -412,9 +412,10 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
   }, [checkCodeUniqueness, company, isMyCompanyType]);
 
   // Debounce validation
+  const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
+  const watchedCode = form.watch(codeField);
   useEffect(() => {
-    const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
-    const code = form.watch(codeField);
+    const code = watchedCode;
     
     if (code) {
       const timeoutId = setTimeout(() => {
@@ -430,7 +431,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
         suggestions: []
       });
     }
-  }, [form.watch(isMyCompanyType ? 'my_company_code' : 'company_code'), validateCompanyCode, isMyCompanyType]);
+  }, [watchedCode, validateCompanyCode, isMyCompanyType]);
 
   // Generate company code preview
   useEffect(() => {
@@ -1249,7 +1250,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 {contactFields.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
                     <span className="text-4xl mb-2 block">👤</span>
-                    No contacts added yet. Click "Add Contact" to get started.
+                    No contacts added yet. Click &quot;Add Contact&quot; to get started.
                   </div>
                 ) : (
                   contactFields.map((field, index) => (
@@ -1330,7 +1331,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 {addressFields.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
                     <span className="text-4xl mb-2 block">📍</span>
-                    No addresses added yet. Click "Add Address" to get started.
+                    No addresses added yet. Click &quot;Add Address&quot; to get started.
                   </div>
                 ) : (
                   addressFields.map((field, index) => (
@@ -1420,7 +1421,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 {shipViaFields.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
                     <span className="text-4xl mb-2 block">🚚</span>
-                    No shipping methods added yet. Click "Add Shipping Method" to get started.
+                    No shipping methods added yet. Click &quot;Add Shipping Method&quot; to get started.
                   </div>
                 ) : (
                   shipViaFields.map((field, index) => (

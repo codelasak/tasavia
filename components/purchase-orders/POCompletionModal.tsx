@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -57,17 +57,7 @@ export default function POCompletionModal({
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (isOpen && currentStatus !== 'Completed') {
-      // Clear previous errors when opening modal
-      setError(null)
-      setErrorDetails(null)
-      fetchPreview()
-      checkExistingInventory()
-    }
-  }, [isOpen, poId, currentStatus])
-
-  const fetchPreview = async () => {
+  const fetchPreview = useCallback(async () => {
     setFetchingPreview(true)
     setError(null)
     setErrorDetails(null)
@@ -116,9 +106,9 @@ export default function POCompletionModal({
     } finally {
       setFetchingPreview(false)
     }
-  }
+  }, [poId])
 
-  const checkExistingInventory = async () => {
+  const checkExistingInventory = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('inventory')
@@ -137,7 +127,17 @@ export default function POCompletionModal({
       console.error('Unexpected error checking inventory:', error)
       // Don't show error to user for this check, it's not critical
     }
-  }
+  }, [poId])
+
+  useEffect(() => {
+    if (isOpen && currentStatus !== 'Completed') {
+      // Clear previous errors when opening modal
+      setError(null)
+      setErrorDetails(null)
+      fetchPreview()
+      checkExistingInventory()
+    }
+  }, [isOpen, currentStatus, fetchPreview, checkExistingInventory])
 
   const handleConfirm = async () => {
     setLoading(true)

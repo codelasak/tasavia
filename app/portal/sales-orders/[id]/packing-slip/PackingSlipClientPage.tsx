@@ -295,7 +295,7 @@ export default function PackingSlipClientPage({ salesOrder }: PackingSlipClientP
         </div>
 
         <div className="text-sm text-slate-700 mb-6">
-          I certify that the items listed above have been carefully packed and shipped in accordance with the customer's order.
+          I certify that the items listed above have been carefully packed and shipped in accordance with the customer&apos;s order.
         </div>
         
         <PDFSignatureBlock 

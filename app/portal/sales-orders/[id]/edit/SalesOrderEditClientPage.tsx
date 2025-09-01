@@ -667,7 +667,7 @@ export default function SalesOrderEditClientPage({
 
               {fields.length === 0 && (
                 <div className="text-center py-8 text-slate-500">
-                  No items added yet. Click "Add Item" to get started.
+                  No items added yet. Click &quot;Add Item&quot; to get started.
                 </div>
               )}
             </div>

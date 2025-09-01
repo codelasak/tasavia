@@ -328,7 +328,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     hydrateInitialSession();
-  }, []); // Empty dependencies - should only run on mount
+  }, [handleProfileUpdate]); // Empty dependencies - should only run on mount
 
   useEffect(() => {
     authDebug.info('auth', 'Initializing auth state listener');
@@ -378,7 +378,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       authDebug.info('auth', 'Cleaning up auth state listener');
       subscription?.unsubscribe();
     }
-  }, []) // Empty dependencies - effect should only run once
+  }, [handleProfileUpdate]) // Empty dependencies - effect should only run once
 
   // Separate cleanup effect for mounted ref to handle hot reload properly
   useEffect(() => {

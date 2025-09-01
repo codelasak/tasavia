@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -46,13 +46,7 @@ export default function PODeletionModal({
   const [canDelete, setCanDelete] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (isOpen) {
-      checkInventoryReferences()
-    }
-  }, [isOpen, poId])
-
-  const checkInventoryReferences = async () => {
+  const checkInventoryReferences = useCallback(async () => {
     setLoading(true)
     setError(null)
     
@@ -85,7 +79,13 @@ export default function PODeletionModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [poId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      checkInventoryReferences()
+    }
+  }, [isOpen, checkInventoryReferences])
 
   const handleConfirm = async () => {
     if (!canDelete) return

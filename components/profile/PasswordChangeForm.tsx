@@ -260,7 +260,7 @@ export function PasswordChangeForm() {
           <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
             <p className="font-medium">Security Tips:</p>
             <ul className="mt-1 space-y-1 list-disc list-inside">
-              <li>Use a unique password that you don't use elsewhere</li>
+              <li>Use a unique password that you don&apos;t use elsewhere</li>
               <li>Consider using a password manager</li>
               <li>Avoid using personal information in your password</li>
             </ul>

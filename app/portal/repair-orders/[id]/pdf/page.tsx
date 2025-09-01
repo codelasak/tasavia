@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import PDFLayout from '@/components/pdf/PDFLayout'
 import PDFHeader from '@/components/pdf/PDFHeader'
 import PDFCompanyGrid from '@/components/pdf/PDFCompanyGrid'
@@ -65,11 +65,7 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
   const [repairOrder, setRepairOrder] = useState<RepairOrderPDFData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchRepairOrder()
-  }, [params.id])
-
-  const fetchRepairOrder = async () => {
+  const fetchRepairOrder = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('repair_orders')
@@ -95,7 +91,11 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchRepairOrder()
+  }, [fetchRepairOrder])
 
   const handleDownload = () => {
     window.print()

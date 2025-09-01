@@ -1,0 +1,43 @@
+{
+  "mcpServers": {
+    "selfhosted-supabase": {
+      "command": "node",
+      "args": [
+        "/Users/eshagh/selfhosted-supabase-mcp/dist/index.js",
+        "--url",
+        "https://sup.tasavia.com",
+        "--anon-key",
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1NTM4MDIyMCwiZXhwIjo0OTExMDUzODIwLCJyb2xlIjoiYW5vbiJ9.WF4YneDOiESLMHiIamU4svFYX20A4TkWjlTk2dLFvi0",
+        "--service-key",
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1NTM4MDIyMCwiZXhwIjo0OTExMDUzODIwLCJyb2xlIjoic2VydmljZV9yb2xlIn0._oNe5KhbWDtrk9jGtEIBrGHJPX1u21SGmRdU1zDdNiA",
+        "--db-url",
+        "postgresql://postgres:tUkWCEVFfwYSSHHRqJkHuMj6ENKg2nCX@51.38.69.230:5432/postgres",
+        "--jwt-secret",
+        "tKyF7Piav3MqoKpWT6HSt7xzL0u19DJ3"
+      ]
+    },
+    "playwright-mcp": {
+      "command": "npx",
+      "args": ["-y", "playwright-mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["n8n-mcp"],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "https://n8n.coolify.fennaver.tech/",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOWRlNTExNi0wZmY5LTQ3N2YtOTM1NC1jNDYxZGFlMWQyMDciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUyMzY4NzcwfQ.FPIVeUsgl3D-y1wZFi3_Jf9frWI2PkopVA0ioz5rZqU"
+      }
+    }
+  }
+}

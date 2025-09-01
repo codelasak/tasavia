@@ -144,7 +144,7 @@ export function ProfilePicture({
 
             <div className="text-xs text-center text-muted-foreground bg-gray-50 p-3 rounded-md">
               <p className="font-medium mb-1">Photo Upload Coming Soon!</p>
-              <p>Profile picture uploads will be available in a future update. For now, we're showing your initials.</p>
+              <p>Profile picture uploads will be available in a future update. For now, we&apos;re showing your initials.</p>
             </div>
           </div>
         </CardContent>

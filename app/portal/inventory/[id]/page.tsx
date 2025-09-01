@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,11 +39,7 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
   const [item, setItem] = useState<InventoryItemDetails | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchInventoryItem()
-  }, [params.id])
-
-  const fetchInventoryItem = async () => {
+  const fetchInventoryItem = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('inventory')
@@ -62,7 +58,11 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchInventoryItem()
+  }, [fetchInventoryItem])
 
   const handleDelete = async () => {
     if (!item) return

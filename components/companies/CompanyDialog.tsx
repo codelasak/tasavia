@@ -426,7 +426,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
       console.error('Error checking code uniqueness:', error);
       return { isUnique: true, suggestions: [] };
     }
-  }, [isMyCompanyType]);
+  }, []);
 
   // Debounced code validation
   const validateCompanyCode = useCallback(async (code: string) => {
@@ -458,9 +458,10 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
   }, [checkCodeUniqueness, company, isMyCompanyType]);
 
   // Debounce validation
+  const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
+  const watchedCode = form.watch(codeField);
   useEffect(() => {
-    const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
-    const code = form.watch(codeField);
+    const code = watchedCode;
     
     if (code) {
       const timeoutId = setTimeout(() => {
@@ -476,7 +477,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
         suggestions: []
       });
     }
-  }, [form.watch(isMyCompanyType ? 'my_company_code' : 'company_code'), validateCompanyCode, isMyCompanyType]);
+  }, [watchedCode, validateCompanyCode, isMyCompanyType]);
 
   // Load existing ship-via data
   const loadShipViaData = useCallback(async (companyId: string, refType: 'companies') => {
@@ -1311,9 +1312,9 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             <div className="space-y-4">
               {contactFields.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
-                  <span className="text-4xl mb-2 block">👤</span>
-                  No contacts added yet. Click "Add Contact" to get started.
-                </div>
+                    <span className="text-4xl mb-2 block">👤</span>
+                    No contacts added yet. Click &quot;Add Contact&quot; to get started.
+                  </div>
               ) : (
                 contactFields.map((field, index) => (
                   <div key={field.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -1388,9 +1389,9 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
             <div className="space-y-4">
               {addressFields.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
-                  <span className="text-4xl mb-2 block">📍</span>
-                  No addresses added yet. Click "Add Address" to get started.
-                </div>
+                    <span className="text-4xl mb-2 block">📍</span>
+                    No addresses added yet. Click &quot;Add Address&quot; to get started.
+                  </div>
               ) : (
                 addressFields.map((field, index) => (
                   <div key={field.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -1475,7 +1476,7 @@ export function CompanyDialog({ open, onClose, company, type }: CompanyDialogPro
               {shipViaFields.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
                   <span className="text-4xl mb-2 block">🚚</span>
-                  No shipping methods added yet. Click "Add Shipping Method" to get started.
+                  No shipping methods added yet. Click &quot;Add Shipping Method&quot; to get started.
                 </div>
               ) : (
                 shipViaFields.map((field, index) => (

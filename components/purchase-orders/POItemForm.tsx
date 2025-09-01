@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -94,32 +94,34 @@ export default function POItemForm({
     trigger
   } = form
 
-  const watchedValues = watch()
-  const watchedPnId = watch('pn_id')
+  const watchedValues = watch();
+  const { pn_id, description, traceability_source, traceable_to, last_certified_agency, quantity, unit_price } = watchedValues;
 
   // Update parent component when form values change
   useEffect(() => {
-    if (isDirty && isValid) {
-      onUpdate(index, watchedValues)
-    }
-  }, [watchedValues, isDirty, isValid, index, onUpdate])
+    const subscription = watch((value) => {
+      if (isDirty && isValid) {
+        onUpdate(index, value as PurchaseOrderItemFormValues);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, isDirty, isValid, index, onUpdate]);
 
   // Update selected part number when pn_id changes
   useEffect(() => {
-    if (watchedPnId) {
-      const partNumber = availablePartNumbers.find(pn => pn.pn_id === watchedPnId)
+    if (pn_id) {
+      const partNumber = availablePartNumbers.find(pn => pn.pn_id === pn_id)
       setSelectedPartNumber(partNumber || null)
       
       // Auto-fill description if not already set
-      if (partNumber && !watchedValues.description) {
+      if (partNumber && !description) {
         setValue('description', partNumber.description || '')
       }
     }
-  }, [watchedPnId, availablePartNumbers, setValue, watchedValues.description])
+  }, [pn_id, availablePartNumbers, setValue, description])
 
   // Check ATA 106 compliance status
   useEffect(() => {
-    const { traceability_source, traceable_to, last_certified_agency } = watchedValues
     const hasAnyField = traceability_source || traceable_to || last_certified_agency
     const hasAllFields = traceability_source && traceable_to && last_certified_agency
     
@@ -135,9 +137,9 @@ export default function POItemForm({
     if (hasAnyField) {
       setShowATA106Fields(true)
     }
-  }, [watchedValues.traceability_source, watchedValues.traceable_to, watchedValues.last_certified_agency])
+  }, [traceability_source, traceable_to, last_certified_agency])
 
-  const getConditionBadgeColor = (condition: string) => {
+  const getConditionBadgeColor = useCallback((condition: string) => {
     switch (condition) {
       case 'NEW':
       case 'NS':
@@ -161,9 +163,9 @@ export default function POItemForm({
       default:
         return 'bg-gray-100 text-gray-800'
     }
-  }
+  }, [])
 
-  const getComplianceStatusBadge = () => {
+  const getComplianceStatusBadge = useCallback(() => {
     switch (ata106ComplianceStatus) {
       case 'complete':
         return (
@@ -187,7 +189,7 @@ export default function POItemForm({
           </Badge>
         )
     }
-  }
+  }, [ata106ComplianceStatus])
 
   const handleEnableATA106 = () => {
     setShowATA106Fields(true)
@@ -516,12 +518,12 @@ export default function POItemForm({
         </Collapsible>
 
         {/* Line Total Display */}
-        {watchedValues.quantity && watchedValues.unit_price && (
+        {quantity && unit_price && (
           <div className="flex justify-end pt-4 border-t">
             <div className="text-right">
               <p className="text-sm text-gray-600">Line Total</p>
               <p className="text-lg font-semibold">
-                ${(watchedValues.quantity * watchedValues.unit_price).toFixed(2)}
+                ${(quantity * unit_price).toFixed(2)}
               </p>
             </div>
           </div>

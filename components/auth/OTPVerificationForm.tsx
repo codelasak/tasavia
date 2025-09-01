@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +41,7 @@ export function OTPVerificationForm({ phoneNumber, onBack, onError }: OTPVerific
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpCode.length !== 6) return;
 
@@ -64,7 +64,7 @@ export function OTPVerificationForm({ phoneNumber, onBack, onError }: OTPVerific
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [otpCode, onError, phoneNumber, router]);
 
   const handleResendOTP = async () => {
     setIsResending(true);
@@ -94,7 +94,7 @@ export function OTPVerificationForm({ phoneNumber, onBack, onError }: OTPVerific
     if (otpCode.length === 6 && !isLoading) {
       handleSubmit({ preventDefault: () => {} } as React.FormEvent);
     }
-  }, [otpCode]);
+  }, [otpCode, isLoading, handleSubmit]);
 
   return (
     <Card className="w-full max-w-md mx-auto">

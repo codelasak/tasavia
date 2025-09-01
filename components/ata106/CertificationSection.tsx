@@ -196,7 +196,7 @@ export default function CertificationSection({
                 I hereby certify that the information contained in this Aircraft Parts Traceability 
                 Form is complete and accurate to the best of my knowledge and belief. The parts 
                 described herein have been maintained in accordance with applicable airworthiness 
-                regulations, manufacturer's instructions, and industry standards.
+                regulations, manufacturer&apos;s instructions, and industry standards.
               </p>
               <p>
                 This certification is made in compliance with ATA Specification 106 for Aircraft 

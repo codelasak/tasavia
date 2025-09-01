@@ -59,7 +59,7 @@ export default function UsersList({ initialUsers }: UserListProps) {
     if (initialUsers.length === 0) {
       loadUsers();
     }
-  }, []);
+  }, [initialUsers.length]);
 
   const loadUsers = async () => {
     try {
