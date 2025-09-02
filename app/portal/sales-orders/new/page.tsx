@@ -6,7 +6,12 @@ export const dynamic = 'force-dynamic'
 async function getFormData() {
   const supabase = createSupabaseServer()
   const [myCompaniesResult, customersResult, inventoryResult, termsResult] = await Promise.all([
-    supabase.from('companies').select('*, company_name as my_company_name, company_code as my_company_code, company_id as my_company_id').eq('is_self', true).order('company_name'),
+    // Use proper PostgREST alias syntax: alias:column
+    supabase
+      .from('companies')
+      .select('my_company_id:company_id, my_company_name:company_name, my_company_code:company_code')
+      .eq('is_self', true)
+      .order('company_name'),
     supabase.from('companies').select('*, customer_number').neq('is_self', true).order('company_name'),
     supabase.from('inventory')
       .select(`
@@ -18,10 +23,10 @@ async function getFormData() {
     supabase.from('terms_and_conditions').select('*').eq('is_active', true as any).order('title')
   ])
 
-  if (myCompaniesResult.error) throw myCompaniesResult.error
-  if (customersResult.error) throw customersResult.error
-  if (inventoryResult.error) throw inventoryResult.error
-  if (termsResult.error) throw termsResult.error
+  if (myCompaniesResult.error) throw new Error(myCompaniesResult.error.message)
+  if (customersResult.error) throw new Error(customersResult.error.message)
+  if (inventoryResult.error) throw new Error(inventoryResult.error.message)
+  if (termsResult.error) throw new Error(termsResult.error.message)
 
   return {
     myCompanies: (myCompaniesResult.data || []) as any,

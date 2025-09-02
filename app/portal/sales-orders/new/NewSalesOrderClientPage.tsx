@@ -219,7 +219,7 @@ export default function NewSalesOrderClientPage({
     // Prepare invoice data
     const salesOrderData = {
       order: {
-        my_company_id: data.my_company_id,
+        company_id: data.my_company_id,
         customer_company_id: data.customer_company_id,
         customer_po_number: data.customer_po_number || null,
         reference_number: data.reference_number || null,
@@ -241,8 +241,7 @@ export default function NewSalesOrderClientPage({
         shipping_method: data.shipping_method || null,
         shipping_service_type: data.shipping_service_type || null,
         tracking_number: data.tracking_number || null,
-        dimensions: data.dimensions || null,
-        weight: data.weight || null,
+        package_dimensions: data.dimensions || null,
         gross_weight_kgs: data.gross_weight_kgs || null,
         shipping_cost: data.shipping_cost || null,
         shipping_notes: data.shipping_notes || null,

@@ -52,6 +52,7 @@ class ConnectionMonitor {
   private setupRuntimeErrorHandler() {
     // Capture Chrome extension runtime errors
     const originalError = window.console.error;
+    const originalWarn = window.console.warn;
     window.console.error = (...args: any[]) => {
       const message = args.join(' ');
       
@@ -71,6 +72,18 @@ class ConnectionMonitor {
       // Call original error handler for other errors
       originalError.apply(window.console, args);
     };
+
+    // Suppress common extension warnings as well
+    window.console.warn = (...args: any[]) => {
+      const message = args.join(' ');
+      if (message.includes('runtime.lastError') || 
+          message.includes('Could not establish connection') ||
+          message.includes('Receiving end does not exist')) {
+        // Swallow noisy extension-related warnings
+        return;
+      }
+      originalWarn.apply(window.console, args);
+    }
 
     // Global error handler
     window.addEventListener('error', (event) => {

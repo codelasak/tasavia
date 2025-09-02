@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Regular client for auth verification
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-// Server-side Supabase client with service role key
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 async function verifyUser(authHeader: string | null) {
   if (!authHeader?.startsWith('Bearer ')) {
     console.warn('Missing or invalid Authorization header format');
@@ -175,6 +163,12 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Initialize admin client lazily (avoid requiring service key for GET route)
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // Update auth user data if phone is provided
     if (phone && phone !== user.phone) {

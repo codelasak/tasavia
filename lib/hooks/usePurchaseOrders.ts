@@ -252,11 +252,18 @@ export function useCreateSalesOrder() {
       if (salesOrderData.items && salesOrderData.items.length > 0) {
         const { error: itemsError } = await supabase
           .from('sales_order_items')
-          .insert(salesOrderData.items.map((item: any, index: number) => ({
-            ...item,
-            sales_order_id: soData.sales_order_id,
-            line_number: index + 1,
-          })))
+          .insert(salesOrderData.items.map((item: any, index: number) => {
+            const quantity = typeof item.quantity === 'number' ? item.quantity : 1
+            const unit_price = Number(item.unit_price) || 0
+            return {
+              inventory_id: item.inventory_id,
+              unit_price,
+              quantity,
+              line_total: quantity * unit_price,
+              sales_order_id: soData.sales_order_id,
+              line_number: index + 1,
+            }
+          }) as any)
 
         if (itemsError) {
           throw new Error(itemsError.message || 'Failed to create sales order items')
