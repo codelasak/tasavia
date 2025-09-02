@@ -313,6 +313,7 @@ export default function SalesOrderEditClientPage({
         const { error: insertError } = await supabase
           .from('sales_order_items')
           .insert(itemsToInsert)
+          .select('sales_order_item_id')
         
         if (insertError) throw insertError
       }

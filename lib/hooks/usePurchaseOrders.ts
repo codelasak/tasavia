@@ -253,17 +253,15 @@ export function useCreateSalesOrder() {
         const { error: itemsError } = await supabase
           .from('sales_order_items')
           .insert(salesOrderData.items.map((item: any, index: number) => {
-            const quantity = typeof item.quantity === 'number' ? item.quantity : 1
             const unit_price = Number(item.unit_price) || 0
             return {
               inventory_id: item.inventory_id,
               unit_price,
-              quantity,
-              line_total: quantity * unit_price,
               sales_order_id: soData.sales_order_id,
               line_number: index + 1,
             }
-          }) as any)
+          }))
+          .select('sales_order_item_id')
 
         if (itemsError) {
           throw new Error(itemsError.message || 'Failed to create sales order items')
@@ -289,13 +287,23 @@ export function useDeleteSalesOrder() {
 
   return useMutation({
     mutationFn: async (salesOrderId: string) => {
-      const { error } = await supabase
+      // Delete child items first to respect FKs and allow triggers to run
+      const { error: itemsError } = await supabase
+        .from('sales_order_items')
+        .delete()
+        .eq('sales_order_id', salesOrderId)
+
+      if (itemsError) {
+        throw new Error(itemsError.message || 'Failed to delete sales order items')
+      }
+
+      const { error: soError } = await supabase
         .from('sales_orders')
         .delete()
         .eq('sales_order_id', salesOrderId)
 
-      if (error) {
-        throw new Error(error.message || 'Failed to delete sales order')
+      if (soError) {
+        throw new Error(soError.message || 'Failed to delete sales order')
       }
     },
     onMutate: async (salesOrderId: string) => {

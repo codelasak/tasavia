@@ -1,12 +1,11 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from "@/components/auth/AuthProvider"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { QueryProvider } from "@/lib/providers/QueryProvider"
 
-const inter = Inter({ subsets: ['latin'] })
+// Using system fonts in build environments without network access
 
 export const dynamic = 'force-dynamic'
 
@@ -91,7 +90,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         <ErrorBoundary>
           <QueryProvider>
             <AuthProvider>
