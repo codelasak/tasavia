@@ -46,6 +46,7 @@ export default function RepairOrdersLayout({ children }: RepairOrdersLayoutProps
         const { data: sessionData } = await supabase.auth.getSession()
         if (!sessionData.session) {
           // No session yet; wait for auth provider to finish
+          setIsLoading(false)
           return
         }
         const { data, error } = await supabase

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,14 +16,14 @@ import { useSalesOrders, useDeleteSalesOrder } from '@/lib/hooks/usePurchaseOrde
 
 export default function SalesOrdersList() {
   const router = useRouter()
-  const { data: salesOrders = [], isLoading, error } = useSalesOrders()
+  const { data, isLoading, error } = useSalesOrders()
   const deleteOrderMutation = useDeleteSalesOrder()
-  const [filteredOrders, setFilteredOrders] = useState(salesOrders)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  useEffect(() => {
-    let filtered = salesOrders.filter(order =>
+  const filteredOrders = useMemo(() => {
+    const src = data || []
+    let filtered = src.filter(order =>
       order.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.companies.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.customer_po_number && order.customer_po_number.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -33,8 +33,8 @@ export default function SalesOrdersList() {
       filtered = filtered.filter(order => order.status === statusFilter)
     }
 
-    setFilteredOrders(filtered)
-  }, [salesOrders, searchTerm, statusFilter])
+    return filtered
+  }, [data, searchTerm, statusFilter])
 
   const handleDelete = (order: any) => {
     if (!confirm(`Are you sure you want to delete invoice ${order.invoice_number}?`)) return
