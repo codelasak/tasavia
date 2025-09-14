@@ -401,16 +401,7 @@ export default function HomePage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 mb-6"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              <span>Innovating Aviation Solutions</span>
-            </motion.div>
-            
+              
             <motion.h1 
               className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-5xl md:text-6xl lg:text-7xl mb-6"
               initial={{ opacity: 0, y: 20 }}
@@ -819,31 +810,6 @@ export default function HomePage() {
                 </p>
                 
                 <div className="space-y-6">
-                  {/* Turkey Office */}
-                  <div className="flex items-start space-x-4 p-6 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 hover:border-blue-500/30 transition-colors duration-300">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                      <MapPin className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-semibold text-white mb-2">Turkey Office</h4>
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <Building className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
-                          <p className="text-slate-400">
-                            EMNİYETTEPE MAH. SADABAT SK.<br />
-                            NO: 11/1 EYÜPSULTAN / ISTANBUL / TURKEY
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <Mail className="h-5 w-5 text-slate-400" />
-                          <a href="mailto:rfq@tasavia.com" className="text-blue-400 hover:text-blue-300 transition-colors">
-                            rfq@tasavia.com
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
                   {/* USA Office */}
                   <div className="flex items-start space-x-4 p-6 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 hover:border-blue-500/30 transition-colors duration-300">
                     <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
@@ -868,6 +834,33 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
+                  
+                  
+                  {/* Turkiye Office */}
+                  <div className="flex items-start space-x-4 p-6 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 hover:border-blue-500/30 transition-colors duration-300">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <MapPin className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Türkiye Office</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-start space-x-3">
+                          <Building className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-slate-400">
+                            EMNİYETTEPE MAH. SADABAT SK.<br />
+                            NO: 11/1 EYÜPSULTAN / ISTANBUL / TURKEY
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <Mail className="h-5 w-5 text-slate-400" />
+                          <a href="mailto:rfq@tasavia.com" className="text-blue-400 hover:text-blue-300 transition-colors">
+                            rfq@tasavia.com
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
                 </div>
               </div>
               
