@@ -662,6 +662,70 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Our Customers Section */}
+      <section id="customers" className="py-20 bg-slate-50" role="region" aria-labelledby="customers-heading">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 mb-4">
+              <Building className="w-4 h-4 mr-2" />
+              <span>Our Customers</span>
+            </div>
+            <h2 id="customers-heading" className="text-4xl font-extrabold text-slate-900 dark:text-white sm:text-5xl">
+              Trusted by <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">Leading Aviation Companies</span>
+            </h2>
+            <p className="mt-4 text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
+              We&apos;re proud to partner with industry leaders who rely on our expertise to keep their aircraft flying safely and efficiently.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 items-center"
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
+            {[
+              { src: '/assets/customers/avtrade.jpg', alt: 'AvTrade Aviation' },
+              { src: '/assets/customers/download.png', alt: 'Aviation Partner' },
+              { src: '/assets/customers/67fe8ed0266b6f118a965482.png', alt: 'Aviation Client' },
+              { src: '/assets/customers/1697021191377.jpeg', alt: 'Airline Partner' },
+              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.21.33.jpeg', alt: 'Aviation Company' },
+              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.23.48.jpeg', alt: 'Aerospace Partner' },
+              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.34.07.jpeg', alt: 'Aviation Services' },
+              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.34.54.jpeg', alt: 'Flight Operations' },
+              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.36.02.jpeg', alt: 'Aviation Solutions' },
+              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.36.29.jpeg', alt: 'Aircraft Maintenance' },
+            ].map((customer, index) => (
+              <motion.div
+                key={index}
+                variants={fadeIn}
+                className="group"
+              >
+                <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30">
+                  <div className="relative w-full h-24 flex items-center justify-center">
+                    <Image
+                      src={customer.src}
+                      alt={customer.alt}
+                      fill
+                      className="object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-70 group-hover:opacity-100"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          </div>
+      </section>
+
       {/* Contact Section */}
       <section id="contact" className="relative py-24 bg-slate-900 text-white overflow-hidden" role="region" aria-labelledby="contact-heading">
         {/* Background pattern */}
