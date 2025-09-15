@@ -94,6 +94,7 @@
     "@types/react-signature-canvas": "^1.0.5",
     "dotenv": "^16.5.0",
     "identity-obj-proxy": "^3.0.0",
+    "ignore-loader": "^0.1.2",
     "jest": "^30.0.0",
     "jest-environment-jsdom": "^30.0.0",
     "ts-jest": "^29.4.0"
