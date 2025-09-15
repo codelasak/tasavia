@@ -25,25 +25,32 @@ interface RepairOrderPDFData {
   companies: {
     company_name: string
     company_code: string
-    address_line_1: string | null
-    address_line_2: string | null
-    city: string | null
-    state: string | null
-    postal_code: string | null
-    country: string | null
-    phone: string | null
-    email: string | null
+    company_addresses: Array<{
+      address_line1: string
+      address_line2: string | null
+      city: string | null
+      zip_code: string | null
+      country: string | null
+    }>
+    company_contacts: Array<{
+      contact_name: string
+      email: string | null
+      phone: string | null
+    }>
   }
   repair_order_items: Array<{
     line_number: number
     workscope: string
     estimated_cost: number | null
     actual_cost: number | null
-    status: string | null
+    notes: string | null
     inventory: {
-      serial_number: string | null
-      condition: string | null
-      quantity: number
+      inventory_id: string
+      pn_id: string
+      sn: string | null
+      physical_status: string
+      business_status: string
+      country_of_origin: string | null
       traceability_source: string | null
       traceable_to: string | null
       last_certified_agency: string | null
@@ -73,7 +80,21 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
         .from('repair_orders')
         .select(`
           *,
-          companies(*),
+          companies(
+            *,
+            company_addresses(
+              address_line1,
+              address_line2,
+              city,
+              zip_code,
+              country
+            ),
+            company_contacts(
+              contact_name,
+              email,
+              phone
+            )
+          ),
           repair_order_items(
             *,
             inventory(
@@ -107,14 +128,19 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
   }
 
   const formatAddress = (company: any) => {
+    if (!company.company_addresses || company.company_addresses.length === 0) {
+      return ''
+    }
+
+    const address = company.company_addresses[0] // Use primary address
     const parts = [
-      company.address_line_1,
-      company.address_line_2,
-      company.city && company.state ? `${company.city}, ${company.state}` : company.city || company.state,
-      company.postal_code,
-      company.country
+      address.address_line1,
+      address.address_line2,
+      address.city,
+      address.zip_code,
+      address.country
     ].filter(Boolean)
-    
+
     return parts.join(', ')
   }
 
@@ -153,19 +179,8 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
   const vendorCompany = {
     company_name: repairOrder.companies.company_name,
     company_code: repairOrder.companies.company_code,
-    company_addresses: [{
-      address_line1: repairOrder.companies.address_line_1 || '',
-      address_line2: repairOrder.companies.address_line_2,
-      city: repairOrder.companies.city,
-      state: repairOrder.companies.state,
-      country: repairOrder.companies.country,
-      postal_code: repairOrder.companies.postal_code
-    }],
-    company_contacts: [{
-      contact_name: '',
-      phone: repairOrder.companies.phone,
-      email: repairOrder.companies.email
-    }]
+    company_addresses: repairOrder.companies.company_addresses || [],
+    company_contacts: repairOrder.companies.company_contacts || []
   }
 
   const companySections = [
@@ -181,7 +196,8 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
 
   // Prepare additional header info
   const additionalHeaderInfo = [
-    { label: 'Status', value: repairOrder.status }
+    { label: 'Status', value: repairOrder.status },
+    { label: 'Ship Invoice', value: repairOrder.repair_order_number }
   ]
 
   return (
@@ -245,15 +261,15 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
                 </td>
                 <td className="border border-slate-300 p-3">
                   {item.inventory.pn_master_table.description || 'N/A'}
-                  {item.inventory.condition && (
-                    <div className="text-sm text-slate-600">Condition: {item.inventory.condition}</div>
+                  {item.inventory.physical_status && (
+                    <div className="text-sm text-slate-600">Status: {item.inventory.physical_status}</div>
                   )}
                 </td>
                 <td className="border border-slate-300 p-3 font-mono">
-                  {item.inventory.serial_number || 'N/A'}
+                  {item.inventory.sn || 'N/A'}
                 </td>
                 <td className="border border-slate-300 p-3 text-center">
-                  {item.inventory.quantity}
+                  1
                 </td>
                 <td className="border border-slate-300 p-3 font-medium">
                   {item.workscope}
@@ -307,6 +323,36 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
               <div className="bg-slate-50 border border-slate-200 p-4 rounded">
                 <div className="text-slate-600 text-sm">
                   Line {item.line_number}: {item.inventory.pn_master_table.pn} - No traceability information available
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Certification and Origin */}
+      <div className="mb-8">
+        <h3 className="font-bold text-slate-900 mb-4">Certification and Origin</h3>
+        {repairOrder.repair_order_items.map((item) => (
+          <div key={item.line_number} className="mb-4">
+            {item.inventory.country_of_origin ? (
+              <div className="bg-green-50 border border-green-200 p-4 rounded">
+                <div className="font-semibold text-green-900 mb-2">
+                  Line {item.line_number}: {item.inventory.pn_master_table.pn}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Country of Origin:</span> {item.inventory.country_of_origin}
+                  </div>
+                  <div>
+                    <span className="font-medium">Certification Requirements:</span> TCCA RELEASE
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded">
+                <div className="text-slate-600 text-sm">
+                  Line {item.line_number}: {item.inventory.pn_master_table.pn} - No country of origin information available
                 </div>
               </div>
             )}
