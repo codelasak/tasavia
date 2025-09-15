@@ -10,6 +10,7 @@ import PDFFinancialSummary from '@/components/pdf/PDFFinancialSummary'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 interface RepairOrderPDFData {
   repair_order_id: string
@@ -64,6 +65,7 @@ interface RepairOrderPDFPageProps {
 export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) {
   const [repairOrder, setRepairOrder] = useState<RepairOrderPDFData | null>(null)
   const [loading, setLoading] = useState(true)
+  const { user, loading: authLoading } = useAuth()
 
   const fetchRepairOrder = useCallback(async () => {
     try {
@@ -94,8 +96,11 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
   }, [params.id]);
 
   useEffect(() => {
-    fetchRepairOrder()
-  }, [fetchRepairOrder])
+    // Only fetch once auth is ready and user exists
+    if (!authLoading && user) {
+      fetchRepairOrder()
+    }
+  }, [authLoading, user, fetchRepairOrder])
 
   const handleDownload = () => {
     window.print()
@@ -113,7 +118,7 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
     return parts.join(', ')
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-slate-500">Loading repair order...</div>

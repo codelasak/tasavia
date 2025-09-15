@@ -49,7 +49,15 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "accounts_created_by_admin_id_fkey"
+            columns: ["created_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       admin_actions: {
         Row: {
@@ -82,7 +90,22 @@ export type Database = {
           target_user_id?: string | null
           user_agent?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_actions_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_actions_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {
@@ -413,7 +436,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "inventory_pn_id_fkey"
+            foreignKeyName: "fk_inventory_pn_id"
             columns: ["pn_id"]
             isOneToOne: false
             referencedRelation: "pn_master_table"
@@ -601,8 +624,10 @@ export type Database = {
         Row: {
           condition: string | null
           created_at: string | null
+          description: string | null
           description_override: string | null
           last_certified_agency: string | null
+          line_number: number | null
           line_total: number | null
           origin_country: string | null
           origin_country_code: string | null
@@ -621,8 +646,10 @@ export type Database = {
         Insert: {
           condition?: string | null
           created_at?: string | null
+          description?: string | null
           description_override?: string | null
           last_certified_agency?: string | null
+          line_number?: number | null
           line_total?: number | null
           origin_country?: string | null
           origin_country_code?: string | null
@@ -641,8 +668,10 @@ export type Database = {
         Update: {
           condition?: string | null
           created_at?: string | null
+          description?: string | null
           description_override?: string | null
           last_certified_agency?: string | null
+          line_number?: number | null
           line_total?: number | null
           origin_country?: string | null
           origin_country_code?: string | null
@@ -675,6 +704,27 @@ export type Database = {
           },
         ]
       }
+      po_sequence: {
+        Row: {
+          created_at: string | null
+          next_sequence_number: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          next_sequence_number?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          next_sequence_number?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       purchase_orders: {
         Row: {
           aviation_compliance_notes: string | null
@@ -686,8 +736,10 @@ export type Database = {
           created_at: string | null
           currency: string
           end_use_country_code: string | null
+          freight_charge: number | null
           last_certificate: string | null
           last_certificate_url: string | null
+          misc_charge: number | null
           obtained_from: string | null
           origin_country_code: string | null
           payment_term: string | null
@@ -700,12 +752,19 @@ export type Database = {
           remarks_1: string | null
           remarks_2: string | null
           ship_account_no_override: string | null
+          ship_to_address_details: string | null
+          ship_to_company_name: string | null
+          ship_to_contact_email: string | null
+          ship_to_contact_name: string | null
+          ship_to_contact_phone: string | null
           ship_via_id: string | null
           status: Database["public"]["Enums"]["po_status_enum"]
+          subtotal: number | null
           total_amount: number | null
           traceable_to_airline: string | null
           traceable_to_msn: string | null
           updated_at: string | null
+          vat_percentage: number | null
           vendor_company_id: string
         }
         Insert: {
@@ -718,8 +777,10 @@ export type Database = {
           created_at?: string | null
           currency?: string
           end_use_country_code?: string | null
+          freight_charge?: number | null
           last_certificate?: string | null
           last_certificate_url?: string | null
+          misc_charge?: number | null
           obtained_from?: string | null
           origin_country_code?: string | null
           payment_term?: string | null
@@ -732,12 +793,19 @@ export type Database = {
           remarks_1?: string | null
           remarks_2?: string | null
           ship_account_no_override?: string | null
+          ship_to_address_details?: string | null
+          ship_to_company_name?: string | null
+          ship_to_contact_email?: string | null
+          ship_to_contact_name?: string | null
+          ship_to_contact_phone?: string | null
           ship_via_id?: string | null
           status?: Database["public"]["Enums"]["po_status_enum"]
+          subtotal?: number | null
           total_amount?: number | null
           traceable_to_airline?: string | null
           traceable_to_msn?: string | null
           updated_at?: string | null
+          vat_percentage?: number | null
           vendor_company_id: string
         }
         Update: {
@@ -750,8 +818,10 @@ export type Database = {
           created_at?: string | null
           currency?: string
           end_use_country_code?: string | null
+          freight_charge?: number | null
           last_certificate?: string | null
           last_certificate_url?: string | null
+          misc_charge?: number | null
           obtained_from?: string | null
           origin_country_code?: string | null
           payment_term?: string | null
@@ -764,15 +834,29 @@ export type Database = {
           remarks_1?: string | null
           remarks_2?: string | null
           ship_account_no_override?: string | null
+          ship_to_address_details?: string | null
+          ship_to_company_name?: string | null
+          ship_to_contact_email?: string | null
+          ship_to_contact_name?: string | null
+          ship_to_contact_phone?: string | null
           ship_via_id?: string | null
           status?: Database["public"]["Enums"]["po_status_enum"]
+          subtotal?: number | null
           total_amount?: number | null
           traceable_to_airline?: string | null
           traceable_to_msn?: string | null
           updated_at?: string | null
+          vat_percentage?: number | null
           vendor_company_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_orders_aviation_compliance_updated_by_fkey"
+            columns: ["aviation_compliance_updated_by"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_orders_company_id_fkey"
             columns: ["company_id"]
@@ -859,6 +943,7 @@ export type Database = {
           repair_order_id: string
           repair_order_number: string
           return_address: string | null
+          source_po_id: string | null
           status: string | null
           total_cost: number | null
           updated_at: string | null
@@ -875,6 +960,7 @@ export type Database = {
           repair_order_id?: string
           repair_order_number?: string
           return_address?: string | null
+          source_po_id?: string | null
           status?: string | null
           total_cost?: number | null
           updated_at?: string | null
@@ -891,12 +977,20 @@ export type Database = {
           repair_order_id?: string
           repair_order_number?: string
           return_address?: string | null
+          source_po_id?: string | null
           status?: string | null
           total_cost?: number | null
           updated_at?: string | null
           vendor_company_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "repair_orders_source_po_id_fkey"
+            columns: ["source_po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["po_id"]
+          },
           {
             foreignKeyName: "repair_orders_vendor_company_id_fkey"
             columns: ["vendor_company_id"]
@@ -930,6 +1024,7 @@ export type Database = {
           inventory_id: string
           line_number: number
           line_total: number | null
+          quantity: number
           sales_order_id: string
           sales_order_item_id: string
           unit_price: number
@@ -939,6 +1034,7 @@ export type Database = {
           inventory_id: string
           line_number: number
           line_total?: number | null
+          quantity?: number
           sales_order_id: string
           sales_order_item_id?: string
           unit_price: number
@@ -948,6 +1044,7 @@ export type Database = {
           inventory_id?: string
           line_number?: number
           line_total?: number | null
+          quantity?: number
           sales_order_id?: string
           sales_order_item_id?: string
           unit_price?: number
@@ -1168,6 +1265,13 @@ export type Database = {
             referencedRelation: "roles"
             referencedColumns: ["role_id"]
           },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1284,6 +1388,10 @@ export type Database = {
           success: boolean
         }[]
       }
+      execute_sql: {
+        Args: { query: string; read_only?: boolean }
+        Returns: Json
+      }
       generate_company_code: {
         Args: { company_name: string }
         Returns: string
@@ -1294,7 +1402,7 @@ export type Database = {
       }
       generate_po_number: {
         Args: Record<PropertyKey, never>
-        Returns: number
+        Returns: string
       }
       generate_repair_order_number: {
         Args: Record<PropertyKey, never>
@@ -1303,22 +1411,22 @@ export type Database = {
       get_inventory_with_parts: {
         Args: Record<PropertyKey, never>
         Returns: {
+          business_status: string
+          created_at: string
           inventory_id: string
+          location: string
+          physical_status: string
           pn_id: string
-          sn: string | null
-          location: string | null
-          po_price: number | null
-          remarks: string | null
-          status: string | null
-          physical_status: "depot" | "in_repair" | "in_transit"
-          business_status: "available" | "reserved" | "sold"
-          status_updated_at: string | null
-          status_updated_by: string | null
-          po_id_original: string | null
-          po_number_original: string | null
-          created_at: string | null
-          updated_at: string | null
           pn_master_table: Json
+          po_id_original: string
+          po_number_original: string
+          po_price: number
+          remarks: string
+          sn: string
+          status: string
+          status_updated_at: string
+          status_updated_by: string
+          updated_at: string
         }[]
       }
       handle_company_operations: {

@@ -30,14 +30,14 @@ interface InventoryItem {
 async function getInventory() {
   try {
     const supabase = createSupabaseServer()
-    
+
     // Use the RPC function to avoid PostgREST relationship ambiguity
     console.log('🔍 Fetching inventory data with RPC function...')
     const { data, error } = await supabase.rpc('get_inventory_with_parts')
 
     if (error) {
       console.error('❌ RPC query failed, trying direct query:', error)
-      
+
       // Fallback to direct query without relationship
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
@@ -76,9 +76,11 @@ async function getInventory() {
         if (pnError) {
           console.error('❌ Part numbers query error:', pnError)
         } else {
-          // Join the data manually
+          // Join the data manually and cast to expected types
           const joinedData = inventoryData.map(item => ({
             ...item,
+            physical_status: item.physical_status as 'depot' | 'in_repair' | 'in_transit',
+            business_status: item.business_status as 'available' | 'reserved' | 'sold',
             pn_master_table: partNumbers?.find(pn => pn.pn_id === item.pn_id) || { pn: '', description: null }
           }))
           console.log('✅ Manual join successful:', joinedData.length, 'items')
@@ -86,12 +88,26 @@ async function getInventory() {
         }
       }
 
-      console.log('✅ Direct query successful:', inventoryData?.length || 0, 'items')
-      return inventoryData || []
+      // Cast data to expected types
+      const castData = inventoryData?.map(item => ({
+        ...item,
+        physical_status: item.physical_status as 'depot' | 'in_repair' | 'in_transit',
+        business_status: item.business_status as 'available' | 'reserved' | 'sold'
+      })) || []
+
+      console.log('✅ Direct query successful:', castData.length, 'items')
+      return castData
     }
-    
-    console.log('✅ RPC query successful:', data?.length || 0, 'items')
-    return data || []
+
+    // Cast RPC data to expected types
+    const castData = data?.map(item => ({
+      ...item,
+      physical_status: item.physical_status as 'depot' | 'in_repair' | 'in_transit',
+      business_status: item.business_status as 'available' | 'reserved' | 'sold'
+    })) || []
+
+    console.log('✅ RPC query successful:', castData.length, 'items')
+    return castData
   } catch (error) {
     console.error('💥 Error fetching inventory:', error)
     return []

@@ -72,32 +72,7 @@ export default function RepairOrdersList() {
     try {
       // Use context delete for immediate UI feedback
       await deleteRepairOrder(order.repair_order_id, async () => {
-        // First check if there are any references to this RO in inventory or other tables
-        const { data: inventoryReferences, error: inventoryCheckError } = await supabase
-          .from('inventory')
-          .select('inventory_id')
-          .eq('ro_id', order.repair_order_id)
-          .limit(1)
-
-        if (inventoryCheckError) {
-          throw new Error('Failed to check repair order references')
-        }
-
-        if (inventoryReferences && inventoryReferences.length > 0) {
-          throw new Error('Cannot delete repair order: It is referenced in inventory records')
-        }
-
-        // Delete RO items first (due to foreign key constraint)
-        const { error: itemsDeleteError } = await supabase
-          .from('repair_order_items')
-          .delete()
-          .eq('repair_order_id', order.repair_order_id)
-
-        if (itemsDeleteError) {
-          throw itemsDeleteError
-        }
-
-        // Then delete the repair order
+        // Delete the repair order (related items will be deleted automatically via ON DELETE CASCADE)
         const { error: roDeleteError } = await supabase
           .from('repair_orders')
           .delete()
