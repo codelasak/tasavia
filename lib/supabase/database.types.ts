@@ -931,6 +931,27 @@ export type Database = {
           },
         ]
       }
+      repair_order_sequence: {
+        Row: {
+          created_at: string | null
+          next_sequence_number: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          next_sequence_number?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          next_sequence_number?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       repair_orders: {
         Row: {
           actual_return_date: string | null
@@ -1098,6 +1119,8 @@ export type Database = {
           shipping_notes: string | null
           shipping_service_type: string | null
           shipping_tracking_number: string | null
+          source_purchase_order_id: string | null
+          source_repair_order_id: string | null
           status: string | null
           sub_total: number | null
           terms_and_conditions_id: string | null
@@ -1138,6 +1161,8 @@ export type Database = {
           shipping_notes?: string | null
           shipping_service_type?: string | null
           shipping_tracking_number?: string | null
+          source_purchase_order_id?: string | null
+          source_repair_order_id?: string | null
           status?: string | null
           sub_total?: number | null
           terms_and_conditions_id?: string | null
@@ -1178,6 +1203,8 @@ export type Database = {
           shipping_notes?: string | null
           shipping_service_type?: string | null
           shipping_tracking_number?: string | null
+          source_purchase_order_id?: string | null
+          source_repair_order_id?: string | null
           status?: string | null
           sub_total?: number | null
           terms_and_conditions_id?: string | null
@@ -1201,6 +1228,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "sales_orders_source_purchase_order_id_fkey"
+            columns: ["source_purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["po_id"]
+          },
+          {
+            foreignKeyName: "sales_orders_source_repair_order_id_fkey"
+            columns: ["source_repair_order_id"]
+            isOneToOne: false
+            referencedRelation: "repair_orders"
+            referencedColumns: ["repair_order_id"]
           },
           {
             foreignKeyName: "sales_orders_terms_and_conditions_id_fkey"
