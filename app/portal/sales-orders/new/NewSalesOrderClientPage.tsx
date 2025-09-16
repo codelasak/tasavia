@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Plus, Trash2, ArrowLeft, Loader2 } from 'lucide-react'
+import { CalendarIcon, Plus, Trash2, ArrowLeft, Loader2, Package, Search } from 'lucide-react'
 import * as dateFns from 'date-fns'
 import { cn } from '@/lib/utils'
 import { PAYMENT_TERMS, CURRENCY_OPTIONS } from '@/lib/constants/sales-order-constants'
@@ -70,11 +70,49 @@ interface TermsAndConditions {
   is_active: boolean | null
 }
 
+interface AvailablePurchaseOrder {
+  po_id: string
+  po_number: string
+  po_date: string
+  company_id: string
+  vendor_company_id: string
+  vendor_company_name: string
+  currency: string
+  status: string
+  total_amount: number | null
+  payment_term: string | null
+  freight_charge: number | null
+  misc_charge: number | null
+  vat_percentage: number | null
+  awb_no: string | null
+  remarks_1: string | null
+  remarks_2: string | null
+  aviation_compliance_notes: string | null
+  origin_country_code: string | null
+  end_use_country_code: string | null
+  traceable_to_airline: string | null
+  traceable_to_msn: string | null
+  last_certificate: string | null
+  certificate_expiry_date: string | null
+  ship_via_id: string | null
+  company_ship_via?: {
+    ship_company_name: string
+    ship_model: string | null
+  } | null
+  companies: {
+    company_id: string
+    company_name: string
+    company_code: string | null
+    company_type: string | null
+  }
+}
+
 interface NewSalesOrderClientPageProps {
   myCompanies: MyCompany[]
   customers: Customer[]
   inventoryItems: InventoryItem[]
   termsAndConditions: TermsAndConditions[]
+  availablePOs: AvailablePurchaseOrder[]
 }
 
 const salesOrderItemSchema = z.object({
@@ -83,6 +121,7 @@ const salesOrderItemSchema = z.object({
 })
 
 const salesOrderSchema = z.object({
+  source_purchase_order_id: z.string().optional(),
   my_company_id: z.string().min(1, 'My company is required'),
   customer_company_id: z.string().min(1, 'Customer is required'),
   customer_po_number: z.string().optional(),
@@ -119,10 +158,39 @@ export default function NewSalesOrderClientPage({
   customers,
   inventoryItems,
   termsAndConditions,
+  availablePOs,
 }: NewSalesOrderClientPageProps) {
   const router = useRouter()
   const [selectedCustomerNumber, setSelectedCustomerNumber] = useState<string>('')
   const createSalesOrderMutation = useCreateSalesOrder()
+
+  // Helpers to map PO shipping fields to our select enums
+  const mapCarrierNameToOption = useCallback((name?: string | null): string | null => {
+    if (!name) return null
+    const n = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (n.includes('fedex')) return 'FEDEX'
+    if (n.includes('dhl')) return 'DHL'
+    if (n.includes('ups')) return 'UPS'
+    if (n.includes('usps')) return 'USPS'
+    if (n.includes('turkish') || n.includes('thy')) return 'TURKISH_AIRLINES'
+    if (n.includes('lufthansa')) return 'LUFTHANSA'
+    return null
+  }, [])
+  const mapServiceNameToOption = useCallback((name?: string | null): string | null => {
+    if (!name) return null
+    const n = name.toLowerCase()
+    if (n.includes('overnight')) return 'OVERNIGHT'
+    if (n.includes('express')) return 'EXPRESS'
+    if (n.includes('2') || n.includes('two')) return '2_DAY'
+    if (n.includes('economy')) return 'ECONOMY'
+    if (n.includes('standard')) return 'STANDARD'
+    return null
+  }, [])
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredPOs, setFilteredPOs] = useState<AvailablePurchaseOrder[]>(availablePOs)
+  const [selectedPO, setSelectedPO] = useState<AvailablePurchaseOrder | null>(null)
+  const [inheritFromPO, setInheritFromPO] = useState(false)
 
   // Form validation states
   const [awbValidation, setAwbValidation] = useState<{
@@ -146,6 +214,7 @@ export default function NewSalesOrderClientPage({
   const { setValue, getValues, ...form } = useForm<SalesOrderFormValues>({
     resolver: zodResolver(salesOrderSchema),
     defaultValues: {
+      source_purchase_order_id: '',
       my_company_id: '',
       customer_company_id: '',
       customer_po_number: '',
@@ -180,6 +249,81 @@ export default function NewSalesOrderClientPage({
     control: form.control,
     name: 'items'
   })
+
+  // Watch for PO selection changes
+  const watchSourcePOId = form.watch('source_purchase_order_id')
+
+  // Filter POs based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredPOs(availablePOs)
+    } else {
+      const filtered = availablePOs.filter(po =>
+        po.po_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        po.companies.company_name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      setFilteredPOs(filtered)
+    }
+  }, [searchQuery, availablePOs])
+
+  // Handle PO selection and inheritance
+  useEffect(() => {
+    if (watchSourcePOId && inheritFromPO) {
+      const po = availablePOs.find(p => p.po_id === watchSourcePOId)
+      if (po) {
+        setSelectedPO(po)
+        // Inherit fields from PO
+        setValue('source_purchase_order_id', po.po_id)
+        setValue('my_company_id', po.company_id)
+        if (po.payment_term) {
+          setValue('payment_terms', po.payment_term)
+        }
+        setValue('currency', po.currency)
+        if (po.origin_country_code) {
+          setValue('country_of_origin', po.origin_country_code)
+        }
+        if (po.end_use_country_code) {
+          setValue('end_use_country', po.end_use_country_code)
+        }
+        if (typeof po.freight_charge === 'number') {
+          setValue('freight_charge', po.freight_charge)
+          setValue('shipping_cost', po.freight_charge)
+        }
+        if (typeof po.misc_charge === 'number') {
+          setValue('misc_charge', po.misc_charge)
+        }
+        if (typeof po.vat_percentage === 'number') {
+          setValue('vat_percentage', po.vat_percentage)
+        }
+        if (po.awb_no) {
+          setValue('awb_number', po.awb_no)
+          setValue('shipping_method', 'AIR')
+        }
+        const joinedRemarks = [po.remarks_1, po.remarks_2, po.aviation_compliance_notes].filter(Boolean).join(' | ')
+        if (joinedRemarks) {
+          setValue('remarks', joinedRemarks)
+        }
+        const carrierOpt = mapCarrierNameToOption(po.company_ship_via?.ship_company_name)
+        if (carrierOpt) {
+          setValue('shipping_carrier', carrierOpt)
+        }
+        const serviceOpt = mapServiceNameToOption(po.company_ship_via?.ship_model)
+        if (serviceOpt) {
+          setValue('shipping_service_type', serviceOpt)
+        }
+      }
+    } else if (!watchSourcePOId) {
+      setSelectedPO(null)
+    }
+  }, [watchSourcePOId, inheritFromPO, availablePOs, setValue, mapCarrierNameToOption, mapServiceNameToOption])
+
+  // Clear selection when inheritance is turned off
+  useEffect(() => {
+    if (!inheritFromPO) {
+      setSelectedPO(null)
+      setValue('source_purchase_order_id', '')
+    }
+  }, [inheritFromPO, setValue])
 
   useEffect(() => {
     // Set default company if only one
@@ -219,6 +363,7 @@ export default function NewSalesOrderClientPage({
     // Prepare invoice data
     const salesOrderData = {
       order: {
+        source_purchase_order_id: data.source_purchase_order_id || null,
         company_id: data.my_company_id,
         customer_company_id: data.customer_company_id,
         customer_po_number: data.customer_po_number || null,
@@ -350,6 +495,113 @@ export default function NewSalesOrderClientPage({
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Purchase Order Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Purchase Order Reference
+            </CardTitle>
+            <CardDescription>
+              Optionally reference a purchase order to inherit data and maintain traceability
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="inheritFromPO"
+                checked={inheritFromPO}
+                onChange={(e) => setInheritFromPO(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="inheritFromPO" className="text-sm font-medium">
+                Create from Purchase Order (inherit data)
+              </Label>
+            </div>
+
+            {inheritFromPO && (
+              <div className="space-y-4">
+                <div>
+<Label htmlFor="source_purchase_order_id">Select Purchase Order</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="po-search"
+                      placeholder="Search by PO number or vendor name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Select
+                    value={form.watch('source_purchase_order_id')}
+                    onValueChange={(value) => {
+                      setValue('source_purchase_order_id', value)
+                      setInheritFromPO(true)
+                    }}
+                  >
+                    <SelectTrigger className={form.formState.errors.source_purchase_order_id ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Select a purchase order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredPOs.map((po) => (
+                        <SelectItem key={po.po_id} value={po.po_id}>
+                          <div className="space-y-1">
+                            <div className="font-medium">{po.po_number}</div>
+                            <div className="text-sm text-gray-600">
+                              {po.companies.company_name} • {dateFns.format(new Date(po.po_date), 'MMM dd, yyyy')} • {po.currency} {po.total_amount || 0}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Completed PO
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedPO && (
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="p-4">
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-blue-900">Selected Purchase Order: {selectedPO.po_number}</h4>
+                        <div className="text-sm text-blue-800">
+                          <div>Vendor: {selectedPO.companies.company_name}</div>
+                          <div>Date: {dateFns.format(new Date(selectedPO.po_date), 'MMM dd, yyyy')}</div>
+                          <div>Currency: {selectedPO.currency}</div>
+                          {selectedPO.company_ship_via?.ship_company_name && (
+                            <div>Carrier: {selectedPO.company_ship_via.ship_company_name}</div>
+                          )}
+                          {selectedPO.company_ship_via?.ship_model && (
+                            <div>Service: {selectedPO.company_ship_via.ship_model}</div>
+                          )}
+                          {selectedPO.origin_country_code && (
+                            <div>Origin Country: {selectedPO.origin_country_code}</div>
+                          )}
+                          {selectedPO.end_use_country_code && (
+                            <div>End Use Country: {selectedPO.end_use_country_code}</div>
+                          )}
+                          {selectedPO.traceable_to_airline && (
+                            <div>Traceable to Airline: {selectedPO.traceable_to_airline}</div>
+                          )}
+                          {selectedPO.traceable_to_msn && (
+                            <div>Traceable to MSN: {selectedPO.traceable_to_msn}</div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Header Information */}
         <Card>
           <CardHeader>
@@ -359,7 +611,12 @@ export default function NewSalesOrderClientPage({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="my_company_id">My Company</Label>
+                <Label htmlFor="my_company_id">
+                  My Company
+                  {selectedPO && form.watch('my_company_id') === selectedPO.company_id && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                  )}
+                </Label>
                 <Select
                   value={form.watch('my_company_id')}
                   onValueChange={(value) => {
@@ -369,6 +626,7 @@ export default function NewSalesOrderClientPage({
                       setValue('payment_terms', company.default_payment_terms || 'NET30')
                     }
                   }}
+                  disabled={selectedPO ? form.watch('my_company_id') === selectedPO.company_id : false}
                 >
                   <SelectTrigger id="my_company_id" className={form.formState.errors.my_company_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select your company" />
@@ -457,10 +715,16 @@ export default function NewSalesOrderClientPage({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="payment_terms">Payment Terms</Label>
+                <Label htmlFor="payment_terms">
+                  Payment Terms
+                  {selectedPO && selectedPO.payment_term && form.watch('payment_terms') === selectedPO.payment_term && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                  )}
+                </Label>
                 <Select
                   value={form.watch('payment_terms')}
                   onValueChange={value => setValue('payment_terms', value)}
+                  disabled={selectedPO && selectedPO.payment_term ? form.watch('payment_terms') === selectedPO.payment_term : false}
                 >
                   <SelectTrigger id="payment_terms">
                     <SelectValue placeholder="Select payment terms" />
@@ -476,10 +740,18 @@ export default function NewSalesOrderClientPage({
               </div>
 
               <div>
-                <Label htmlFor="currency">Currency</Label>
+                <Label htmlFor="currency">
+                  Currency
+                  {selectedPO && form.watch('currency') === selectedPO.currency && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                      Inherited from PO
+                    </span>
+                  )}
+                </Label>
                 <Select
                   value={form.watch('currency')}
                   onValueChange={value => setValue('currency', value)}
+                  disabled={selectedPO ? form.watch('currency') === selectedPO.currency : false}
                 >
                   <SelectTrigger id="currency">
                     <SelectValue placeholder="Select currency" />
@@ -560,11 +832,19 @@ export default function NewSalesOrderClientPage({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="country_of_origin">Country of Origin</Label>
+                <Label htmlFor="country_of_origin">
+                  Country of Origin
+                  {selectedPO && form.watch('country_of_origin') === selectedPO.origin_country_code && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                      Inherited from PO
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="country_of_origin"
                   {...form.register('country_of_origin')}
                   placeholder="e.g., United States, Turkey"
+                  disabled={selectedPO ? form.watch('country_of_origin') === selectedPO.origin_country_code : false}
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   Country where the parts were manufactured
@@ -572,11 +852,19 @@ export default function NewSalesOrderClientPage({
               </div>
 
               <div>
-                <Label htmlFor="end_use_country">End Use Country</Label>
+                <Label htmlFor="end_use_country">
+                  End Use Country
+                  {selectedPO && form.watch('end_use_country') === selectedPO.end_use_country_code && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                      Inherited from PO
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="end_use_country"
                   {...form.register('end_use_country')}
                   placeholder="e.g., Germany, France"
+                  disabled={selectedPO ? form.watch('end_use_country') === selectedPO.end_use_country_code : false}
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   Final destination country for export control
@@ -729,12 +1017,24 @@ export default function NewSalesOrderClientPage({
           </CardHeader>
           <CardContent>
             <div>
-              <Label htmlFor="remarks">Remarks</Label>
+              <Label htmlFor="remarks">
+                Remarks
+                {selectedPO && (() => {
+                  const joined = [selectedPO.remarks_1, selectedPO.remarks_2, selectedPO.aviation_compliance_notes].filter(Boolean).join(' | ')
+                  return joined && form.watch('remarks') === joined
+                })() && (
+                  <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                )}
+              </Label>
               <Textarea
                 id="remarks"
                 {...form.register('remarks')}
                 rows={3}
                 placeholder="Additional notes or remarks"
+disabled={Boolean(selectedPO && (() => {
+                  const joined = [selectedPO.remarks_1, selectedPO.remarks_2, selectedPO.aviation_compliance_notes].filter(Boolean).join(' | ')
+                  return !!joined && form.watch('remarks') === joined
+                })())}
               />
             </div>
           </CardContent>
@@ -755,7 +1055,12 @@ export default function NewSalesOrderClientPage({
               <h4 className="font-medium text-slate-900">Shipping Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="awb_number">AWB Number</Label>
+                  <Label htmlFor="awb_number">
+                    AWB Number
+                    {selectedPO && selectedPO.awb_no && form.watch('awb_number') === selectedPO.awb_no && (
+                      <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                    )}
+                  </Label>
                   <div className="relative">
                     <Input
                       id="awb_number"
@@ -766,6 +1071,7 @@ export default function NewSalesOrderClientPage({
                         false,
                         !!form.watch('awb_number')
                       )}
+                      disabled={selectedPO && selectedPO.awb_no ? form.watch('awb_number') === selectedPO.awb_no : false}
                     />
                     {awbValidation.isValidating && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -793,10 +1099,16 @@ export default function NewSalesOrderClientPage({
                 </div>
 
                 <div>
-                  <Label htmlFor="shipping_carrier">Shipping Carrier</Label>
+                  <Label htmlFor="shipping_carrier">
+                    Shipping Carrier
+                    {selectedPO && selectedPO.company_ship_via?.ship_company_name && form.watch('shipping_carrier') === selectedPO.company_ship_via.ship_company_name && (
+                      <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                    )}
+                  </Label>
                   <Select
                     value={form.watch('shipping_carrier')}
                     onValueChange={(value) => setValue('shipping_carrier', value)}
+                    disabled={selectedPO && selectedPO.company_ship_via?.ship_company_name ? form.watch('shipping_carrier') === selectedPO.company_ship_via.ship_company_name : false}
                   >
                     <SelectTrigger id="shipping_carrier">
                       <SelectValue placeholder="Select carrier" />
@@ -851,10 +1163,16 @@ export default function NewSalesOrderClientPage({
                 </div>
 
                 <div>
-                  <Label htmlFor="shipping_service_type">Service Type</Label>
+                  <Label htmlFor="shipping_service_type">
+                    Service Type
+                    {selectedPO && selectedPO.company_ship_via?.ship_model && form.watch('shipping_service_type') === selectedPO.company_ship_via.ship_model && (
+                      <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                    )}
+                  </Label>
                   <Select
                     value={form.watch('shipping_service_type')}
                     onValueChange={(value) => setValue('shipping_service_type', value)}
+                    disabled={selectedPO && selectedPO.company_ship_via?.ship_model ? form.watch('shipping_service_type') === selectedPO.company_ship_via.ship_model : false}
                   >
                     <SelectTrigger id="shipping_service_type">
                       <SelectValue placeholder="Select service" />
@@ -1001,7 +1319,12 @@ export default function NewSalesOrderClientPage({
           <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
               <div>
-                <Label htmlFor="freight_charge">Freight Charge ($)</Label>
+                <Label htmlFor="freight_charge">
+                  Freight Charge ($)
+                  {selectedPO && typeof selectedPO.freight_charge === 'number' && (form.watch('freight_charge') || 0) === (selectedPO.freight_charge || 0) && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                  )}
+                </Label>
                 <Input
                   id="freight_charge"
                   type="number"
@@ -1009,6 +1332,7 @@ export default function NewSalesOrderClientPage({
                   min="0"
                   {...form.register('freight_charge', { valueAsNumber: true })}
                   placeholder="0.00"
+                  disabled={selectedPO && typeof selectedPO.freight_charge === 'number' ? (form.watch('freight_charge') || 0) === (selectedPO.freight_charge || 0) : false}
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   Shipping and freight costs
@@ -1016,7 +1340,12 @@ export default function NewSalesOrderClientPage({
               </div>
 
               <div>
-                <Label htmlFor="misc_charge">Misc Charge ($)</Label>
+                <Label htmlFor="misc_charge">
+                  Misc Charge ($)
+                  {selectedPO && typeof selectedPO.misc_charge === 'number' && (form.watch('misc_charge') || 0) === (selectedPO.misc_charge || 0) && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                  )}
+                </Label>
                 <Input
                   id="misc_charge"
                   type="number"
@@ -1024,6 +1353,7 @@ export default function NewSalesOrderClientPage({
                   min="0"
                   {...form.register('misc_charge', { valueAsNumber: true })}
                   placeholder="0.00"
+                  disabled={selectedPO && typeof selectedPO.misc_charge === 'number' ? (form.watch('misc_charge') || 0) === (selectedPO.misc_charge || 0) : false}
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   Additional miscellaneous charges
@@ -1031,7 +1361,12 @@ export default function NewSalesOrderClientPage({
               </div>
 
               <div>
-                <Label htmlFor="vat_percentage">VAT (%)</Label>
+                <Label htmlFor="vat_percentage">
+                  VAT (%)
+                  {selectedPO && typeof selectedPO.vat_percentage === 'number' && (form.watch('vat_percentage') || 0) === (selectedPO.vat_percentage || 0) && (
+                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Inherited from PO</span>
+                  )}
+                </Label>
                 <Input
                   id="vat_percentage"
                   type="number"
@@ -1040,6 +1375,7 @@ export default function NewSalesOrderClientPage({
                   max="100"
                   {...form.register('vat_percentage', { valueAsNumber: true })}
                   placeholder="0.00"
+                  disabled={selectedPO && typeof selectedPO.vat_percentage === 'number' ? (form.watch('vat_percentage') || 0) === (selectedPO.vat_percentage || 0) : false}
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   Value Added Tax percentage

@@ -5,10 +5,18 @@ export interface PurchaseOrderWithDetails {
   po_id: string
   po_number: string
   po_date: string
+  company_id: string
   vendor_company_id: string
   currency: string
   status: string
   total_amount: number | null
+  payment_term: string | null
+  freight_charge: number | null
+  misc_charge: number | null
+  vat_percentage: number | null
+  awb_no: string | null
+  remarks_1: string | null
+  remarks_2: string | null
   aviation_compliance_notes: string | null
   origin_country_code: string | null
   end_use_country_code: string | null
@@ -16,6 +24,11 @@ export interface PurchaseOrderWithDetails {
   traceable_to_msn: string | null
   last_certificate: string | null
   certificate_expiry_date: string | null
+  ship_via_id: string | null
+  company_ship_via?: {
+    ship_company_name: string
+    ship_model: string | null
+  } | null
   // Related data
   companies: {
     company_id: string
@@ -50,10 +63,18 @@ export async function getAvailablePurchaseOrdersForRO(): Promise<PurchaseOrderWi
       po_id,
       po_number,
       po_date,
+      company_id,
       vendor_company_id,
       currency,
       status,
       total_amount,
+      payment_term,
+      freight_charge,
+      misc_charge,
+      vat_percentage,
+      awb_no,
+      remarks_1,
+      remarks_2,
       aviation_compliance_notes,
       origin_country_code,
       end_use_country_code,
@@ -61,6 +82,11 @@ export async function getAvailablePurchaseOrdersForRO(): Promise<PurchaseOrderWi
       traceable_to_msn,
       last_certificate,
       certificate_expiry_date,
+      ship_via_id,
+      company_ship_via:company_ship_via!purchase_orders_ship_via_id_fkey (
+        ship_company_name,
+        ship_model
+      ),
       companies!purchase_orders_vendor_company_id_fkey (
         company_id,
         company_name,
@@ -76,7 +102,7 @@ export async function getAvailablePurchaseOrdersForRO(): Promise<PurchaseOrderWi
     throw new Error('Failed to fetch purchase orders')
   }
 
-  return data || []
+  return (data || []) as unknown as PurchaseOrderWithDetails[]
 }
 
 /**
@@ -91,10 +117,18 @@ export async function getPurchaseOrderForInheritance(poId: string): Promise<Purc
       po_id,
       po_number,
       po_date,
+      company_id,
       vendor_company_id,
       currency,
       status,
       total_amount,
+      payment_term,
+      freight_charge,
+      misc_charge,
+      vat_percentage,
+      awb_no,
+      remarks_1,
+      remarks_2,
       aviation_compliance_notes,
       origin_country_code,
       end_use_country_code,
@@ -102,6 +136,11 @@ export async function getPurchaseOrderForInheritance(poId: string): Promise<Purc
       traceable_to_msn,
       last_certificate,
       certificate_expiry_date,
+      ship_via_id,
+      company_ship_via:company_ship_via!purchase_orders_ship_via_id_fkey (
+        ship_company_name,
+        ship_model
+      ),
       companies!purchase_orders_vendor_company_id_fkey (
         company_id,
         company_name,
@@ -140,7 +179,7 @@ export async function getPurchaseOrderForInheritance(poId: string): Promise<Purc
     return null
   }
 
-  return data
+  return (data as unknown as PurchaseOrderWithDetails)
 }
 
 /**
@@ -222,5 +261,5 @@ export async function searchPurchaseOrdersForRO(query: string): Promise<Purchase
     throw new Error('Failed to search purchase orders')
   }
 
-  return data || []
+  return (data || []) as unknown as PurchaseOrderWithDetails[]
 }

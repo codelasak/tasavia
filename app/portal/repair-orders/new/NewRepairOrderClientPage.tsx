@@ -54,6 +54,8 @@ interface AvailablePurchaseOrder {
   currency: string
   status: string
   total_amount: number | null
+  remarks_1: string | null
+  remarks_2: string | null
   aviation_compliance_notes: string | null
   origin_country_code: string | null
   end_use_country_code: string | null
@@ -141,11 +143,22 @@ export default function NewRepairOrderClientPage({
         // Inherit basic fields
         form.setValue('vendor_company_id', po.vendor_company_id)
         form.setValue('currency', po.currency)
+        const joinedRemarks = [po.remarks_1, po.remarks_2, po.aviation_compliance_notes].filter(Boolean).join(' | ')
+        if (joinedRemarks) {
+          form.setValue('remarks', joinedRemarks)
+        }
       }
     } else if (!watchSourcePOId) {
       setSelectedPO(null)
     }
   }, [watchSourcePOId, inheritFromPO, availablePOs, form.setValue])
+
+  useEffect(() => {
+    if (!inheritFromPO) {
+      setSelectedPO(null)
+      form.setValue('source_po_id', '')
+    }
+  }, [inheritFromPO, form.setValue])
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
