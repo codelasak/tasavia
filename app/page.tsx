@@ -7,6 +7,7 @@ import { motion, useAnimation, useInView, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import CustomerSlider from '@/components/CustomerSlider'
 import { 
   Plane, 
   Settings, 
@@ -684,43 +685,32 @@ export default function HomePage() {
             </p>
           </motion.div>
 
+          {/* Customer Slider */}
           <motion.div
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 items-center"
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
           >
-            {[
-              { src: '/assets/customers/avtrade.jpg', alt: 'AvTrade Aviation' },
-              { src: '/assets/customers/download.png', alt: 'Aviation Partner' },
-              { src: '/assets/customers/67fe8ed0266b6f118a965482.png', alt: 'Aviation Client' },
-              { src: '/assets/customers/1697021191377.jpeg', alt: 'Airline Partner' },
-              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.21.33.jpeg', alt: 'Aviation Company' },
-              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.23.48.jpeg', alt: 'Aerospace Partner' },
-              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.34.07.jpeg', alt: 'Aviation Services' },
-              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.34.54.jpeg', alt: 'Flight Operations' },
-              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.36.02.jpeg', alt: 'Aviation Solutions' },
-              { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.36.29.jpeg', alt: 'Aircraft Maintenance' },
-            ].map((customer, index) => (
-              <motion.div
-                key={index}
-                variants={fadeIn}
-                className="group"
-              >
-                <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30">
-                  <div className="relative w-full h-24 flex items-center justify-center">
-                    <Image
-                      src={customer.src}
-                      alt={customer.alt}
-                      fill
-                      className="object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-70 group-hover:opacity-100"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+            <CustomerSlider
+              customers={[
+                { src: '/assets/customers/stratton-aviation.png', alt: 'Stratton Aviation', name: 'Stratton Aviation' },
+                { src: '/assets/customers/mercurytradingco.webp', alt: 'Mercury Trading Company', name: 'Mercury Trading Co.' },
+                { src: '/assets/customers/setna-io-transparent.png', alt: 'Setna IO', name: 'Setna IO' },
+                { src: '/assets/customers/ssi_logo-2170140.png', alt: 'SSI Logo', name: 'SSI' },
+                { src: '/assets/customers/aerotron.jpeg', alt: 'Aerotron', name: 'Aerotron' },
+                { src: '/assets/customers/pioneer.jpeg', alt: 'Pioneer', name: 'Pioneer' },
+                { src: '/assets/customers/apands.jpeg', alt: 'AP&S', name: 'AP&S' },
+                { src: '/assets/customers/avtrade.jpg', alt: 'AvTrade Aviation', name: 'AvTrade' },
+                { src: '/assets/customers/download.png', alt: 'Aviation Partner', name: 'Aviation Partner' },
+                { src: '/assets/customers/67fe8ed0266b6f118a965482.png', alt: 'Aviation Client', name: 'Aviation Client' },
+                { src: '/assets/customers/1697021191377.jpeg', alt: 'Airline Partner', name: 'Airline Partner' },
+                { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.21.33.jpeg', alt: 'Aviation Company', name: 'Aviation Company' },
+              ]}
+              slidesToShow={5}
+              autoPlay={true}
+              autoPlayInterval={3000}
+            />
           </motion.div>
 
           </div>
