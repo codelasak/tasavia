@@ -249,16 +249,16 @@ export default function HomePage() {
       </div>
 
       {/* Navigation */}
-      <motion.nav 
+      <motion.nav
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
         className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-          isScrolled ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg' : 'bg-transparent'
+          isScrolled ? 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-lg py-2' : 'bg-transparent py-4'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-20 md:h-24 lg:h-28">
             <motion.div 
               className="flex items-center"
               whileHover={{ scale: 1.05 }}
@@ -267,9 +267,9 @@ export default function HomePage() {
               <Image
                 src="/logo.png"
                 alt="TASAVIA"
-                width={140}
-                height={50}
-                className="h-10 w-auto"
+                width={280}
+                height={100}
+                className="h-16 w-auto md:h-20 lg:h-24 logo-container"
                 priority
               />
             </motion.div>
@@ -280,28 +280,28 @@ export default function HomePage() {
                 <motion.button
                   onClick={() => scrollToSection('home')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
                 >
                   Home
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('about')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
                 >
                   About Us
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('services')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
                 >
                   Services
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('contact')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
                 >
                   Contact
                 </motion.button>
@@ -342,28 +342,28 @@ export default function HomePage() {
                 <motion.button
                   onClick={() => scrollToSection('home')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-4 py-3 rounded-lg text-base font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Home
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('about')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-4 py-3 rounded-lg text-base font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   About Us
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('services')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-4 py-3 rounded-lg text-base font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Services
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('contact')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-4 py-3 rounded-lg text-base font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Contact
                 </motion.button>
@@ -424,25 +424,17 @@ export default function HomePage() {
               Your trusted partner for comprehensive aviation solutions. We deliver excellence in every flight with cutting-edge technology and unparalleled service.
             </motion.p>
             
-            <motion.div 
-              className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
+            <motion.div
+              className="mt-10 flex justify-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
             >
-              <Link href="#services" className="w-full sm:w-auto">
-                <Button 
-                  size="lg" 
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 dark:hover:bg-blue-800"
-                >
-                  Explore Our Services
-                </Button>
-              </Link>
-              <Link href="#contact" className="w-full sm:w-auto">
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="w-full sm:w-auto border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              <Link href="#contact" className="w-full sm:w-auto max-w-sm">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 >
                   Contact Us
                 </Button>
@@ -640,25 +632,6 @@ export default function HomePage() {
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
-          
-          <motion.div 
-            className="mt-16 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Link href="/contact">
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="group border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-              >
-                Explore All Services
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
           </motion.div>
         </div>
       </section>

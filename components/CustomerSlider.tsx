@@ -28,10 +28,11 @@ const CustomerSlider = ({
 }: CustomerSliderProps) => {
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
-      align: 'start',
+      align: 'center',
       loop: true,
-      dragFree: true,
-      containScroll: 'trimSnaps'
+      dragFree: false,
+      containScroll: 'keepSnaps',
+      slidesToScroll: 1
     },
     autoPlay ? [Autoplay({ delay: autoPlayInterval, stopOnInteraction: false })] : []
   )
@@ -39,18 +40,31 @@ const CustomerSlider = ({
   const [prevBtnEnabled, setPrevBtnEnabled] = useState(false)
   const [nextBtnEnabled, setNextBtnEnabled] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev()
-  }, [emblaApi])
+    if (emblaApi && !isTransitioning) {
+      setIsTransitioning(true)
+      emblaApi.scrollPrev()
+      setTimeout(() => setIsTransitioning(false), 300)
+    }
+  }, [emblaApi, isTransitioning])
 
   const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext()
-  }, [emblaApi])
+    if (emblaApi && !isTransitioning) {
+      setIsTransitioning(true)
+      emblaApi.scrollNext()
+      setTimeout(() => setIsTransitioning(false), 300)
+    }
+  }, [emblaApi, isTransitioning])
 
   const scrollTo = useCallback((index: number) => {
-    if (emblaApi) emblaApi.scrollTo(index)
-  }, [emblaApi])
+    if (emblaApi && !isTransitioning) {
+      setIsTransitioning(true)
+      emblaApi.scrollTo(index)
+      setTimeout(() => setIsTransitioning(false), 300)
+    }
+  }, [emblaApi, isTransitioning])
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return
@@ -59,7 +73,7 @@ const CustomerSlider = ({
     setNextBtnEnabled(emblaApi.canScrollNext())
   }, [emblaApi])
 
-  
+
   useEffect(() => {
     if (!emblaApi) return
 
@@ -76,7 +90,8 @@ const CustomerSlider = ({
   // Responsive slidesToShow
   const getResponsiveSlides = () => {
     if (typeof window === 'undefined') return slidesToShow
-    if (window.innerWidth < 640) return 2
+    if (window.innerWidth < 640) return 1
+    if (window.innerWidth < 768) return 2
     if (window.innerWidth < 1024) return 3
     return slidesToShow
   }
@@ -113,26 +128,21 @@ const CustomerSlider = ({
           {customers.map((customer, index) => (
             <motion.div
               key={index}
-              className="flex-shrink-0 px-3"
+              className="flex-shrink-0 px-2"
               style={{ width: `${100 / responsiveSlides}%` }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30 h-full flex items-center justify-center group">
-                <div className="relative w-full h-24 flex items-center justify-center">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30 h-full flex items-center justify-center group">
+                <div className="relative w-full h-32 flex items-center justify-center">
                   <Image
                     src={customer.src}
                     alt={customer.alt}
                     fill
-                    className="object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-70 group-hover:opacity-100 group-hover:scale-105"
+                    className="object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:scale-110"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
                   />
-                </div>
-                <div className="mt-3 text-center">
-                  <p className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-medium">
-                    {customer.name}
-                  </p>
                 </div>
               </div>
             </motion.div>
@@ -143,7 +153,6 @@ const CustomerSlider = ({
       {/* Slide Indicators */}
       <div className="flex justify-center mt-6 space-x-2">
         {customers.map((_, index) => {
-          const dotsLength = Math.ceil(customers.length / responsiveSlides)
           const dotIndex = Math.floor(index / responsiveSlides)
 
           if (index % responsiveSlides !== 0) return null

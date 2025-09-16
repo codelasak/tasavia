@@ -222,3 +222,35 @@
   background: #3b82f6;
   margin-top: 8px;
 }
+
+/* Customer Slider Enhancements */
+.embla__slide {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.embla__container {
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.embla__viewport {
+  overflow: hidden;
+}
+
+/* Logo container responsive enhancements */
+.logo-container {
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 640px) {
+  .logo-container {
+    transform: scale(0.8);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .logo-container {
+    transform: scale(0.9);
+  }
+}
