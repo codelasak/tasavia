@@ -280,28 +280,28 @@ export default function HomePage() {
                 <motion.button
                   onClick={() => scrollToSection('home')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
                 >
                   Home
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('about')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
                 >
                   About Us
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('services')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
                 >
                   Services
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('contact')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-base md:text-lg font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
                 >
                   Contact
                 </motion.button>
@@ -342,28 +342,28 @@ export default function HomePage() {
                 <motion.button
                   onClick={() => scrollToSection('home')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Home
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('about')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   About Us
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('services')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Services
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('contact')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-lg font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Contact
                 </motion.button>
