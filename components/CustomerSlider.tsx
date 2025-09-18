@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import useEmblaCarousel from 'embla-carousel-react'
-import Autoplay from 'embla-carousel-autoplay'
+import AutoScroll from 'embla-carousel-auto-scroll'
 
 interface CustomerLogo {
   src: string
@@ -30,14 +30,26 @@ const CustomerSlider = ({
     {
       align: 'start',
       loop: true,
-      dragFree: false,
+      dragFree: true, // allow free dragging while auto scroll runs
       containScroll: false,
       slidesToScroll: 1,
       skipSnaps: false,
-      dragThreshold: 10,
+      dragThreshold: 5,
       inViewThreshold: 0.7
     },
-    autoPlay ? [Autoplay({ delay: autoPlayInterval, stopOnInteraction: false, stopOnMouseEnter: false, rootNode: (emblaRoot) => emblaRoot.parentElement, playOnInit: false })] : []
+    autoPlay
+      ? [
+          AutoScroll({
+            speed: 2.5, // pixels/frame – tune for “water-like” flow
+            startDelay: 500,
+            stopOnInteraction: false,
+            stopOnMouseEnter: false,
+            playOnInit: false, // we’ll start after images preload
+            // Ensure the hover/interaction area is the slider wrapper
+            rootNode: (emblaRoot) => emblaRoot.parentElement as HTMLElement | null
+          })
+        ]
+      : []
   )
 
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -100,11 +112,11 @@ const CustomerSlider = ({
     emblaApi.on('select', onSelect)
     emblaApi.on('reInit', onSelect)
 
-    // Only start autoplay after images are preloaded
+    // Only start auto scroll after images are preloaded for smoothness
     if (allImagesPreloaded && autoPlay) {
-      const autoplayPlugin = emblaApi.plugins().autoplay
-      if (autoplayPlugin) {
-        autoplayPlugin.play()
+      const autoScroll = (emblaApi.plugins() as any).autoScroll
+      if (autoScroll && typeof autoScroll.play === 'function') {
+        autoScroll.play(300) // optional override start delay
       }
     }
 
@@ -157,9 +169,9 @@ const CustomerSlider = ({
               style={{ width: `${100 / responsiveSlides}%` }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.2) }}
+              transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.1) }}
             >
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30 h-full flex items-center justify-center group">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-150 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30 h-full flex items-center justify-center group">
                 <div className="relative w-full h-32 flex items-center justify-center">
                   {!imagesLoaded[customer.src] && (
                     <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse flex items-center justify-center">
@@ -170,7 +182,7 @@ const CustomerSlider = ({
                     src={customer.src}
                     alt={customer.alt}
                     fill
-                    className={`object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:scale-110 ${
+                    className={`object-contain filter grayscale group-hover:grayscale-0 transition-all duration-200 opacity-80 group-hover:opacity-100 group-hover:scale-110 ${
                       imagesLoaded[customer.src] ? 'opacity-80' : 'opacity-0'
                     }`}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
@@ -196,7 +208,7 @@ const CustomerSlider = ({
             <button
               key={dotIndex}
               onClick={() => scrollTo(dotIndex * responsiveSlides)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              className={`w-2 h-2 rounded-full transition-all duration-200 ${
                 selectedIndex >= dotIndex * responsiveSlides &&
                 selectedIndex < (dotIndex + 1) * responsiveSlides
                   ? 'bg-blue-600 dark:bg-blue-400 w-8'

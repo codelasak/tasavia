@@ -213,6 +213,24 @@ const structuredData = {
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const tryPlay = async () => {
+      try {
+        await v.play()
+      } catch (err) {
+        console.warn('Hero video play() was prevented by the browser:', err)
+      }
+    }
+    // Attempt to play on mount and when it can play
+    tryPlay()
+    const canPlay = () => tryPlay()
+    v.addEventListener('canplay', canPlay)
+    return () => v.removeEventListener('canplay', canPlay)
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -232,9 +250,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
-      {/* Preload important images */}
-      <link rel="preload" as="image" href="/assets/images/hero-banner.png" />
-      <link rel="preload" as="image" href="/assets/images/hero-bg.jpg" />
+      {/* Preload important resources */}
+      <link rel="preload" as="video" href="/video/Create_a_cinematic_202509181538.mp4" type="video/mp4" />
       <link rel="preload" as="image" href="/assets/images/footer-bg.png" />
       
       {/* Structured Data */}
@@ -375,22 +392,30 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section id="home" className="relative pt-28 pb-48 md:pt-36 md:pb-64 overflow-hidden hero-with-aircraft" role="banner" aria-label="Welcome to TASAVIA">
-        {/* Hero background image */}
-        <div className="absolute inset-0 -z-10">
-          <Image
-            src="/assets/images/hero-bg.jpg"
-            alt="Aviation background"
-            fill
-            className="object-cover opacity-30"
-            priority
-          />
+        {/* Hero background video */}
+        <div className="absolute inset-0 z-0">
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover opacity-70"
+            preload="metadata"
+            ref={videoRef}
+            // Show controls in development to verify playback easily
+            {...(process.env.NODE_ENV !== 'production' ? { controls: true } : {})}
+            onLoadedData={() => console.debug('Hero video loaded')}
+            onError={(e) => console.error('Hero video failed to load', e)}
+          >
+            <source src="/video/Create_a_cinematic_202509181538.mp4" type="video/mp4" />
+          </video>
           {/* Gradient overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/70 to-white/90 dark:from-slate-900/70 dark:to-slate-900/90"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-white/25 dark:from-slate-900/30 dark:to-slate-900/60"></div>
         </div>
         
-        {/* Animated background elements */}
+        {/* Animated background elements (behind overlay) */}
         <motion.div 
-          className="absolute inset-0 -z-10"
+          className="absolute inset-0 -z-30"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
@@ -443,17 +468,6 @@ export default function HomePage() {
           </div>
         </div>
         
-        {/* Hero banner image */}
-        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/6 w-full max-w-6xl hidden lg:block">
-          <Image
-            src="/assets/images/hero-banner.png"
-            alt="Aircraft in flight"
-            width={1474}
-            height={426}
-            className="w-full h-auto opacity-95 hero-aircraft-image"
-            priority
-          />
-        </div>
       </section>
 
       {/* About Section */}
@@ -683,7 +697,7 @@ export default function HomePage() {
               ]}
               slidesToShow={5}
               autoPlay={true}
-              autoPlayInterval={3000}
+              autoPlayInterval={2000}
             />
           </motion.div>
 
