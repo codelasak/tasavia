@@ -679,6 +679,7 @@ export default function HomePage() {
                 { src: '/assets/customers/67fe8ed0266b6f118a965482.png', alt: 'Aviation Client', name: 'Aviation Client' },
                 { src: '/assets/customers/1697021191377.jpeg', alt: 'Airline Partner', name: 'Airline Partner' },
                 { src: '/assets/customers/WhatsApp Image 2025-09-04 at 02.21.33.jpeg', alt: 'Aviation Company', name: 'Aviation Company' },
+                { src: '/assets/customers/thales.jpeg', alt: 'Thales', name: 'Thales' },
               ]}
               slidesToShow={5}
               autoPlay={true}

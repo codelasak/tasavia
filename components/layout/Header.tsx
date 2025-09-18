@@ -119,7 +119,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuContent align="end" className="w-80 text-base">
               {isMounted ? (
                 <>
                   <DropdownMenuLabel>

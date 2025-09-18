@@ -28,49 +28,68 @@ const CustomerSlider = ({
 }: CustomerSliderProps) => {
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
-      align: 'center',
+      align: 'start',
       loop: true,
       dragFree: false,
-      containScroll: 'keepSnaps',
-      slidesToScroll: 1
+      containScroll: false,
+      slidesToScroll: 1,
+      skipSnaps: false,
+      dragThreshold: 10,
+      inViewThreshold: 0.7
     },
-    autoPlay ? [Autoplay({ delay: autoPlayInterval, stopOnInteraction: false })] : []
+    autoPlay ? [Autoplay({ delay: autoPlayInterval, stopOnInteraction: false, stopOnMouseEnter: false, rootNode: (emblaRoot) => emblaRoot.parentElement, playOnInit: false })] : []
   )
 
-  const [prevBtnEnabled, setPrevBtnEnabled] = useState(false)
-  const [nextBtnEnabled, setNextBtnEnabled] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [imagesLoaded, setImagesLoaded] = useState<{[key: string]: boolean}>({})
+  const [allImagesPreloaded, setAllImagesPreloaded] = useState(false)
+
+  // Preload all images
+  useEffect(() => {
+    const preloadImages = async () => {
+      const imagePromises = customers.map((customer) => {
+        return new Promise<void>((resolve) => {
+          const img = new window.Image()
+          img.onload = () => {
+            setImagesLoaded(prev => ({ ...prev, [customer.src]: true }))
+            resolve()
+          }
+          img.onerror = () => {
+            setImagesLoaded(prev => ({ ...prev, [customer.src]: true }))
+            resolve()
+          }
+          img.src = customer.src
+        })
+      })
+
+      await Promise.all(imagePromises)
+      setAllImagesPreloaded(true)
+    }
+
+    preloadImages()
+  }, [customers])
 
   const scrollPrev = useCallback(() => {
-    if (emblaApi && !isTransitioning) {
-      setIsTransitioning(true)
+    if (emblaApi) {
       emblaApi.scrollPrev()
-      setTimeout(() => setIsTransitioning(false), 300)
     }
-  }, [emblaApi, isTransitioning])
+  }, [emblaApi])
 
   const scrollNext = useCallback(() => {
-    if (emblaApi && !isTransitioning) {
-      setIsTransitioning(true)
+    if (emblaApi) {
       emblaApi.scrollNext()
-      setTimeout(() => setIsTransitioning(false), 300)
     }
-  }, [emblaApi, isTransitioning])
+  }, [emblaApi])
 
   const scrollTo = useCallback((index: number) => {
-    if (emblaApi && !isTransitioning) {
-      setIsTransitioning(true)
+    if (emblaApi) {
       emblaApi.scrollTo(index)
-      setTimeout(() => setIsTransitioning(false), 300)
     }
-  }, [emblaApi, isTransitioning])
+  }, [emblaApi])
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return
     setSelectedIndex(emblaApi.selectedScrollSnap())
-    setPrevBtnEnabled(emblaApi.canScrollPrev())
-    setNextBtnEnabled(emblaApi.canScrollNext())
   }, [emblaApi])
 
 
@@ -81,11 +100,19 @@ const CustomerSlider = ({
     emblaApi.on('select', onSelect)
     emblaApi.on('reInit', onSelect)
 
+    // Only start autoplay after images are preloaded
+    if (allImagesPreloaded && autoPlay) {
+      const autoplayPlugin = emblaApi.plugins().autoplay
+      if (autoplayPlugin) {
+        autoplayPlugin.play()
+      }
+    }
+
     return () => {
       emblaApi.off('select', onSelect)
       emblaApi.off('reInit', onSelect)
     }
-  }, [emblaApi, onSelect, autoPlay, autoPlayInterval])
+  }, [emblaApi, onSelect, autoPlay, autoPlayInterval, allImagesPreloaded])
 
   // Responsive slidesToShow
   const getResponsiveSlides = () => {
@@ -103,8 +130,7 @@ const CustomerSlider = ({
       {/* Navigation Buttons */}
       <button
         onClick={scrollPrev}
-        disabled={!prevBtnEnabled}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 -translate-x-2 lg:-translate-x-4 w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 -translate-x-2 lg:-translate-x-4 w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200 group"
         aria-label="Previous customers"
       >
         <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
@@ -112,8 +138,7 @@ const CustomerSlider = ({
 
       <button
         onClick={scrollNext}
-        disabled={!nextBtnEnabled}
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 translate-x-2 lg:translate-x-4 w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 translate-x-2 lg:translate-x-4 w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200 group"
         aria-label="Next customers"
       >
         <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
@@ -124,24 +149,34 @@ const CustomerSlider = ({
         ref={emblaRef}
         className="overflow-hidden"
       >
-        <div className="flex">
+        <div className="flex -ml-2 -mr-2">
           {customers.map((customer, index) => (
             <motion.div
-              key={index}
-              className="flex-shrink-0 px-2"
+              key={`${customer.src}-${index}`}
+              className="flex-shrink-0 pl-2 pr-2"
               style={{ width: `${100 / responsiveSlides}%` }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.2) }}
             >
               <div className="bg-white dark:bg-slate-900 rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30 h-full flex items-center justify-center group">
                 <div className="relative w-full h-32 flex items-center justify-center">
+                  {!imagesLoaded[customer.src] && (
+                    <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse flex items-center justify-center">
+                      <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
+                    </div>
+                  )}
                   <Image
                     src={customer.src}
                     alt={customer.alt}
                     fill
-                    className="object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:scale-110"
+                    className={`object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:scale-110 ${
+                      imagesLoaded[customer.src] ? 'opacity-80' : 'opacity-0'
+                    }`}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
+                    priority={index < responsiveSlides}
+                    quality={85}
+                    onLoad={() => setImagesLoaded(prev => ({ ...prev, [customer.src]: true }))}
                   />
                 </div>
               </div>
