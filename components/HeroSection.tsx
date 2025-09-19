@@ -58,11 +58,11 @@ export default function HeroSection() {
       {/* Content Container */}
       <div className="relative z-10 w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-screen py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-screen py-20 md:py-32 lg:py-20">
             
             {/* Left Side - Content */}
             <motion.div 
-              className="flex flex-col justify-center space-y-8"
+              className="flex flex-col justify-center space-y-8 mt-8 md:mt-16 lg:mt-0"
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -70,16 +70,15 @@ export default function HeroSection() {
               {/* Title */}
               <div className="space-y-6">
                 <motion.h1 
-                  className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight"
+                  className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white leading-tight whitespace-nowrap"
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
                 >
-                  <span className="block mb-2 sm:mb-3 lg:mb-4">YOUR PARTNER TO</span>
-                  <span className="block bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                    KEEP AIRCRAFTS FLYING
+                  <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                    YOUR PARTNER TO KEEP AIRCRAFTS FLYING
                   </span>
-                </motion.h1>
+                </motion.h1> 
                 
                 {/* Subtitle */}
                 <motion.p 

@@ -258,7 +258,7 @@ export default function HomePage() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20 md:h-24 lg:h-28">
+          <div className="flex items-center justify-between h-20 md:h-32 lg:h-28">
             <motion.div 
               className="flex items-center"
               whileHover={{ scale: 1.05 }}
@@ -269,7 +269,7 @@ export default function HomePage() {
                 alt="TASAVIA"
                 width={280}
                 height={100}
-                className="h-16 w-auto md:h-20 lg:h-24 logo-container"
+                className="h-16 w-auto md:h-24 lg:h-24 logo-container"
                 priority
               />
             </motion.div>
