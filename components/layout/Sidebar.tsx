@@ -113,7 +113,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       <div className="p-6 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Image
-            src="/logo.png"
+            src="/tasavia-logo-white-logo.png"
             alt="TASAVIA"
             width={120}
             height={40}
