@@ -75,9 +75,7 @@ export default function HeroSection() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
                 >
-                  <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                    YOUR PARTNER TO KEEP AIRCRAFTS FLYING
-                  </span>
+                  YOUR PARTNER TO KEEP AIRCRAFTS FLYING
                 </motion.h1> 
                 
                 {/* Subtitle */}
