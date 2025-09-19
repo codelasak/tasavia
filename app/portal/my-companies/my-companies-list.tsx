@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Search, Edit, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase/client'
 import { UnifiedCompany, getInternalCompanies, deleteCompany, checkCompanyReferences } from '@/lib/services/company-service'
 
 interface MyCompaniesListProps {
@@ -24,7 +25,7 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
     const filtered = companies.filter(company =>
       (company.name && company.name.toLowerCase().includes(lowercasedTerm)) ||
       (company.code && company.code.toLowerCase().includes(lowercasedTerm)) ||
-      company.company_addresses.some(a => 
+      company.company_addresses.some(a =>
         (a.city && a.city.toLowerCase().includes(lowercasedTerm)) ||
         (a.country && a.country.toLowerCase().includes(lowercasedTerm))
       ) ||
@@ -32,6 +33,92 @@ export default function MyCompaniesList({ initialCompanies }: MyCompaniesListPro
     )
     setFilteredCompanies(filtered)
   }, [companies, searchTerm])
+
+  // Set up real-time subscriptions for My Companies (internal companies)
+  useEffect(() => {
+    const companiesChannel = supabase
+      .channel('my-companies-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'companies',
+          filter: `is_self=true`
+        },
+        async (payload) => {
+          console.log('My Company change:', payload)
+          // Refresh companies data when any internal company is added, updated, or deleted
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to address changes for internal companies
+    const addressesChannel = supabase
+      .channel('my-companies-addresses-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_addresses'
+        },
+        async (payload) => {
+          console.log('My Company address change:', payload)
+          // Refresh companies data when addresses change
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to contact changes for internal companies
+    const contactsChannel = supabase
+      .channel('my-companies-contacts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_contacts'
+        },
+        async (payload) => {
+          console.log('My Company contact change:', payload)
+          // Refresh companies data when contacts change
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to shipping changes for internal companies
+    const shippingChannel = supabase
+      .channel('my-companies-shipping-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_ship_via'
+        },
+        async (payload) => {
+          console.log('My Company shipping change:', payload)
+          // Refresh companies data when shipping info changes
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Initial fetch
+    fetchCompanies()
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      companiesChannel.unsubscribe()
+      addressesChannel.unsubscribe()
+      contactsChannel.unsubscribe()
+      shippingChannel.unsubscribe()
+    }
+  }, [])
 
   const fetchCompanies = async () => {
     try {

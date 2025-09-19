@@ -1,12 +1,12 @@
 Tasavia toplant notları: 
 
-External Company Code generation çalışmadı. 
+External Company Code generation çalışmadı - FIXED 
 
-New Company'da veya New External Company'da oluştururken, buradaki UI, diğer sayfalara uygun değil; onu düzenlemesi lazım. 
+New Company'da veya New External Company'da oluştururken, buradaki UI, diğer sayfalara uygun değil; onu düzenlemesi lazım. - PENDING 
 
-Bir de adreste state'leri eklemek gerekiyor. 
+Bir de adreste state'leri eklemek gerekiyor. FIXED
 
-Profile Name'in de "Salih İnci" şeklinde olması gerekiyor. 
+Profile Name'in de "Salih İnci" şeklinde olması gerekiyor - FIXED
 
 Obtained From kısmında, yani purchase order'daki satın alan firmanın otoamtik şekilde gelmesi gerekiyor. 
 
@@ -18,7 +18,7 @@ Ayrıca, yani Purchase Order, Sales Order, Repair Order numaralarının hepsi 25
 
 Inventory sayfasında, “In Depot” yerinde "in stock" ibaresi kullanılacak. 
 
-RO yetki hatası veriyor.  
+RO yetki hatası veriyor. - FIXED
 
 http://localhost:3000/portal/inventory/f35119f9-c7c7-40a4-b8e4-d8ff6e8f8d31 is got something wrong error. 
 
