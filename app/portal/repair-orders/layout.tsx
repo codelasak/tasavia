@@ -77,11 +77,92 @@ export default function RepairOrdersLayout({ children }: RepairOrdersLayoutProps
         setIsLoading(false)
       }
     }
+
     // Only fetch once auth is ready and user exists
     if (!loading && user) {
       fetchRepairOrders()
     }
   }, [loading, user])
+
+  // Set up real-time subscriptions for repair orders
+  useEffect(() => {
+    if (!user) return
+
+    const repairOrdersChannel = supabase
+      .channel('repair-orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'repair_orders'
+        },
+        async (payload) => {
+          console.log('Repair order change:', payload)
+          // Refresh repair orders data when any change occurs
+          const { data, error } = await supabase
+            .from('repair_orders')
+            .select(`
+              *,
+              companies(company_name, company_code),
+              repair_order_items(
+                workscope,
+                estimated_cost,
+                inventory(
+                  pn_master_table(pn)
+                )
+              )
+            `)
+            .order('created_at', { ascending: false })
+
+          if (!error && data) {
+            setRepairOrders((data as any) || [])
+          }
+        }
+      )
+      .subscribe()
+
+    // Subscribe to repair order items changes
+    const repairOrderItemsChannel = supabase
+      .channel('repair-order-items-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'repair_order_items'
+        },
+        async (payload) => {
+          console.log('Repair order item change:', payload)
+          // Refresh repair orders when items change
+          const { data, error } = await supabase
+            .from('repair_orders')
+            .select(`
+              *,
+              companies(company_name, company_code),
+              repair_order_items(
+                workscope,
+                estimated_cost,
+                inventory(
+                  pn_master_table(pn)
+                )
+              )
+            `)
+            .order('created_at', { ascending: false })
+
+          if (!error && data) {
+            setRepairOrders((data as any) || [])
+          }
+        }
+      )
+      .subscribe()
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      repairOrdersChannel.unsubscribe()
+      repairOrderItemsChannel.unsubscribe()
+    }
+  }, [user])
 
   if (isLoading || loading) {
     return (

@@ -17,6 +17,7 @@ jest.mock('sonner', () => ({
 }))
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>
+const mockFetch = jest.fn()
 
 describe('CompanyDialog Integration Tests', () => {
   const user = userEvent.setup()
@@ -37,38 +38,82 @@ describe('CompanyDialog Integration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ code: 'KPA716' }) })
+    global.fetch = mockFetch as any
+
     // Mock successful Supabase operations
     mockSupabase.from.mockImplementation((tableName: string) => {
-      const mockChain = {
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ 
-              data: { 
-                company_id: 'test-id', 
-                company_name: 'Test Company',
-                company_code: 'TST123' 
-              }, 
-              error: null 
-            }),
+      if (tableName === 'companies') {
+        const select = jest.fn().mockReturnValue({
+          ilike: jest.fn().mockReturnValue({
+            neq: jest.fn().mockResolvedValue({ data: [], error: null }),
           }),
-        }),
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
-        }),
-        delete: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({ error: null }),
-          }),
-        }),
-        select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             eq: jest.fn().mockResolvedValue({ data: [], error: null }),
           }),
-        }),
+        })
+
+        return {
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  company_id: 'test-id',
+                  company_name: 'Test Company',
+                  company_code: 'TST123',
+                },
+                error: null,
+              }),
+            }),
+          }),
+          update: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ error: null }),
+          }),
+          delete: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
+          select,
+        } as any
       }
-      return mockChain as any
+
+      if (tableName === 'company_ship_via') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+          insert: jest.fn().mockResolvedValue({ error: null }),
+          delete: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              eq: jest.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
+        } as any
+      }
+
+      if (tableName === 'company_contacts') {
+        return {
+          insert: jest.fn().mockResolvedValue({ error: null }),
+          upsert: jest.fn().mockResolvedValue({ error: null }),
+        } as any
+      }
+
+      if (tableName === 'company_addresses') {
+        return {
+          insert: jest.fn().mockResolvedValue({ error: null }),
+          upsert: jest.fn().mockResolvedValue({ error: null }),
+        } as any
+      }
+
+      return {} as any
     })
+  })
+
+  afterEach(() => {
+    mockFetch.mockReset()
   })
 
   describe('External Company Shipping Integration', () => {
@@ -81,17 +126,14 @@ describe('CompanyDialog Integration Tests', () => {
       })
 
       // Fill basic info using more specific selectors
-      const companyNameInput = screen.getByRole('textbox', { name: /company name/i })
-      const companyCodeInput = screen.getByRole('textbox', { name: /company code/i })
-      const companyTypeSelect = screen.getByRole('combobox', { name: /company type/i })
-      
+      const companyNameInput = screen.getByLabelText(/Company Name/i)
+      const companyCodeInput = screen.getByLabelText(/Company Code/i)
+      const companyTypeSelect = screen.getByLabelText(/Company Type/i)
+
       await user.type(companyNameInput, 'Acme Corp')
       await user.type(companyCodeInput, 'ACM001')
       await user.selectOptions(companyTypeSelect, 'vendor')
 
-      // Navigate to shipping tab
-      await user.click(screen.getByRole('tab', { name: 'Shipping' }))
-      
       // Add shipping method
       await user.click(screen.getByRole('button', { name: /Add Shipping Method/ }))
       
@@ -105,7 +147,7 @@ describe('CompanyDialog Integration Tests', () => {
       await user.selectOptions(shipModelSelect, 'SEA')
 
       // Submit form
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: /Create Company/i }))
 
       await waitFor(() => {
         expect(mockSupabase.from).toHaveBeenCalledWith('companies')
@@ -129,9 +171,6 @@ describe('CompanyDialog Integration Tests', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument()
       })
 
-      // Navigate to shipping tab
-      await user.click(screen.getByRole('tab', { name: 'Shipping' }))
-      
       // Add new shipping method
       await user.click(screen.getByRole('button', { name: /Add Shipping Method/ }))
       
@@ -143,7 +182,7 @@ describe('CompanyDialog Integration Tests', () => {
       await user.type(accountNumberInput, '987654321')
 
       // Submit form
-      await user.click(screen.getByRole('button', { name: 'Update' }))
+      await user.click(screen.getByRole('button', { name: /Update Company/i }))
 
       await waitFor(() => {
         expect(mockSupabase.from).toHaveBeenCalledWith('companies')
@@ -163,15 +202,12 @@ describe('CompanyDialog Integration Tests', () => {
       })
 
       // Fill basic info using role-based selectors
-      const companyNameInput = screen.getByRole('textbox', { name: /company name/i })
-      const companyCodeInput = screen.getByRole('textbox', { name: /company code/i })
-      
+      const companyNameInput = screen.getByLabelText(/Company Name/i)
+      const companyCodeInput = screen.getByLabelText(/Company Code/i)
+
       await user.type(companyNameInput, 'My Test Company')
       await user.type(companyCodeInput, 'MTC001')
 
-      // Navigate to shipping tab
-      await user.click(screen.getByRole('tab', { name: 'Shipping' }))
-      
       // Add shipping method
       await user.click(screen.getByRole('button', { name: /Add Shipping Method/ }))
       
@@ -186,10 +222,10 @@ describe('CompanyDialog Integration Tests', () => {
       await user.type(accountNumberInput, 'LC-12345')
 
       // Submit form
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: /Create Company/i }))
 
       await waitFor(() => {
-        expect(mockSupabase.from).toHaveBeenCalledWith('my_companies')
+        expect(mockSupabase.from).toHaveBeenCalledWith('companies')
         expect(mockSupabase.from).toHaveBeenCalledWith('company_ship_via')
         expect(toast.success).toHaveBeenCalledWith('My Company created successfully')
       })
@@ -206,7 +242,7 @@ describe('CompanyDialog Integration Tests', () => {
       })
 
       // Try to submit without filling required fields
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: /Create Company/i }))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('Company name is required')
@@ -222,7 +258,7 @@ describe('CompanyDialog Integration Tests', () => {
       })
 
       // Fill basic info using role-based selectors
-      const companyNameInput = screen.getByRole('textbox', { name: /company name/i })
+      const companyNameInput = screen.getByLabelText(/Company Name/i)
       await user.type(companyNameInput, 'Test Company')
 
       // Navigate to shipping tab
@@ -258,9 +294,9 @@ describe('CompanyDialog Integration Tests', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument()
       })
 
-      const companyNameInput = screen.getByRole('textbox', { name: /company name/i })
+      const companyNameInput = screen.getByLabelText(/Company Name/i)
       await user.type(companyNameInput, 'Test Company')
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: /Create Company/i }))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('Database connection failed')
@@ -282,9 +318,9 @@ describe('CompanyDialog Integration Tests', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument()
       })
 
-      const companyNameInput = screen.getByRole('textbox', { name: /company name/i })
+      const companyNameInput = screen.getByLabelText(/Company Name/i)
       await user.type(companyNameInput, 'Existing Company')
-      await user.click(screen.getByRole('button', { name: 'Create' }))
+      await user.click(screen.getByRole('button', { name: /Create Company/i }))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalled()
@@ -302,7 +338,7 @@ describe('CompanyDialog Integration Tests', () => {
       })
 
       // Fill basic info using role-based selectors
-      const companyNameInput = screen.getByRole('textbox', { name: /company name/i })
+      const companyNameInput = screen.getByLabelText(/Company Name/i)
       await user.type(companyNameInput, 'Tab Test Company')
       
       // Navigate to contacts tab

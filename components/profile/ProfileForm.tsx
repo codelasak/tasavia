@@ -13,6 +13,29 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { ProfilePicture } from './ProfilePicture';
 import { toast } from 'sonner';
 
+const DISPLAY_NAME_LOCALE = 'tr-TR';
+
+function formatDisplayName(value?: string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(part => {
+      const first = part.charAt(0).toLocaleUpperCase(DISPLAY_NAME_LOCALE);
+      const rest = part.slice(1).toLocaleLowerCase(DISPLAY_NAME_LOCALE);
+      return `${first}${rest}`;
+    })
+    .join(' ');
+}
+
 interface ProfileData {
   id: string;
   email: string;
@@ -54,9 +77,17 @@ export function ProfileForm() {
       
       if (result.success) {
         const profile = (result as any).profile;
-        setProfileData(profile);
+        const formattedName = formatDisplayName(profile.account?.name);
+        const normalizedProfile = {
+          ...profile,
+          account: {
+            ...profile.account,
+            name: formattedName || profile.account?.name || '',
+          },
+        };
+        setProfileData(normalizedProfile as ProfileData);
         setFormData({
-          name: profile.account?.name || '',
+          name: formattedName,
           phone: profile.account?.phone_number || ''
         });
       } else {
@@ -96,14 +127,17 @@ export function ProfileForm() {
     try {
       validateForm();
 
+      const normalizedName = formatDisplayName(formData.name);
+
       const result = await auth.profile.updateProfile({
-        name: formData.name.trim() || undefined,
+        name: normalizedName || undefined,
         phone: formData.phone.trim() || undefined
       });
 
       if (result.success) {
         setSuccess(true);
         toast.success('Profile updated successfully!');
+        setFormData(prev => ({ ...prev, name: normalizedName }));
         // Refresh profile data
         await fetchProfile();
       } else {

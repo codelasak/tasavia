@@ -14,6 +14,7 @@ jest.mock('sonner', () => ({
 }));
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+const mockFetch = jest.fn();
 
 describe('CompanyDialog', () => {
   const mockProps = {
@@ -25,10 +26,17 @@ describe('CompanyDialog', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ code: 'KPA716' }) });
+    global.fetch = mockFetch as any;
+
     // Mock Supabase responses
     mockSupabase.from.mockImplementation((tableName: string) => {
       if (tableName === 'companies') {
+        const select = jest.fn().mockReturnValue({
+          ilike: jest.fn().mockReturnValue({
+            neq: jest.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        });
         return {
           insert: jest.fn().mockReturnValue({
             select: jest.fn().mockReturnValue({
@@ -41,6 +49,7 @@ describe('CompanyDialog', () => {
           update: jest.fn().mockReturnValue({
             eq: jest.fn().mockResolvedValue({ error: null }),
           }),
+          select,
         };
       }
       if (tableName === 'company_ship_via') {
@@ -74,50 +83,54 @@ describe('CompanyDialog', () => {
     });
   });
 
-  it('renders the dialog with tabbed interface for external company', async () => {
+  afterEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('renders the dialog for external company', async () => {
     render(<CompanyDialog {...mockProps} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Add External Company')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Add External Company/i })).toBeInTheDocument();
     });
-    
-    expect(screen.getByRole('tab', { name: 'Basic Info' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Contacts' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Addresses' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Shipping' })).toBeInTheDocument();
+
+    expect(screen.getByText('Basic Information')).toBeInTheDocument();
+    expect(screen.getByText('Contacts')).toBeInTheDocument();
+    expect(screen.getByText('Addresses')).toBeInTheDocument();
+    expect(screen.getByText('Shipping Methods')).toBeInTheDocument();
   });
 
-  it('renders the dialog for my company with shipping tab', async () => {
+  it('renders the dialog for my company with shipping section', async () => {
     render(<CompanyDialog {...mockProps} type="my_company" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Add My Company')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Add My Company/i })).toBeInTheDocument();
     });
-    
-    expect(screen.getByRole('tab', { name: 'Basic Info' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Contacts' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Addresses' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Shipping' })).toBeInTheDocument();
+
+    expect(screen.getByText('Basic Information')).toBeInTheDocument();
+    expect(screen.getByText('Contacts')).toBeInTheDocument();
+    expect(screen.getByText('Addresses')).toBeInTheDocument();
+    expect(screen.getByText('Shipping Methods')).toBeInTheDocument();
   });
 
   it('does not render when closed', () => {
     render(<CompanyDialog {...mockProps} open={false} />);
 
-    expect(screen.queryByText('Add External Company')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Add External Company/i })).not.toBeInTheDocument();
   });
 
   it('displays company form fields', async () => {
     render(<CompanyDialog {...mockProps} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Add External Company')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Add External Company/i })).toBeInTheDocument();
     });
 
     // Check that basic form elements are present
-    expect(screen.getByText('Company Name')).toBeInTheDocument();
-    expect(screen.getByText('Company Code')).toBeInTheDocument();
-    expect(screen.getByText('Company Type')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Company Name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Company Code/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Company Type/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create Company/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
@@ -125,11 +138,11 @@ describe('CompanyDialog', () => {
     render(<CompanyDialog {...mockProps} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Add External Company')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Add External Company/i })).toBeInTheDocument();
     });
 
-    // Check that the code input field exists (should be the second textbox)
-    const textboxes = screen.getAllByRole('textbox');
-    expect(textboxes.length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText(/auto-generate a company code/i)
+    ).toBeInTheDocument();
   });
 });

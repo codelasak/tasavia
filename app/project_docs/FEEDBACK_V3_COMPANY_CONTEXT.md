@@ -9,9 +9,9 @@ Tasavia's Company Management bounded context handles lifecycle for internal and 
 - Shared terms: *External Company Code*, *Address State*, *Profile Display Name*, *Company Creation Wizard*.
 
 ## Current Code Observations
-- `components/companies/CompanyDialog.tsx:215` generates “unique” external company codes in the browser via random prefixes and Supabase lookups, providing no idempotent server-side guarantee if the request retries or concurrent users collide.
-- `components/companies/CompanyDialog.tsx:1416` renders address forms without a `state` input, and downstream projections default the value to `null` (see `app/portal/sales-orders/[id]/packing-slip/page.tsx:62`), confirming the column/backfill requested in feedback is still missing.
-- `components/profile/ProfileForm.tsx:50` simply echoes the `accounts.name` field fetched via REST; there is no normalization to the canonical “First Last” format (e.g., “Salih İnci”) nor any subscription to upstream identity changes.
+- `app/api/companies/generate-code/route.ts` now exposes a server-side endpoint backed by the `generate_external_company_code` function (`supabase/migrations/20251010120000_company_context_enhancements.sql`), ensuring unique external company codes in the canonical `AAA999` format and removing client-side randomisation.
+- `components/companies/CompanyDialog.tsx:1382` and `components/companies/CompanyForm.tsx:1183` include a dedicated `state / province` input, persist the value, and the address schema keeps the new column in sync (`supabase/migrations/20251010120000_company_context_enhancements.sql`).
+- `components/profile/ProfileForm.tsx:23` normalises display names via `formatDisplayName`, so fetched and updated profile names surface in canonical “First Last” casing (e.g., “Salih İnci”).
 
 ## Aggregates & Entities
 - **Company Aggregate**: encapsulates legal name, contact info, address, and relationships to orders.

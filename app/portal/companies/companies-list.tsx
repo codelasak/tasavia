@@ -34,7 +34,7 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
     const filtered = companies.filter(company =>
       company.company_name.toLowerCase().includes(lowercasedTerm) ||
       (company.company_code && company.company_code.toLowerCase().includes(lowercasedTerm)) ||
-      company.company_addresses.some(a => 
+      company.company_addresses.some(a =>
         (a.city && a.city.toLowerCase().includes(lowercasedTerm)) ||
         (a.country && a.country.toLowerCase().includes(lowercasedTerm))
       ) ||
@@ -42,6 +42,92 @@ export default function CompaniesList({ initialCompanies }: CompaniesListProps) 
     )
     setFilteredCompanies(filtered)
   }, [companies, searchTerm])
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    const companiesChannel = supabase
+      .channel('companies-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'companies',
+          filter: `is_self=false`
+        },
+        async (payload) => {
+          console.log('Company change:', payload)
+          // Refresh companies data when any company is added, updated, or deleted
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to address changes
+    const addressesChannel = supabase
+      .channel('company-addresses-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_addresses'
+        },
+        async (payload) => {
+          console.log('Company address change:', payload)
+          // Refresh companies data when addresses change
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to contact changes
+    const contactsChannel = supabase
+      .channel('company-contacts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_contacts'
+        },
+        async (payload) => {
+          console.log('Company contact change:', payload)
+          // Refresh companies data when contacts change
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to shipping changes
+    const shippingChannel = supabase
+      .channel('company-shipping-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_ship_via'
+        },
+        async (payload) => {
+          console.log('Company shipping change:', payload)
+          // Refresh companies data when shipping info changes
+          await fetchCompanies()
+        }
+      )
+      .subscribe()
+
+    // Initial fetch
+    fetchCompanies()
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      companiesChannel.unsubscribe()
+      addressesChannel.unsubscribe()
+      contactsChannel.unsubscribe()
+      shippingChannel.unsubscribe()
+    }
+  }, [])
 
   const fetchCompanies = async () => {
     try {

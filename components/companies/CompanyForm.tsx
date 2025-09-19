@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { PlusCircle, Trash2, Truck, RefreshCw, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react'
+import { PlusCircle, Trash2, Truck, AlertCircle, CheckCircle, ArrowLeft, RefreshCw } from 'lucide-react'
 
 // Define types manually since we're having issues with the database types import
 type MyCompanyDB = {
@@ -35,6 +35,7 @@ type MyCompanyDB = {
     address_line1: string;
     address_line2?: string | null;
     city?: string | null;
+    state?: string | null;
     country?: string | null;
     zip_code?: string | null;
     is_primary?: boolean | null;
@@ -60,6 +61,7 @@ type CompanyDB = {
     address_line1: string;
     address_line2?: string | null;
     city?: string | null;
+    state?: string | null;
     country?: string | null;
     zip_code?: string | null;
     is_primary?: boolean | null;
@@ -79,6 +81,7 @@ type CompanyAddress = {
   address_line1: string;
   address_line2?: string;
   city?: string;
+  state?: string;
   country?: string;
   zip_code?: string;
   is_primary?: boolean | null;
@@ -152,6 +155,7 @@ const myCompanySchema = z.object({
     address_line1: z.string().min(1, 'Address is required'),
     address_line2: z.string().optional(),
     city: z.string().optional(),
+    state: z.string().optional(),
     country: z.string().optional(),
     zip_code: z.string().optional(),
     is_primary: z.boolean().nullable().optional().default(false),
@@ -184,6 +188,7 @@ const externalCompanySchema = z.object({
     address_line1: z.string().min(1, 'Address is required'),
     address_line2: z.string().optional(),
     city: z.string().optional(),
+    state: z.string().optional(),
     country: z.string().optional(),
     zip_code: z.string().optional(),
     is_primary: z.boolean().nullable().optional().default(false),
@@ -205,25 +210,34 @@ interface CompanyFormProps {
   mode: 'create' | 'edit';
 }
 
-// Helper function to generate company code preview
-const generateCompanyCodePreview = (companyName: string): string => {
-  if (!companyName) return ''
-  const prefix = companyName
-    .replace(/[^A-Za-z]/g, '')
-    .substring(0, 3)
-    .toUpperCase()
-    .padEnd(3, 'X')
-  
-  const randomSuffix = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, '0')
-  
-  return `${prefix}${randomSuffix}`
+async function requestGeneratedCompanyCode(companyName: string): Promise<string> {
+  if (!companyName?.trim()) {
+    return ''
+  }
+
+  try {
+    const response = await fetch('/api/companies/generate-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ companyName }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate company code: ${response.status}`)
+    }
+
+    const payload = (await response.json()) as { code?: string }
+    return payload.code ?? ''
+  } catch (error) {
+    console.error('Error generating company code via API:', error)
+    return ''
+  }
 }
 
 export function CompanyForm({ company, type, mode }: CompanyFormProps) {
   const router = useRouter()
-  const [codePreview, setCodePreview] = useState('')
   const [codeValidation, setCodeValidation] = useState<{
     isChecking: boolean;
     isValid: boolean | null;
@@ -246,6 +260,9 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
       : getExternalCompanyDefaultValues(company as CompanyDB | undefined),
   });
 
+  const nameField = isMyCompanyType ? 'my_company_name' : 'company_name'
+  const codeField = isMyCompanyType ? 'my_company_code' : 'company_code'
+
   // Helper functions to get default values for the form
   function getMyCompanyDefaultValues(company?: MyCompanyDB): MyCompanyFormData {
     return {
@@ -256,6 +273,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
         ...address,
         address_line2: address.address_line2 || undefined,
         city: address.city || undefined,
+        state: address.state || undefined,
         country: address.country || undefined,
         zip_code: address.zip_code || undefined,
         is_primary: address.is_primary || false
@@ -286,6 +304,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
         ...address,
         address_line2: address.address_line2 || undefined,
         city: address.city || undefined,
+        state: address.state || undefined,
         country: address.country || undefined,
         zip_code: address.zip_code || undefined,
         is_primary: address.is_primary || false
@@ -326,6 +345,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
       address_line1: '',
       address_line2: '',
       city: '',
+      state: '',
       country: '',
       zip_code: '',
       is_primary: false,
@@ -368,9 +388,15 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
       // Generate suggestions if not unique
       const suggestions: string[] = [];
       if (!isUnique) {
-        const baseCode = code.replace(/[-_]\d+$/, ''); // Remove existing suffix
+        const sanitized = code.toUpperCase().trim();
+        const letterSource = sanitized.replace(/[^A-Z]/g, '');
+        const suggestionPrefix = (letterSource || 'EXT').concat('XXX').slice(0, 3);
+        const digitMatch = sanitized.match(/(\d{1,})$/);
+        const baseNumber = digitMatch ? parseInt(digitMatch[1], 10) : 0;
+
         for (let i = 1; i <= 5; i++) {
-          const suggestion = `${baseCode}-${i.toString().padStart(2, '0')}`;
+          const nextNumber = (baseNumber + i) % 1000;
+          const suggestion = `${suggestionPrefix}${nextNumber.toString().padStart(3, '0')}`;
           suggestions.push(suggestion);
         }
       }
@@ -412,7 +438,6 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
   }, [checkCodeUniqueness, company, isMyCompanyType]);
 
   // Debounce validation
-  const codeField = isMyCompanyType ? 'my_company_code' : 'company_code';
   const watchedCode = form.watch(codeField);
   useEffect(() => {
     const code = watchedCode;
@@ -432,19 +457,6 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
       });
     }
   }, [watchedCode, validateCompanyCode, isMyCompanyType]);
-
-  // Generate company code preview
-  useEffect(() => {
-    if (!isMyCompanyType) {
-      const companyName = form.watch('company_name');
-      const companyCode = form.watch('company_code');
-      if (companyName && !companyCode) {
-        setCodePreview(generateCompanyCodePreview(companyName));
-      } else {
-        setCodePreview('');
-      }
-    }
-  }, [form, isMyCompanyType]);
 
   // Set default values when the company or type changes
   useEffect(() => {
@@ -489,6 +501,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
               ...address,
               address_line2: address.address_line2 || undefined,
               city: address.city || undefined,
+              state: address.state || undefined,
               country: address.country || undefined,
               zip_code: address.zip_code || undefined
             })) || [],
@@ -545,6 +558,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
               ...address,
               address_line2: address.address_line2 || undefined,
               city: address.city || undefined,
+              state: address.state || undefined,
               country: address.country || undefined,
               zip_code: address.zip_code || undefined
             })) || [],
@@ -634,6 +648,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 address_line1: address.address_line1!.trim(),
                 address_line2: address.address_line2?.trim() || null,
                 city: address.city?.trim() || null,
+                state: address.state?.trim() || null,
                 zip_code: address.zip_code?.trim() || null,
                 country: address.country?.trim() || null,
                 is_primary: address.is_primary || false,
@@ -728,6 +743,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 address_line1: address.address_line1!.trim(),
                 address_line2: address.address_line2?.trim() || null,
                 city: address.city?.trim() || null,
+                state: address.state?.trim() || null,
                 zip_code: address.zip_code?.trim() || null,
                 country: address.country?.trim() || null,
                 is_primary: address.is_primary || false,
@@ -784,7 +800,16 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
         
         // Handle External Company form submission
         const { formType, ship_via_info, company_addresses, company_contacts, ...companyData } = formData;
-        
+
+        if (!companyData.company_code?.trim()) {
+          const generatedCode = await requestGeneratedCompanyCode(companyData.company_name)
+          if (!generatedCode) {
+            toast.error('Unable to auto-generate a company code. Please enter a code manually and try again.')
+            return
+          }
+          companyData.company_code = generatedCode
+        }
+
         if (isExternalCompany(company)) {
           // Update existing company
           if (!company.company_id) throw new Error('Company ID is required for update');
@@ -872,6 +897,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 address_line1: address.address_line1!.trim(),
                 address_line2: address.address_line2?.trim() || null,
                 city: address.city?.trim() || null,
+                state: address.state?.trim() || null,
                 zip_code: address.zip_code?.trim() || null,
                 country: address.country?.trim() || null,
                 is_primary: address.is_primary || false,
@@ -985,6 +1011,7 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                 address_line1: address.address_line1!.trim(),
                 address_line2: address.address_line2?.trim() || null,
                 city: address.city?.trim() || null,
+                state: address.state?.trim() || null,
                 zip_code: address.zip_code?.trim() || null,
                 country: address.country?.trim() || null,
                 is_primary: address.is_primary || false,
@@ -1118,22 +1145,24 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
             </CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Company Name *</Label>
-                  <Input 
-                    {...form.register(isMyCompanyType ? 'my_company_name' : 'company_name')} 
-                    className="h-11"
-                    placeholder="Enter company name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Company Code</Label>
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Input 
-                        {...form.register(isMyCompanyType ? 'my_company_code' : 'company_code')} 
-                        placeholder={!isMyCompanyType ? "Leave empty for auto-generation" : "Enter company code"} 
-                        className={`h-11 pr-10 ${
+              <div className="space-y-2">
+                <Label htmlFor={nameField} className="text-sm font-medium text-gray-700">Company Name *</Label>
+                <Input
+                  id={nameField}
+                  {...form.register(isMyCompanyType ? 'my_company_name' : 'company_name')}
+                  className="h-11"
+                  placeholder="Enter company name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={codeField} className="text-sm font-medium text-gray-700">Company Code</Label>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Input
+                      id={codeField}
+                      {...form.register(isMyCompanyType ? 'my_company_code' : 'company_code')}
+                      placeholder={!isMyCompanyType ? "Leave empty for auto-generation" : "Enter company code"}
+                      className={`h-11 pr-10 ${
                           codeValidation.isValid === false ? 'border-red-500 focus:border-red-500 bg-red-50' :
                           codeValidation.isValid === true ? 'border-green-500 focus:border-green-500 bg-green-50' : ''
                         }`}
@@ -1182,33 +1211,22 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                       </div>
                     )}
                       
-                      {/* External company preview */}
-                      {!isMyCompanyType && codePreview && (
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            Preview: {codePreview}
-                          </Badge>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCodePreview(generateCompanyCodePreview(form.watch('company_name')))}
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
+                    {!isMyCompanyType && (
+                      <p className="text-xs text-slate-500">
+                        Leave blank to auto-generate a company code (e.g., KPA716) when the record is saved.
+                      </p>
+                    )}
                     </div>
                   </div>
 
                 {!isMyCompanyType && (
                   <div className="md:col-span-2 space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Company Type *</Label>
+                    <Label htmlFor="company_type" className="text-sm font-medium text-gray-700">Company Type *</Label>
                     <Select
                       value={form.watch('company_type')}
                       onValueChange={(value) => form.setValue('company_type', value as 'vendor' | 'customer' | 'both')}
                     >
-                      <SelectTrigger className="h-11">
+                      <SelectTrigger id="company_type" className="h-11">
                         <SelectValue placeholder="Select company type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1360,28 +1378,36 @@ export function CompanyForm({ company, type, mode }: CompanyFormProps) {
                             placeholder="123 Main Street"
                           />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium text-gray-700">Zip Code</Label>
-                            <Input 
-                              {...form.register(`company_addresses.${index}.zip_code` as const)} 
-                              className="h-10"
-                              placeholder="12345"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium text-gray-700">City</Label>
-                            <Input 
-                              {...form.register(`company_addresses.${index}.city` as const)} 
-                              className="h-10"
-                              placeholder="New York"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium text-gray-700">Country</Label>
-                            <Input 
-                              {...form.register(`company_addresses.${index}.country` as const)} 
-                              className="h-10"
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Zip Code</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.zip_code` as const)} 
+                            className="h-10"
+                            placeholder="12345"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">City</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.city` as const)} 
+                            className="h-10"
+                            placeholder="New York"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">State / Province</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.state` as const)} 
+                            className="h-10"
+                            placeholder="NY"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Country</Label>
+                          <Input 
+                            {...form.register(`company_addresses.${index}.country` as const)} 
+                            className="h-10"
                               placeholder="United States"
                             />
                           </div>

@@ -68,7 +68,7 @@ async function fetchSalesOrder(id: string) {
         address_line_1: (myCompanyAddresses.data as any)?.[0]?.address_line1 || null,
         address_line_2: (myCompanyAddresses.data as any)?.[0]?.address_line2 || null,
         city: (myCompanyAddresses.data as any)?.[0]?.city || null,
-        state: null, // Database doesn't have state field
+        state: (myCompanyAddresses.data as any)?.[0]?.state || null,
         postal_code: (myCompanyAddresses.data as any)?.[0]?.zip_code || null,
         country: (myCompanyAddresses.data as any)?.[0]?.country || null,
         phone: (myCompanyContacts.data as any)?.[0]?.phone || null,
@@ -80,7 +80,7 @@ async function fetchSalesOrder(id: string) {
         address_line_1: (companyAddresses.data as any)?.[0]?.address_line1 || null,
         address_line_2: (companyAddresses.data as any)?.[0]?.address_line2 || null,
         city: (companyAddresses.data as any)?.[0]?.city || null,
-        state: null, // Database doesn't have state field
+        state: (companyAddresses.data as any)?.[0]?.state || null,
         postal_code: (companyAddresses.data as any)?.[0]?.zip_code || null,
         country: (companyAddresses.data as any)?.[0]?.country || null,
       }

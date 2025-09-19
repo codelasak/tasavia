@@ -151,6 +151,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           is_primary: boolean
+          state: string | null
           updated_at: string | null
           zip_code: string | null
         }
@@ -164,6 +165,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           is_primary?: boolean
+          state?: string | null
           updated_at?: string | null
           zip_code?: string | null
         }
@@ -177,6 +179,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           is_primary?: boolean
+          state?: string | null
           updated_at?: string | null
           zip_code?: string | null
         }
@@ -933,21 +936,21 @@ export type Database = {
       }
       repair_order_sequence: {
         Row: {
-          created_at: string | null
+          created_at: string
           next_sequence_number: number
-          updated_at: string | null
+          updated_at: string
           year: number
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           next_sequence_number?: number
-          updated_at?: string | null
+          updated_at?: string
           year: number
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           next_sequence_number?: number
-          updated_at?: string | null
+          updated_at?: string
           year?: number
         }
         Relationships: []
@@ -1437,6 +1440,10 @@ export type Database = {
         Args: { company_name: string }
         Returns: string
       }
+      generate_external_company_code: {
+        Args: { p_company_name?: string }
+        Returns: string
+      }
       generate_invoice_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1495,6 +1502,10 @@ export type Database = {
       manual_inherit_aviation_data: {
         Args: { target_table?: string }
         Returns: Json
+      }
+      test_repair_order_insert: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       validate_company_reference: {
         Args: { company_id: string; company_ref_type: string }
