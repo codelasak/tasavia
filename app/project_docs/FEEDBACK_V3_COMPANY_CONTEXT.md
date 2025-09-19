@@ -8,6 +8,11 @@ Tasavia's Company Management bounded context handles lifecycle for internal and 
 - **Identity Context** (integration): authoritative source for `Profile` display names surfaced in the portal.
 - Shared terms: *External Company Code*, *Address State*, *Profile Display Name*, *Company Creation Wizard*.
 
+## Current Code Observations
+- `components/companies/CompanyDialog.tsx:215` generates “unique” external company codes in the browser via random prefixes and Supabase lookups, providing no idempotent server-side guarantee if the request retries or concurrent users collide.
+- `components/companies/CompanyDialog.tsx:1416` renders address forms without a `state` input, and downstream projections default the value to `null` (see `app/portal/sales-orders/[id]/packing-slip/page.tsx:62`), confirming the column/backfill requested in feedback is still missing.
+- `components/profile/ProfileForm.tsx:50` simply echoes the `accounts.name` field fetched via REST; there is no normalization to the canonical “First Last” format (e.g., “Salih İnci”) nor any subscription to upstream identity changes.
+
 ## Aggregates & Entities
 - **Company Aggregate**: encapsulates legal name, contact info, address, and relationships to orders.
 - **ExternalCompany** variant: requires generated external code and reference to originating purchase orders.

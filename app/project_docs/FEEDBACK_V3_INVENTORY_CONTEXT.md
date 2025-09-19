@@ -8,6 +8,11 @@ The Inventory bounded context manages item availability, depot tracking, and int
 - Language adjustments: *In Stock* replaces legacy label *In Depot* to align with customer terminology.
 - Integrations: Orders context for inventory reservation and UI for browsing item details.
 
+## Current Code Observations
+- Physical status labels still render “At Depot” in the badges and filters (`components/inventory/DualStatusBadges.tsx:41-44`, `app/portal/inventory/inventory-list.tsx:287-289`), so the requested “In Stock” terminology change has not shipped.
+- Inventory detail pages fall back to a generic toast on any Supabase failure, returning “Failed to fetch inventory item” instead of a domain-specific error (`app/portal/inventory/[id]/page.tsx:42-115`).
+- Delete flows share the same generic handler, reinforcing the need for explicit domain guard clauses (`app/portal/inventory/[id]/page.tsx:72-85`).
+
 ## Aggregates & Entities
 - **InventoryItem Aggregate**: holds stock quantity, locations, and linked purchase order information.
 - **InventoryView Projection**: supports portal detail pages; needs robust error handling when items are missing or corrupted.

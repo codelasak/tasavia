@@ -7,6 +7,12 @@ The Documents bounded context produces authoritative PDFs for purchase, sales/in
 - **Documents Context**: generates order PDFs via templates and integrates with Orders domain events.
 - Shared terms: *Header/Footer Copy*, *Signature Block*, *Order Type*, *Document Naming Policy*.
 
+## Current Code Observations
+- Footer components still emit the legacy copy (“{DocumentType} generated on …”) flagged for removal (`components/pdf/PDFFooter.tsx:19-26`).
+- PDF layouts set generic titles such as “Purchase Order PDF” instead of the desired `Purchase Order <number>` naming (`components/pdf/PDFLayout.tsx:16-58`, `app/portal/purchase-orders/[id]/pdf/PurchaseOrderPdfClientPage.tsx:174-183`).
+- Invoice PDFs mutate state by assigning an invoice number inside the GET route, even when the order is incomplete, which mirrors the observed PDF failures (`app/portal/sales-orders/[id]/pdf/page.tsx:92-104`).
+- Signature blocks already render in the invoice template (`app/portal/sales-orders/[id]/pdf/SalesOrderPDFClientPage.tsx:286-307`); ensure future changes preserve this capability while harmonizing header/footer updates.
+
 ## Aggregates & Services
 - **DocumentTemplate Aggregate**: encapsulates header, body, footer sections per order type.
 - **DocumentGenerationService**: consumes `OrderCreated` events, fetches domain data, and outputs PDFs.

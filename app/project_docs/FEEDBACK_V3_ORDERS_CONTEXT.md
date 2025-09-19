@@ -8,6 +8,14 @@ The Orders bounded context orchestrates Purchase Orders, Sales/Invoice Orders, a
 - Key language: *Obtained From*, *Order Number*, *Customer Purchase Order Number*, *Reference Number*, *Contact Number*, *End Use Country*, *RO Authorization*.
 - Integrations: Inventory context (line items), Company context (customer/external company data).
 
+## Current Code Observations
+- Order numbering still relies on type-specific generators (`supabase/migrations/20250827084500_add_po_sequence_table.sql:44-71`, `app/portal/sales-orders/[id]/pdf/page.tsx:13-63`, `supabase/migrations/20250915190000_create_repair_order_sequence.sql:8-25`) instead of the unified 25300 baseline requested in feedback.
+- Invoice creation leaves key data optional and un-enforced—`customer_po_number`, `reference_number`, and `end_use_country` are all optional in the schema and simply forwarded to Supabase without domain checks (`app/portal/sales-orders/new/NewSalesOrderClientPage.tsx:123-152`, `app/portal/sales-orders/new/NewSalesOrderClientPage.tsx:365-400`).
+- “Obtained From” remains manual input in the aviation compliance form (`components/aviation/AviationComplianceForm.tsx:332-344`); nothing resolves it from a source purchase order or customer entity.
+- Sales-order persistence performs separate inserts for the order and its items outside a transaction, producing the “ghost order” side-effect when validation fails (`lib/hooks/usePurchaseOrders.ts:240-279`).
+- Repair-order policies allow any authenticated user to insert/update without granular authorization, matching the reported RO access bug (`supabase/migrations/20250915184842_add_missing_repair_order_policies.sql:5-11`).
+- No code publishes `OrderCreated`/`OrderCreationFailed` events; searches for those identifiers only hit documentation, confirming the missing event-driven integration.
+
 ## Aggregates & Value Objects
 - **Order Aggregate Root**: maintains order metadata, numbering, line items, and links to companies.
 - **OrderNumber Value Object**: enforces numbering policy and uniqueness per order type starting at `25300`.
