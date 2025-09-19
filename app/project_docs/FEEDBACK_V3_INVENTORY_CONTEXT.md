@@ -9,9 +9,22 @@ The Inventory bounded context manages item availability, depot tracking, and int
 - Integrations: Orders context for inventory reservation and UI for browsing item details.
 
 ## Current Code Observations
-- Physical status labels still render “At Depot” in the badges and filters (`components/inventory/DualStatusBadges.tsx:41-44`, `app/portal/inventory/inventory-list.tsx:287-289`), so the requested “In Stock” terminology change has not shipped.
-- Inventory detail pages fall back to a generic toast on any Supabase failure, returning “Failed to fetch inventory item” instead of a domain-specific error (`app/portal/inventory/[id]/page.tsx:42-115`).
+- Physical status labels previously rendered “At Depot” in badges, selectors, and filters. These are now updated to “In Stock” to match the requested terminology.
+- Inventory detail page crashed due to a mix of (a) joining `pn_master_table` via PostgREST implicit relationship (ambiguous in this schema) and (b) referencing non-existent fields (`quantity`, `unit_cost`, `total_value`) and wrong columns (`serial_number` instead of `sn`, `notes` instead of `remarks`).
 - Delete flows share the same generic handler, reinforcing the need for explicit domain guard clauses (`app/portal/inventory/[id]/page.tsx:72-85`).
+
+## Implemented Changes
+- Terminology: replaced “At Depot/Depot” with “In Stock”.
+  - `components/inventory/DualStatusBadges.tsx:42,275`
+  - `components/inventory/InventoryDialog.tsx:258`
+  - `app/portal/inventory/inventory-list.tsx:287`
+  - `lib/types/inventory.ts:217,224` (display labels for common combinations)
+  - Tests updated: `__tests__/lib/types/inventory.test.ts:16-33`
+- Inventory detail fix (`/portal/inventory/[id]`):
+  - Avoided implicit relationship joins; fetches `inventory` then fetches `pn_master_table` by `pn_id`.
+  - Corrected fields: use `sn`, `po_price`, and `remarks`; removed assumptions about `quantity`, `unit_cost`, `total_value`.
+  - Shows quantity as `1` and computes totals defensively.
+  - File: `app/portal/inventory/[id]/page.tsx`
 
 ## Aggregates & Entities
 - **InventoryItem Aggregate**: holds stock quantity, locations, and linked purchase order information.
@@ -33,6 +46,13 @@ The Inventory bounded context manages item availability, depot tracking, and int
 ## Infrastructure Considerations
 - If failure stems from stale projections, introduce rebuild job or event reprocessing for affected item IDs.
 - Monitor inventory detail endpoint with observability dashboards to catch recurrence.
+
+## Suggested SQL Additions (for Supabase)
+- Add a single-item RPC to mirror the list RPC and simplify detail queries:
+
+  Function: `get_inventory_item_with_part(inv_id uuid)`
+  - Returns one row with `inventory` columns and an embedded JSON `pn_master_table` (pn, description).
+  - See migration snippet in the task handoff below.
 
 ## Testing Strategy
 - Unit tests for label translation logic ensuring `StockStatus` renders `In Stock`.

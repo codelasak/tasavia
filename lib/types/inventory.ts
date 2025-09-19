@@ -214,14 +214,14 @@ export const COMMON_STATUS_COMBINATIONS: StatusCombination[] = [
     physical_status: 'depot',
     business_status: 'available',
     legacy_status: 'Available',
-    display_label: 'Available at Depot',
+    display_label: 'In Stock',
     color_class: 'bg-green-100 text-green-800 border-green-200'
   },
   {
     physical_status: 'depot',
     business_status: 'reserved',
     legacy_status: 'Reserved',
-    display_label: 'Reserved at Depot',
+    display_label: 'Reserved - In Stock',
     color_class: 'bg-yellow-100 text-yellow-800 border-yellow-200'
   },
   {

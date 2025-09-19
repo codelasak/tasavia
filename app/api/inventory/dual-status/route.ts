@@ -20,13 +20,10 @@ export async function GET(request: NextRequest) {
       .select(`
         inventory_id,
         pn_id,
-        serial_number,
-        condition,
+        sn,
         location,
-        quantity,
-        unit_cost,
-        total_value,
-        notes,
+        po_price,
+        remarks,
         status,
         physical_status,
         business_status,
@@ -162,9 +159,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Prepare update data
-    const updateData: any = {
-      updated_at: new Date().toISOString()
-    }
+    const updateData: any = {}
 
     if (physical_status) {
       updateData.physical_status = physical_status
@@ -179,24 +174,24 @@ export async function PUT(request: NextRequest) {
     }
 
     if (notes) {
-      updateData.notes = notes
+      updateData.remarks = notes
     }
+
+    // If any status changed, stamp status_updated_at and updated_at
+    if (
+      (physical_status && physical_status !== currentItem.physical_status) ||
+      (business_status && business_status !== currentItem.business_status)
+    ) {
+      updateData.status_updated_at = new Date().toISOString()
+    }
+    updateData.updated_at = new Date().toISOString()
 
     // Update the inventory item
     const { data: updatedItem, error: updateError } = await supabase
       .from('inventory')
       .update(updateData)
       .eq('inventory_id', inventory_id)
-      .select(`
-        inventory_id,
-        physical_status,
-        business_status,
-        status_updated_at,
-        status_updated_by,
-        updated_at,
-        pn_master_table(pn),
-        accounts:status_updated_by(name)
-      `)
+      .select('inventory_id, physical_status, business_status, status_updated_at, status_updated_by, updated_at')
       .single()
 
     if (updateError) {

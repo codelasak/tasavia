@@ -15,7 +15,7 @@ describe('Inventory Types', () => {
       expect(result.physical_status).toBe('depot')
       expect(result.business_status).toBe('available')
       expect(result.legacy_status).toBe('Available')
-      expect(result.display_label).toBe('Available at Depot')
+      expect(result.display_label).toBe('In Stock')
       expect(result.color_class).toBe('bg-green-100 text-green-800 border-green-200')
     })
 
@@ -25,7 +25,7 @@ describe('Inventory Types', () => {
       expect(result.physical_status).toBe('depot')
       expect(result.business_status).toBe('reserved')
       expect(result.legacy_status).toBe('Reserved')
-      expect(result.display_label).toBe('Reserved at Depot')
+      expect(result.display_label).toBe('Reserved - In Stock')
       expect(result.color_class).toBe('bg-yellow-100 text-yellow-800 border-yellow-200')
     })
 

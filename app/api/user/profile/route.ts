@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     console.log('PATCH /api/user/profile - Updating user profile');
+    console.log('Service role key present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
     
     const authHeader = request.headers.get('authorization');
     const result = await verifyUser(authHeader);
@@ -141,7 +142,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { user } = result;
+    const { user, userSupabase } = result as any;
 
     const body = await request.json();
     const { name, phone } = body;
@@ -172,6 +173,13 @@ export async function PATCH(request: NextRequest) {
 
     // Update auth user data if phone is provided
     if (phone && phone !== user.phone) {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.warn('Service role key missing - cannot update auth phone. Proceeding with account update only.');
+        return NextResponse.json(
+          { error: 'Phone updates are temporarily unavailable. Please contact support.' },
+          { status: 503 }
+        );
+      }
       console.log('Updating auth phone number...');
       const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
         user.id,
@@ -180,9 +188,12 @@ export async function PATCH(request: NextRequest) {
       
       if (authUpdateError) {
         console.error('Auth phone update error:', authUpdateError);
+        // Handle duplicate/conflict error from auth update explicitly
+        const authErrMsg = (authUpdateError as any)?.message || 'Failed to update phone number';
+        const isConflict = authErrMsg.toLowerCase().includes('already') || (authUpdateError as any)?.status === 409;
         return NextResponse.json(
-          { error: 'Failed to update phone number' },
-          { status: 500 }
+          { error: isConflict ? 'Phone number is already in use' : 'Failed to update phone number' },
+          { status: isConflict ? 409 : 500 }
         );
       }
     }
@@ -196,28 +207,69 @@ export async function PATCH(request: NextRequest) {
     if (phone !== undefined) accountUpdates.phone_number = phone;
 
     console.log('Updating account record...', accountUpdates);
-    
-    const { data: updatedAccount, error: accountError } = await supabaseAdmin
-      .from('accounts')
-      .update(accountUpdates)
-      .eq('id', user.id)
-      .select()
-      .single();
 
-    if (accountError) {
-      console.error('Account update error:', accountError);
-      return NextResponse.json(
-        { error: 'Failed to update profile' },
-        { status: 500 }
-      );
+    // Prefer updating via the authenticated user's client to satisfy RLS (id = auth.uid())
+    let dbClient = userSupabase;
+
+    // Try upsert directly (covers both insert + update cases)
+    const upsertPayload: any = {
+      id: user.id,
+      ...('name' in accountUpdates ? { name: accountUpdates.name } : {}),
+      ...('phone_number' in accountUpdates ? { phone_number: accountUpdates.phone_number } : {}),
+      updated_at: accountUpdates.updated_at,
+    };
+
+    let { error: upsertError } = await dbClient
+      .from('accounts')
+      .upsert(upsertPayload);
+
+    if (upsertError) {
+      console.error('Account upsert error (user client):', upsertError);
+      const code = (upsertError as any)?.code;
+      const msg = (upsertError as any)?.message || '';
+      if (code === '23505' || msg.toLowerCase().includes('duplicate key')) {
+        return NextResponse.json(
+          { error: 'Phone number is already in use' },
+          { status: 409 }
+        );
+      }
+      if (code === '42501') {
+        // Retry with service role if available
+        if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          console.warn('RLS blocked user upsert; retrying with service role');
+          dbClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          const { error: adminUpsertError } = await dbClient
+            .from('accounts')
+            .upsert(upsertPayload);
+          if (adminUpsertError) {
+            console.error('Account upsert error (service role):', adminUpsertError);
+            return NextResponse.json(
+              { error: 'Failed to update profile' },
+              { status: 500 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: 'Not authorized to update account' },
+            { status: 403 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Failed to update profile' },
+          { status: 500 }
+        );
+      }
     }
 
     console.log('Profile updated successfully for user:', user.id);
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Profile updated successfully',
-      account: updatedAccount
+      message: 'Profile updated successfully'
     });
 
   } catch (error: any) {

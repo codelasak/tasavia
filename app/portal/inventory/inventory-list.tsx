@@ -284,7 +284,7 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
               <SelectItem value="all">All Physical</SelectItem>
               {physicalStatuses.map(status => (
                 <SelectItem key={status} value={status}>
-                  {status === 'depot' ? 'At Depot' : 
+                  {status === 'depot' ? 'In Stock' : 
                    status === 'in_repair' ? 'In Repair' : 
                    status === 'in_transit' ? 'In Transit' : status}
                 </SelectItem>

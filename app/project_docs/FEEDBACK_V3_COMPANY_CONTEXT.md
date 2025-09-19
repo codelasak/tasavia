@@ -1,4 +1,4 @@
-# Feedback v3 — Company & Identity Context Plan (DDD)
+# Feedback v3 — Company & Identity Context Plan (DDD) 
 
 ## Context Overview
 Tasavia's Company Management bounded context handles lifecycle for internal and external companies as well as user-facing profile data. Recent feedback highlights missing domain rules when creating companies and presenting profile identity information.

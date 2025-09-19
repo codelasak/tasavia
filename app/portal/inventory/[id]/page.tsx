@@ -13,13 +13,13 @@ import { format } from 'date-fns'
 interface InventoryItemDetails {
   inventory_id: string
   pn_id: string
-  serial_number: string | null
+  sn: string | null
   condition: string | null
-  location: string | null  
-  quantity: number
-  unit_cost: number
-  total_value: number
-  notes: string | null
+  location: string | null
+  po_price: number | null
+  remarks: string | null
+  po_id_original?: string | null
+  po_number_original?: string | null
   created_at: string
   updated_at: string
   pn_master_table: {
@@ -41,17 +41,92 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
 
   const fetchInventoryItem = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch the inventory row without implicit join to avoid relationship ambiguity
+      const { data: inv, error: invError } = await supabase
         .from('inventory')
         .select(`
-          *,
-          pn_master_table(pn, description)
+          inventory_id,
+          pn_id,
+          sn,
+          location,
+          po_price,
+          remarks,
+          po_id_original,
+          po_number_original,
+          created_at,
+          updated_at
         `)
         .eq('inventory_id', params.id)
         .single()
 
-      if (error) throw error
-      setItem(data as any)
+      if (invError) throw invError
+      if (!inv) throw new Error('Inventory item not found')
+
+      // Fetch the part number details separately
+      const { data: pnRow, error: pnError } = await supabase
+        .from('pn_master_table')
+        .select('pn, description')
+        .eq('pn_id', inv.pn_id)
+        .single()
+
+      if (pnError) throw pnError
+
+      // Fetch condition from purchase order items (since inventory does not store condition)
+      let condition: string | null = null
+      if (inv.po_id_original) {
+        const { data: poItems, error: poError } = await supabase
+          .from('po_items')
+          .select('pn_id, sn, condition')
+          .eq('po_id', inv.po_id_original)
+
+        if (!poError && poItems && poItems.length > 0) {
+          // Prefer exact serial number match
+          const bySn = inv.sn ? poItems.find((p) => p.sn === inv.sn) : null
+          if (bySn?.condition) {
+            condition = bySn.condition
+          } else {
+            // Fallback to first matching by pn_id
+            const byPn = poItems.find((p) => p.pn_id === inv.pn_id)
+            condition = byPn?.condition || null
+          }
+        }
+      }
+
+      // Fallback: attempt to resolve PO by number if ID is missing
+      if (!condition && !inv.po_id_original && inv.po_number_original) {
+        const { data: poRow, error: poLookupErr } = await supabase
+          .from('purchase_orders')
+          .select('po_id')
+          .eq('po_number', inv.po_number_original)
+          .single()
+
+        if (!poLookupErr && poRow?.po_id) {
+          const { data: poItems2, error: poErr2 } = await supabase
+            .from('po_items')
+            .select('pn_id, sn, condition')
+            .eq('po_id', poRow.po_id)
+
+          if (!poErr2 && poItems2 && poItems2.length > 0) {
+            const bySn2 = inv.sn ? poItems2.find((p) => p.sn === inv.sn) : null
+            if (bySn2?.condition) {
+              condition = bySn2.condition
+            } else {
+              const byPn2 = poItems2.find((p) => p.pn_id === inv.pn_id)
+              condition = byPn2?.condition || null
+            }
+          }
+        }
+      }
+
+      setItem({
+        ...inv,
+        // derive condition from purchase order items (or null)
+        condition,
+        pn_master_table: {
+          pn: pnRow?.pn || '',
+          description: pnRow?.description || null
+        }
+      } as InventoryItemDetails)
     } catch (error) {
       console.error('Error fetching inventory item:', error)
       toast.error('Failed to fetch inventory item')
@@ -87,15 +162,16 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
 
   const getConditionBadge = (condition: string | null) => {
     if (!condition) return 'bg-gray-100 text-gray-800'
-    
-    const colors = {
-      'New': 'bg-green-100 text-green-800',
-      'Used': 'bg-yellow-100 text-yellow-800', 
-      'Refurbished': 'bg-blue-100 text-blue-800',
-      'Damaged': 'bg-red-100 text-red-800',
-      'AR': 'bg-purple-100 text-purple-800'
-    }
-    return colors[condition as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+    const c = condition.toUpperCase()
+    // Align colors with PO items form badges
+    if (['NEW', 'NS', 'NE'].includes(c)) return 'bg-green-100 text-green-800'
+    if (['AR', 'SV', 'SVC'].includes(c)) return 'bg-blue-100 text-blue-800'
+    if (['OH', 'OHC', 'OVERHAULED'].includes(c)) return 'bg-yellow-100 text-yellow-800'
+    if (['RP', 'REP', 'REPAIRED'].includes(c)) return 'bg-orange-100 text-orange-800'
+    if (['RB', 'REFURBISHED'].includes(c)) return 'bg-purple-100 text-purple-800'
+    if (['AS-IS', 'SCRAP', 'DAMAGED'].includes(c)) return 'bg-red-100 text-red-800'
+    if (['USED'].includes(c)) return 'bg-yellow-100 text-yellow-800'
+    return 'bg-gray-100 text-gray-800'
   }
 
   if (loading) {
@@ -172,10 +248,10 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
                 <div className="text-slate-900">{item.pn_master_table.description}</div>
               </div>
             )}
-            {item.serial_number && (
+            {item.sn && (
               <div>
                 <div className="text-slate-500 text-sm">Serial Number</div>
-                <div className="font-mono">{item.serial_number}</div>
+                <div className="font-mono">{item.sn}</div>
               </div>
             )}
           </div>
@@ -198,7 +274,7 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
             </div>
             <div>
               <div className="text-slate-500 text-sm">Quantity</div>
-              <div className="font-bold text-lg">{item.quantity}</div>
+              <div className="font-bold text-lg">1</div>
             </div>
           </div>
         </CardContent>
@@ -216,11 +292,11 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <div className="text-slate-500 text-sm">Unit Cost</div>
-              <div className="font-bold text-lg">${item.unit_cost.toFixed(2)}</div>
+              <div className="font-bold text-lg">${Number(item.po_price ?? 0).toFixed(2)}</div>
             </div>
             <div>
               <div className="text-slate-500 text-sm">Total Value</div>
-              <div className="font-bold text-xl text-green-600">${item.total_value.toFixed(2)}</div>
+              <div className="font-bold text-xl text-green-600">${Number(item.po_price ?? 0).toFixed(2)}</div>
             </div>
           </div>
         </CardContent>
@@ -233,10 +309,10 @@ export default function InventoryViewPage({ params }: InventoryViewPageProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {item.notes && (
+            {item.remarks && (
               <div>
                 <div className="text-slate-500 text-sm">Notes</div>
-                <div className="whitespace-pre-line">{item.notes}</div>
+                <div className="whitespace-pre-line">{item.remarks}</div>
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

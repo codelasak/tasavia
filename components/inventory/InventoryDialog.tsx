@@ -255,7 +255,7 @@ export function InventoryDialog({ open, onClose, item }: InventoryDialogProps) {
                   <SelectValue placeholder="Select physical status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="depot">Depot</SelectItem>
+                  <SelectItem value="depot">In Stock</SelectItem>
                   <SelectItem value="in_repair">In Repair</SelectItem>
                   <SelectItem value="in_transit">In Transit</SelectItem>
                 </SelectContent>

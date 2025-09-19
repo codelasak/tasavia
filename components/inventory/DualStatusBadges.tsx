@@ -39,7 +39,7 @@ interface DualStatusBadgesProps {
 }
 
 const PHYSICAL_STATUS_CONFIG = {
-  depot: { label: 'At Depot', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Package2 },
+  depot: { label: 'In Stock', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Package2 },
   in_repair: { label: 'In Repair', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: RefreshCw },
   in_transit: { label: 'In Transit', color: 'bg-purple-100 text-purple-800 border-purple-200', icon: MapPin }
 }
@@ -272,7 +272,7 @@ export default function DualStatusBadges({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="depot">At Depot</SelectItem>
+                      <SelectItem value="depot">In Stock</SelectItem>
                       <SelectItem value="in_repair">In Repair</SelectItem>
                       <SelectItem value="in_transit">In Transit</SelectItem>
                     </SelectContent>
