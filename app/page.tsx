@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import CustomerSlider from '@/components/CustomerSlider'
+import HeroSection from '@/components/HeroSection'
 import { 
   Plane, 
   Settings, 
@@ -213,24 +214,6 @@ const structuredData = {
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-
-  useEffect(() => {
-    const v = videoRef.current
-    if (!v) return
-    const tryPlay = async () => {
-      try {
-        await v.play()
-      } catch (err) {
-        console.warn('Hero video play() was prevented by the browser:', err)
-      }
-    }
-    // Attempt to play on mount and when it can play
-    tryPlay()
-    const canPlay = () => tryPlay()
-    v.addEventListener('canplay', canPlay)
-    return () => v.removeEventListener('canplay', canPlay)
-  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -251,7 +234,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Preload important resources */}
-      <link rel="preload" as="video" href="/video/Create_a_cinematic_202509181538.mp4" type="video/mp4" />
+      <link rel="preload" as="video" href="/video/tasavia-hero-background-video.mp4" type="video/mp4" />
       <link rel="preload" as="image" href="/assets/images/footer-bg.png" />
       
       {/* Structured Data */}
@@ -391,84 +374,7 @@ export default function HomePage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section id="home" className="relative pt-28 pb-48 md:pt-36 md:pb-64 overflow-hidden hero-with-aircraft" role="banner" aria-label="Welcome to TASAVIA">
-        {/* Hero background video */}
-        <div className="absolute inset-0 z-0">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="w-full h-full object-cover opacity-70"
-            preload="metadata"
-            ref={videoRef}
-            // Show controls in development to verify playback easily
-            {...(process.env.NODE_ENV !== 'production' ? { controls: true } : {})}
-            onLoadedData={() => console.debug('Hero video loaded')}
-            onError={(e) => console.error('Hero video failed to load', e)}
-          >
-            <source src="/video/Create_a_cinematic_202509181538.mp4" type="video/mp4" />
-          </video>
-          {/* Gradient overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-white/25 dark:from-slate-900/30 dark:to-slate-900/60"></div>
-        </div>
-        
-        {/* Animated background elements (behind overlay) */}
-        <motion.div 
-          className="absolute inset-0 -z-30"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-        >
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
-          <div className="absolute -bottom-20 left-0 w-96 h-96 bg-cyan-500/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
-        </motion.div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 max-w-4xl mx-auto">
-              
-            <motion.h1 
-              className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-5xl md:text-6xl lg:text-7xl mb-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <span className="block">YOUR PARTNER TO</span>
-              <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-              KEEP AIRCRAFTS FLYING
-              </span>
-            </motion.h1>
-            
-            <motion.p 
-              className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
-              Your trusted partner for comprehensive aviation solutions. We deliver excellence in every flight with cutting-edge technology and unparalleled service.
-            </motion.p>
-            
-            <motion.div
-              className="mt-10 flex justify-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              <Link href="#contact" className="w-full sm:w-auto max-w-sm">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                >
-                  Contact Us
-                </Button>
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-        
-      </section>
+      <HeroSection />
 
       {/* About Section */}
       <section id="about" className="py-20 bg-slate-50" role="region" aria-labelledby="about-heading">
