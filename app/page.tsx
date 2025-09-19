@@ -265,7 +265,7 @@ export default function HomePage() {
               whileTap={{ scale: 0.95 }}
             >
               <Image
-                src="/logo.png"
+                src={isScrolled ? "/tasavia-logo-black.png" : "/tasavia-logo-white-logo.png"}
                 alt="TASAVIA"
                 width={280}
                 height={100}
@@ -280,28 +280,44 @@ export default function HomePage() {
                 <motion.button
                   onClick={() => scrollToSection('home')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
+                  className={`px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors ${
+                    isScrolled 
+                      ? 'text-slate-700 hover:text-blue-600' 
+                      : 'text-white hover:text-blue-300'
+                  }`}
                 >
                   Home
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('about')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
+                  className={`px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors ${
+                    isScrolled 
+                      ? 'text-slate-700 hover:text-blue-600' 
+                      : 'text-white hover:text-blue-300'
+                  }`}
                 >
                   About Us
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('services')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
+                  className={`px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors ${
+                    isScrolled 
+                      ? 'text-slate-700 hover:text-blue-600' 
+                      : 'text-white hover:text-blue-300'
+                  }`}
                 >
                   Services
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('contact')}
                   whileHover={{ y: -2 }}
-                  className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors"
+                  className={`px-4 py-3 text-lg md:text-xl lg:text-2xl font-medium transition-colors ${
+                    isScrolled 
+                      ? 'text-slate-700 hover:text-blue-600' 
+                      : 'text-white hover:text-blue-300'
+                  }`}
                 >
                   Contact
                 </motion.button>
@@ -315,7 +331,11 @@ export default function HomePage() {
             >
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none transition-colors"
+                className={`inline-flex items-center justify-center p-2 rounded-lg focus:outline-none transition-colors ${
+                  isScrolled 
+                    ? 'text-slate-700 hover:bg-slate-100' 
+                    : 'text-white hover:bg-white/10'
+                }`}
                 aria-label="Toggle menu"
               >
                 {isMenuOpen ? (
@@ -336,34 +356,34 @@ export default function HomePage() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
-              className="md:hidden bg-white dark:bg-slate-900 shadow-lg overflow-hidden"
+              className="md:hidden bg-white shadow-lg overflow-hidden"
             >
               <div className="px-2 pt-2 pb-4 space-y-1 sm:px-3">
                 <motion.button
                   onClick={() => scrollToSection('home')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                 >
                   Home
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('about')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                 >
                   About Us
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('services')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                 >
                   Services
                 </motion.button>
                 <motion.button
                   onClick={() => scrollToSection('contact')}
                   whileHover={{ x: 5 }}
-                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="block w-full text-left px-6 py-4 rounded-lg text-xl font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                 >
                   Contact
                 </motion.button>
