@@ -70,12 +70,12 @@ export default function HeroSection() {
               {/* Title */}
               <div className="space-y-6">
                 <motion.h1 
-                  className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-white leading-tight"
+                  className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight"
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
                 >
-                  <span className="block mb-2">YOUR PARTNER TO</span>
+                  <span className="block mb-2 sm:mb-3 lg:mb-4">YOUR PARTNER TO</span>
                   <span className="block bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
                     KEEP AIRCRAFTS FLYING
                   </span>
