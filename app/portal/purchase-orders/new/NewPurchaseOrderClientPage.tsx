@@ -270,9 +270,9 @@ export default function NewPurchaseOrderClientPage({
         }
       }
 
-      // Generate PO number using database sequence function
+      // Generate PO number using 2025 special function
       const { data: poNumberResult, error: poNumberError } = await supabase
-        .rpc('generate_po_number')
+        .rpc('generate_po_number_2025')
       
       if (poNumberError || !poNumberResult) {
         throw new Error(`Failed to generate PO number: ${poNumberError?.message || 'Unknown error'}`)
