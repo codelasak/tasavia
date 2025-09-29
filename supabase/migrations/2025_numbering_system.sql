@@ -22,7 +22,7 @@ BEGIN
     ELSE
         -- Extract the numeric part and increment by 1
         BEGIN
-            next_number := CAST(SUBSTRING(last_number FROM 2) AS INTEGER) + 1;
+            next_number := CAST(SUBSTRING(last_number FROM 4) AS INTEGER) + 1;
         EXCEPTION WHEN OTHERS THEN
             -- If conversion fails, start from 300
             next_number := 300;
@@ -54,7 +54,7 @@ BEGIN
     ELSE
         -- Extract the numeric part and increment by 1
         BEGIN
-            next_number := CAST(SUBSTRING(last_number FROM 2) AS INTEGER) + 1;
+            next_number := CAST(SUBSTRING(last_number FROM 4) AS INTEGER) + 1;
         EXCEPTION WHEN OTHERS THEN
             -- If conversion fails, start from 300
             next_number := 300;
@@ -86,7 +86,7 @@ BEGIN
     ELSE
         -- Extract the numeric part and increment by 1
         BEGIN
-            next_number := CAST(SUBSTRING(last_number FROM 2) AS INTEGER) + 1;
+            next_number := CAST(SUBSTRING(last_number FROM 4) AS INTEGER) + 1;
         EXCEPTION WHEN OTHERS THEN
             -- If conversion fails, start from 300
             next_number := 300;

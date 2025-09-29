@@ -799,6 +799,12 @@ export default function HomePage() {
                             sales@tasavia.com
                           </a>
                         </div>
+                        <div className="flex items-center space-x-3">
+                          <PhoneIcon className="h-5 w-5 text-slate-400" />
+                          <a href="tel:+18324413424" className="text-blue-400 hover:text-blue-300 transition-colors">
+                            +1 (832) 441-3424
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>

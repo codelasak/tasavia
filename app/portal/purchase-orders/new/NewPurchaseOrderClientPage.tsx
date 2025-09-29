@@ -270,19 +270,8 @@ export default function NewPurchaseOrderClientPage({
         }
       }
 
-      // Generate PO number using 2025 special function
-      const { data: poNumberResult, error: poNumberError } = await supabase
-        .rpc('generate_po_number_2025')
-      
-      if (poNumberError || !poNumberResult) {
-        throw new Error(`Failed to generate PO number: ${poNumberError?.message || 'Unknown error'}`)
-      }
-      
-      const poNumber = String(poNumberResult)
-      
-      // Create the purchase order
+      // Create the purchase order (PO number will be generated automatically by database default)
       const insertData = {
-        po_number: poNumber,
         company_id: data.my_company_id,
         vendor_company_id: data.vendor_company_id,
         po_date: dateFns.format(data.po_date, 'yyyy-MM-dd'),
@@ -358,7 +347,7 @@ export default function NewPurchaseOrderClientPage({
       }
       
       addPurchaseOrder(newPOForList)
-      toast.success('Purchase order created successfully')
+      toast.success(`Purchase order ${poData.po_number} created successfully`)
       
       // Redirect to purchase orders list
       router.push('/portal/purchase-orders')
