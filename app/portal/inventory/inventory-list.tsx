@@ -59,23 +59,109 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Real-time state
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
+    isConnected: false,
+    lastHeartbeat: new Date().toISOString(),
+    subscriptions: [],
+    reconnectAttempts: 0,
+    connectionQuality: 'disconnected'
+  })
+  const [realtimeSync, setRealtimeSync] = useState<RealtimeStatusSyncManager | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+
   useEffect(() => {
     // Extract unique locations and statuses for filters
     const locationData = inventory?.map(item => item.location).filter(Boolean) || []
     const statusData = inventory?.map(item => item.status).filter(Boolean) || []
     const physicalStatusData = inventory?.map(item => item.physical_status).filter(Boolean) || []
     const businessStatusData = inventory?.map(item => item.business_status).filter(Boolean) || []
-    
+
     const uniqueLocations = Array.from(new Set(locationData)) as string[]
     const uniqueStatuses = Array.from(new Set(statusData)) as string[]
     const uniquePhysicalStatuses = Array.from(new Set(physicalStatusData)) as string[]
     const uniqueBusinessStatuses = Array.from(new Set(businessStatusData)) as string[]
-    
+
     setLocations(uniqueLocations)
     setStatuses(uniqueStatuses)
     setPhysicalStatuses(uniquePhysicalStatuses)
     setBusinessStatuses(uniqueBusinessStatuses)
   }, [inventory])
+
+  // Initialize real-time synchronization
+  useEffect(() => {
+    const initializeRealtime = async () => {
+      try {
+        // Get current user for real-time tracking
+        const { data: { user } } = await supabase.auth.getUser()
+
+        const syncManager = new RealtimeStatusSyncManager(
+          user?.id,
+          user?.email?.split('@')[0] || 'Unknown'
+        )
+
+        setRealtimeSync(syncManager)
+
+        // Subscribe to ALL inventory changes (INSERT, UPDATE, DELETE) - including PO completion
+        const unsubscribeAllChanges = syncManager.subscribeToAllInventoryChanges((update) => {
+          handleInventoryUpdate(update)
+        })
+
+        // Subscribe to inventory status changes (for detailed status notifications)
+        const unsubscribeStatusChanges = syncManager.subscribeToInventoryStatus((update) => {
+          handleInventoryStatusUpdate(update)
+        })
+
+        // Subscribe to connection status changes
+        const unsubscribeConnection = syncManager.subscribeToConnectionStatus((status) => {
+          setConnectionStatus(status)
+
+          // Show connection status notifications
+          if (status.isConnected && connectionStatus.connectionQuality === 'disconnected') {
+            toast.success('Real-time connection established', {
+              description: 'Inventory updates will appear in real-time'
+            })
+          } else if (!status.isConnected && connectionStatus.isConnected) {
+            toast.error('Real-time connection lost', {
+              description: 'Manual refresh may be required for updates'
+            })
+          }
+        })
+
+        // Set up periodic connection check
+        const connectionCheckInterval = setInterval(() => {
+          const currentStatus = syncManager.getConnectionStatus()
+          if (!currentStatus.isConnected && connectionStatus.isConnected) {
+            // Connection lost, try to reconnect
+            syncManager.reconnectAll()
+          }
+        }, 30000) // Check every 30 seconds
+
+        // Clean up on unmount
+        return () => {
+          clearInterval(connectionCheckInterval)
+          unsubscribeAllChanges()
+          unsubscribeStatusChanges()
+          unsubscribeConnection()
+          syncManager.cleanup()
+        }
+      } catch (error) {
+        console.error('Failed to initialize real-time sync:', error)
+        toast.error('Failed to enable real-time updates', {
+          description: 'Manual refresh will be used for inventory updates'
+        })
+
+        // Set connection status to disconnected
+        setConnectionStatus(prev => ({
+          ...prev,
+          isConnected: false,
+          connectionQuality: 'disconnected'
+        }))
+      }
+    }
+
+    initializeRealtime()
+  }, [])
 
   useEffect(() => {
     let filtered = inventory.filter(item =>
@@ -103,6 +189,155 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
 
     setFilteredInventory(filtered)
   }, [inventory, searchTerm, locationFilter, statusFilter, physicalStatusFilter, businessStatusFilter])
+
+  // Handle real-time inventory status updates (specific status changes)
+  const handleInventoryStatusUpdate = async (update: any) => {
+    console.log('Real-time inventory status update:', update)
+
+    setLastUpdate(new Date().toISOString())
+
+    // Only handle UPDATE operations for status changes
+    if (update.operation === 'UPDATE' && update.newStatus) {
+      try {
+        // Update existing record in state with status changes
+        setInventory(prev => prev.map(item => {
+          if (item.inventory_id === update.recordId) {
+            const updatedItem = {
+              ...item,
+              ...(update.newStatus.physical_status && { physical_status: update.newStatus.physical_status }),
+              ...(update.newStatus.business_status && { business_status: update.newStatus.business_status }),
+              status_updated_at: update.timestamp,
+              status_updated_by: update.userId
+            }
+            return updatedItem
+          }
+          return item
+        }))
+
+        // Show detailed notification for status changes
+        if (update.newStatus.physical_status || update.newStatus.business_status) {
+          toast.info('Inventory status updated', {
+            description: `Item status changed to ${update.newStatus.physical_status || update.newStatus.business_status}`
+          })
+        }
+      } catch (error) {
+        console.error('Error handling status UPDATE:', error)
+        toast.error('Failed to process inventory status update')
+      }
+    }
+  }
+
+  // Handle real-time inventory updates (all changes including PO completion)
+  const handleInventoryUpdate = async (update: any) => {
+    console.log('Real-time inventory update:', update)
+
+    setLastUpdate(new Date().toISOString())
+
+    // Handle different operation types
+    switch (update.operation) {
+      case 'INSERT':
+        // Fetch the complete new record with part number details
+        try {
+          const { data: newRecord, error } = await supabase
+            .rpc('get_inventory_with_parts')
+            .eq('inventory_id', update.recordId)
+            .single()
+
+          if (error) {
+            console.error('Error fetching new inventory record:', error)
+            // Fallback: fetch basic record
+            const { data: basicRecord, error: basicError } = await supabase
+              .from('inventory')
+              .select('*')
+              .eq('inventory_id', update.recordId)
+              .single()
+
+            if (basicError) {
+              console.error('Error fetching basic record:', basicError)
+              toast.error('Failed to fetch new inventory item')
+              return
+            }
+
+            if (basicRecord) {
+              const castRecord = basicRecord as any
+              setInventory(prev => [castRecord, ...prev])
+
+              // Check if this is from PO completion
+              if (castRecord.po_id_original && castRecord.po_number_original) {
+                toast.success('New inventory item from PO completion', {
+                  description: `Item ${castRecord.pn_id || 'Unknown'} added from PO ${castRecord.po_number_original}`
+                })
+              } else {
+                toast.success('New inventory item added')
+              }
+            }
+            return
+          }
+
+          if (newRecord) {
+            const castRecord = newRecord as any
+            setInventory(prev => [castRecord, ...prev])
+
+            // Check if this is from PO completion
+            if (castRecord.po_id_original && castRecord.po_number_original) {
+              toast.success('New inventory item from PO completion', {
+                description: `Item ${castRecord.pn_master_table?.pn || castRecord.pn_id || 'Unknown'} added from PO ${castRecord.po_number_original}`
+              })
+            } else {
+              toast.success('New inventory item added')
+            }
+          }
+        } catch (error) {
+          console.error('Error handling INSERT:', error)
+          toast.error('Failed to process new inventory item')
+        }
+        break
+
+      case 'UPDATE':
+        try {
+          // Update existing record in state
+          setInventory(prev => prev.map(item => {
+            if (item.inventory_id === update.recordId) {
+              // Apply the status updates from the real-time payload
+              const updatedItem = {
+                ...item,
+                ...(update.newStatus.physical_status && { physical_status: update.newStatus.physical_status }),
+                ...(update.newStatus.business_status && { business_status: update.newStatus.business_status }),
+                status_updated_at: update.timestamp,
+                status_updated_by: update.userId
+              }
+              return updatedItem
+            }
+            return item
+          }))
+
+          // Show notification for status changes
+          if (update.newStatus.physical_status || update.newStatus.business_status) {
+            toast.info('Inventory status updated', {
+              description: `Item status changed to ${update.newStatus.physical_status || update.newStatus.business_status}`
+            })
+          }
+        } catch (error) {
+          console.error('Error handling UPDATE:', error)
+          toast.error('Failed to process inventory update')
+        }
+        break
+
+      case 'DELETE':
+        try {
+          // Remove record from state
+          setInventory(prev => prev.filter(item => item.inventory_id !== update.recordId))
+          toast.info('Inventory item removed')
+        } catch (error) {
+          console.error('Error handling DELETE:', error)
+          toast.error('Failed to process inventory deletion')
+        }
+        break
+
+      default:
+        console.warn('Unknown operation type:', update.operation)
+    }
+  }
 
   const fetchInventory = async () => {
     try {
@@ -239,10 +474,51 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inventory</CardTitle>
-        <CardDescription>
-          {inventory.length} inventory items • {filteredInventory.length} shown
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              Inventory
+              {connectionStatus.isConnected && (
+                <div className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    connectionStatus.connectionQuality === 'excellent' ? 'bg-green-500' :
+                    connectionStatus.connectionQuality === 'good' ? 'bg-yellow-500' :
+                    connectionStatus.connectionQuality === 'poor' ? 'bg-orange-500' : 'bg-red-500'
+                  }`} />
+                  <Wifi className="h-4 w-4 text-green-600" />
+                </div>
+              )}
+              {!connectionStatus.isConnected && (
+                <WifiOff className="h-4 w-4 text-red-600" />
+              )}
+            </CardTitle>
+            <CardDescription>
+              {inventory.length} inventory items • {filteredInventory.length} shown
+              {lastUpdate && (
+                <span className="text-xs text-slate-500 ml-2">
+                  • Last update: {new Date(lastUpdate).toLocaleTimeString()}
+                </span>
+              )}
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => realtimeSync?.reconnectAll()}
+              disabled={!connectionStatus.isConnected}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Reconnect
+            </Button>
+            <div className="text-xs text-slate-500">
+              {connectionStatus.connectionQuality === 'excellent' && 'Excellent'}
+              {connectionStatus.connectionQuality === 'good' && 'Good'}
+              {connectionStatus.connectionQuality === 'poor' && 'Poor'}
+              {connectionStatus.connectionQuality === 'disconnected' && 'Disconnected'}
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 gap-2 pt-4 pb-4">

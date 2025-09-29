@@ -44,10 +44,11 @@ interface Customer {
 interface InventoryItem {
   inventory_id: string
   pn_id: string
-  serial_number: string | null
-  condition: string | null
+  sn: string | null
+  physical_status: string | null
+  business_status: string | null
   location: string | null
-  unit_cost: number | null
+  po_price: number | null
   status: string
   application_code: string | null
   dimensions: string | null
@@ -927,7 +928,7 @@ export default function NewSalesOrderClientPage({
                             setValue(`items.${index}.inventory_id`, value)
                             const item = inventoryItems.find(inv => inv.inventory_id === value)
                             if (item) {
-                              setValue(`items.${index}.unit_price`, item.unit_cost || 0)
+                              setValue(`items.${index}.unit_price`, item.po_price || 0)
                             }
                           }}
                         >
@@ -942,10 +943,10 @@ export default function NewSalesOrderClientPage({
                                 <div className="flex flex-col">
                                   <div className="font-mono">{item.pn_master_table.pn}</div>
                                   <div className="text-sm text-slate-600">
-                                    {item.pn_master_table.description} | SN: {item.serial_number || 'N/A'} | Condition: {item.condition || 'N/A'}
+                                    {item.pn_master_table.description} | SN: {item.sn || 'N/A'} | Condition: {item.physical_status || 'N/A'} ({item.business_status || 'N/A'})
                                   </div>
                                   <div className="text-xs text-slate-500">
-                                    Location: {item.location || 'N/A'} | Status: {item.status}
+                                    Status: {item.status}
                                   </div>
                                 </div>
                               </SelectItem>
@@ -992,10 +993,9 @@ export default function NewSalesOrderClientPage({
                         <div className="text-sm space-y-1">
                           <div><strong>Part:</strong> {selectedInventory.pn_master_table.pn}</div>
                           <div><strong>Description:</strong> {selectedInventory.pn_master_table.description || 'N/A'}</div>
-                          <div><strong>Serial Number:</strong> {selectedInventory.serial_number || 'N/A'}</div>
-                          <div><strong>Condition:</strong> {selectedInventory.condition || 'N/A'}</div>
-                          <div><strong>Quantity:</strong> {selectedInventory.quantity}</div>
-                          <div><strong>Location:</strong> {selectedInventory.location || 'N/A'}</div>
+                          <div><strong>Serial Number:</strong> {selectedInventory.sn || 'N/A'}</div>
+                          <div><strong>Condition:</strong> {selectedInventory.physical_status || 'N/A'} ({selectedInventory.business_status || 'N/A'})</div>
+                          <div><strong>Quantity:</strong> (Enter quantity below)</div>
                           {selectedInventory.application_code && (
                             <div><strong>Application Code:</strong> {selectedInventory.application_code}</div>
                           )}

@@ -106,28 +106,27 @@ export class RealtimeStatusSyncManager {
   }
 
   /**
-   * Subscribe to inventory status changes
+   * Subscribe to all inventory changes (INSERT, UPDATE, DELETE)
    */
-  subscribeToInventoryStatus(callback: StatusSyncCallback): () => void {
-    const subscriptionKey = 'inventory_status'
-    
+  subscribeToAllInventoryChanges(callback: StatusSyncCallback): () => void {
+    const subscriptionKey = 'inventory_all_changes'
+
     if (!this.subscriptions.has(subscriptionKey)) {
       const channel = this.supabaseClient
-        .channel(`inventory_status_${Date.now()}`)
+        .channel(`inventory_all_${Date.now()}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'inventory',
-            filter: 'business_status=neq.null OR physical_status=neq.null'
+            table: 'inventory'
           },
           (payload: RealtimePostgresChangesPayload<any>) => {
-            this.handleInventoryStatusChange(payload)
+            this.handleInventoryAllChanges(payload)
           }
         )
         .subscribe((status) => {
-          console.log('Inventory status subscription:', status)
+          console.log('Inventory all changes subscription:', status)
           this.updateConnectionStatus()
         })
 
@@ -150,6 +149,74 @@ export class RealtimeStatusSyncManager {
         }
       }
     }
+  }
+
+  /**
+   * Subscribe to inventory status changes (only status-related updates)
+   */
+  subscribeToInventoryStatus(callback: StatusSyncCallback): () => void {
+    const subscriptionKey = 'inventory_status_only'
+
+    if (!this.subscriptions.has(subscriptionKey)) {
+      const channel = this.supabaseClient
+        .channel(`inventory_status_only_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'inventory',
+            filter: 'business_status=neq.null OR physical_status=neq.null'
+          },
+          (payload: RealtimePostgresChangesPayload<any>) => {
+            this.handleInventoryStatusChange(payload)
+          }
+        )
+        .subscribe((status) => {
+          console.log('Inventory status-only subscription:', status)
+          this.updateConnectionStatus()
+        })
+
+      this.subscriptions.set(subscriptionKey, channel)
+    }
+
+    // Add callback
+    if (!this.statusCallbacks.has(subscriptionKey)) {
+      this.statusCallbacks.set(subscriptionKey, [])
+    }
+    this.statusCallbacks.get(subscriptionKey)!.push(callback)
+
+    // Return unsubscribe function
+    return () => {
+      const callbacks = this.statusCallbacks.get(subscriptionKey)
+      if (callbacks) {
+        const index = callbacks.indexOf(callback)
+        if (index > -1) {
+          callbacks.splice(index, 1)
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle all inventory change events (INSERT, UPDATE, DELETE)
+   */
+  private handleInventoryAllChanges(payload: RealtimePostgresChangesPayload<any>): void {
+    const { eventType, new: newRecord, old: oldRecord } = payload
+
+    console.log('All inventory change:', { eventType, newRecord, oldRecord })
+
+    const statusUpdate: StatusUpdate = {
+      id: `inventory_all_${(newRecord as any)?.inventory_id || (oldRecord as any)?.inventory_id}_${Date.now()}`,
+      table: 'inventory',
+      recordId: (newRecord as any)?.inventory_id || (oldRecord as any)?.inventory_id,
+      oldStatus: eventType === 'UPDATE' ? oldRecord : undefined,
+      newStatus: eventType !== 'DELETE' ? newRecord : undefined,
+      timestamp: new Date().toISOString(),
+      operation: eventType as any
+    }
+
+    this.notifyStatusCallbacks('inventory_all_changes', statusUpdate)
   }
 
   /**

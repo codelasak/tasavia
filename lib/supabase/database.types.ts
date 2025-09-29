@@ -499,6 +499,66 @@ export type Database = {
           },
         ]
       }
+      numbering_sequences: {
+        Row: {
+          created_at: string | null
+          id: number
+          last_number: number
+          order_type: string
+          prefix: string
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          last_number: number
+          order_type: string
+          prefix: string
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          last_number?: number
+          order_type?: string
+          prefix?: string
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      numbering_sequences_2025_backup: {
+        Row: {
+          created_at: string | null
+          id: number | null
+          last_number: number | null
+          order_type: string | null
+          prefix: string | null
+          updated_at: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number | null
+          last_number?: number | null
+          order_type?: string | null
+          prefix?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number | null
+          last_number?: number | null
+          order_type?: string | null
+          prefix?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
       part_number_history: {
         Row: {
           approval_date: string | null
@@ -789,7 +849,7 @@ export type Database = {
           payment_term?: string | null
           po_date?: string
           po_id?: string
-          po_number: string
+          po_number?: string
           prepared_by_name?: string | null
           prepared_by_user_id?: string | null
           regulatory_authority?: string | null
@@ -1448,13 +1508,71 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_invoice_number_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_invoice_number_2026: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_invoice_number_future: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_po_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_po_number_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_po_number_2026: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_po_number_future: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
       generate_repair_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      generate_repair_order_number_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_repair_order_number_2026: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_repair_order_number_future: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_inventory_item_with_part: {
+        Args: { inv_id: string }
+        Returns: {
+          business_status: string
+          condition: string
+          created_at: string
+          inventory_id: string
+          location: string
+          physical_status: string
+          pn_id: string
+          pn_master_table: Json
+          po_id_original: string
+          po_number_original: string
+          po_price: number
+          remarks: string
+          sn: string
+          status: string
+          status_updated_at: string
+          status_updated_by: string
+          updated_at: string
+        }[]
       }
       get_inventory_with_parts: {
         Args: Record<PropertyKey, never>
@@ -1507,9 +1625,27 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      transition_to_2026_numbering: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      transition_to_yearly_numbering: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       validate_company_reference: {
         Args: { company_id: string; company_ref_type: string }
         Returns: boolean
+      }
+      verify_2026_transition: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          column_name: string
+          current_default: string
+          expected_default: string
+          is_correct: boolean
+          table_name: string
+        }[]
       }
     }
     Enums: {
