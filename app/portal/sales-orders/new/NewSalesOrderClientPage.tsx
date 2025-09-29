@@ -47,7 +47,6 @@ interface InventoryItem {
   serial_number: string | null
   condition: string | null
   location: string | null
-  quantity: number | null
   unit_cost: number | null
   status: string
   application_code: string | null
@@ -118,6 +117,7 @@ interface NewSalesOrderClientPageProps {
 const salesOrderItemSchema = z.object({
   inventory_id: z.string().min(1, 'Part is required'),
   unit_price: z.number().min(0, 'Unit price must be positive'),
+  quantity: z.number().min(1, 'Quantity must be at least 1'),
 })
 
 const salesOrderSchema = z.object({
@@ -340,11 +340,10 @@ export default function NewSalesOrderClientPage({
 
   const calculateSubtotal = useCallback(() => {
     return form.watch('items').reduce((sum, item) => {
-      const inventoryItem = inventoryItems.find(inv => inv.inventory_id === item.inventory_id)
-      const quantity = inventoryItem?.quantity || 1
+      const quantity = item.quantity || 1
       return sum + (quantity * item.unit_price)
     }, 0)
-  }, [form, inventoryItems])
+  }, [form])
 
   const calculateTotal = useCallback(() => {
     const subtotal = calculateSubtotal()
@@ -397,6 +396,7 @@ export default function NewSalesOrderClientPage({
       items: data.items.map((item) => ({
         inventory_id: item.inventory_id,
         unit_price: item.unit_price,
+        quantity: item.quantity,
       }))
     }
 
@@ -889,6 +889,7 @@ export default function NewSalesOrderClientPage({
                 onClick={() => append({
                   inventory_id: '',
                   unit_price: 0,
+                  quantity: 1,
                 })}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -917,7 +918,7 @@ export default function NewSalesOrderClientPage({
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label>Inventory Item</Label>
                         <Select
@@ -944,13 +945,29 @@ export default function NewSalesOrderClientPage({
                                     {item.pn_master_table.description} | SN: {item.serial_number || 'N/A'} | Condition: {item.condition || 'N/A'}
                                   </div>
                                   <div className="text-xs text-slate-500">
-                                    Qty: {item.quantity} | Location: {item.location || 'N/A'} | Status: {item.status}
+                                    Location: {item.location || 'N/A'} | Status: {item.status}
                                   </div>
                                 </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      <div>
+                        <Label>Quantity</Label>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="1"
+                          {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
+                          className={form.formState.errors.items?.[index]?.quantity ? 'border-red-500' : ''}
+                        />
+                        {form.formState.errors.items?.[index]?.quantity && (
+                          <div className="text-red-500 text-sm mt-1">
+                            {form.formState.errors.items[index]?.quantity?.message}
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -998,7 +1015,7 @@ export default function NewSalesOrderClientPage({
                         <div className="mt-2 text-right">
                           <span className="text-sm text-slate-600">Line Total: </span>
                           <span className="font-semibold">
-                            ${((selectedInventory.quantity || 1) * form.watch(`items.${index}.unit_price`)).toFixed(2)}
+                            ${(form.watch(`items.${index}.quantity`) || 1) * (form.watch(`items.${index}.unit_price`) || 0)}
                           </span>
                         </div>
                       </div>

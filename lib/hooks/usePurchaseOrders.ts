@@ -254,9 +254,11 @@ export function useCreateSalesOrder() {
           .from('sales_order_items')
           .insert(salesOrderData.items.map((item: any, index: number) => {
             const unit_price = Number(item.unit_price) || 0
+            const quantity = Number(item.quantity) || 1
             return {
               inventory_id: item.inventory_id,
               unit_price,
+              quantity,
               sales_order_id: soData.sales_order_id,
               line_number: index + 1,
             }
