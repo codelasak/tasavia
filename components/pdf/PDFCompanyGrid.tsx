@@ -98,7 +98,6 @@ function CompanySection({ section }: { section: CompanySection }) {
         <div className="font-semibold">
           {company.my_company_name || company.company_name}
         </div>
-        <div>{company.my_company_code || company.company_code}</div>
         {company.customer_number && (
           <div className="font-medium text-blue-600">Customer #: {company.customer_number}</div>
         )}

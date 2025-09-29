@@ -126,6 +126,7 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
 
 
   const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
+  const TBD_DISPLAY = "TBD - To Be Determined"
   const hasShipToInfo = !!(purchaseOrder.ship_to_company_name?.trim() || purchaseOrder.ship_to_address_details?.trim())
 
   // Prepare company sections for PDFCompanyGrid
@@ -148,26 +149,38 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
         company_contacts: purchaseOrder.companies.company_contacts
       }
     },
-    ...(hasShipToInfo ? [
-      {
-        title: 'SHIP TO',
-        company: {
-          company_name: purchaseOrder.ship_to_company_name || '',
-          company_code: '',
-          company_addresses: [{
-            address_line1: purchaseOrder.ship_to_address_details || '',
-            address_line2: null,
-            city: null,
-            country: null
-          }],
-          company_contacts: [{
-            contact_name: purchaseOrder.ship_to_contact_name || '',
-            phone: purchaseOrder.ship_to_contact_phone,
-            email: purchaseOrder.ship_to_contact_email
-          }]
-        }
+    {
+      title: 'SHIP TO',
+      company: hasShipToInfo ? {
+        company_name: purchaseOrder.ship_to_company_name || '',
+        company_code: '',
+        company_addresses: [{
+          address_line1: purchaseOrder.ship_to_address_details || '',
+          address_line2: null,
+          city: null,
+          country: null
+        }],
+        company_contacts: [{
+          contact_name: purchaseOrder.ship_to_contact_name || '',
+          phone: purchaseOrder.ship_to_contact_phone,
+          email: purchaseOrder.ship_to_contact_email
+        }]
+      } : {
+        company_name: TBD_DISPLAY,
+        company_code: '',
+        company_addresses: [{
+          address_line1: 'Ship to company will be determined',
+          address_line2: null,
+          city: null,
+          country: null
+        }],
+        company_contacts: [{
+          contact_name: 'Contact information will be provided',
+          phone: null,
+          email: null
+        }]
       }
-    ] : [])
+    }
   ]
 
   return (

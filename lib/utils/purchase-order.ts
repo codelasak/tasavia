@@ -23,14 +23,14 @@ export function populateObtainedFromWithVendorName<T extends { items: any[] }>(
 ): void {
   if (!vendorName) return
 
-  const currentItems = form.getValues('items') || []
+  const currentItems = (form.getValues('items' as any) as any[]) || []
 
-  currentItems.forEach((item, index) => {
+  currentItems.forEach((item: any, index: number) => {
     const currentValue = item.traceability_source || ''
 
     // Only populate if field is empty
     if (!currentValue) {
-      form.setValue(`items.${index}.traceability_source` as any, vendorName, {
+      form.setValue(`items.${index}.traceability_source` as any, vendorName as any, {
         shouldValidate: true,
         shouldDirty: true
       })

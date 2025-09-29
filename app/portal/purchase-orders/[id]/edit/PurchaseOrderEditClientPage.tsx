@@ -70,6 +70,7 @@ interface PurchaseOrderEditData {
 
 const CURRENCY_OPTIONS = ['USD', 'EURO', 'TL', 'GBP'];
 const PAYMENT_TERM_OPTIONS = ['PRE-PAY', 'COD', 'NET5', 'NET10', 'NET15', 'NET30'];
+const TBD_DISPLAY = "TBD - To Be Determined";
 
 const poItemSchema = z.object({
   po_item_id: z.string().optional(),
@@ -1304,45 +1305,51 @@ export default function PurchaseOrderEditClientPage({
             </div>
 
             {/* Display selected ship-to company information */}
-            {selectedShipToCompany && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-2">Selected Ship To Company</h4>
-                <div className="text-sm text-slate-600 space-y-1">
-                  <div className="font-medium">
-                    {selectedShipToCompany.company_name}
-                  </div>
-                  {selectedShipToCompany?.company_addresses?.length > 0 && (
-                    <>
-                      {selectedShipToCompany.company_addresses.map((addr, idx) => (
-                        <div key={idx}>
-                          <div>{addr.address_line1}</div>
-                          {addr.address_line2 && <div>{addr.address_line2}</div>}
-                          {(addr.city || addr.country) && (
-                            <div>
-                              {addr.city}
-                              {addr.city && addr.country && ', '}
-                              {addr.country}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                  {selectedShipToCompany?.company_contacts?.length > 0 && (
-                    <div className="mt-2">
-                      <div className="font-medium">Contact:</div>
-                      {selectedShipToCompany.company_contacts.map((contact, idx) => (
-                        <div key={idx}>
-                          <div>{contact.contact_name}</div>
-                          {contact.phone && <div>Phone: {contact.phone}</div>}
-                          {contact.email && <div>Email: {contact.email}</div>}
-                        </div>
-                      ))}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-semibold text-slate-900 mb-2">Selected Ship To Company</h4>
+              <div className="text-sm text-slate-600 space-y-1">
+                {selectedShipToCompany ? (
+                  <>
+                    <div className="font-medium">
+                      {selectedShipToCompany.company_name}
                     </div>
-                  )}
-                </div>
+                    {selectedShipToCompany?.company_addresses?.length > 0 && (
+                      <>
+                        {selectedShipToCompany.company_addresses.map((addr, idx) => (
+                          <div key={idx}>
+                            <div>{addr.address_line1}</div>
+                            {addr.address_line2 && <div>{addr.address_line2}</div>}
+                            {(addr.city || addr.country) && (
+                              <div>
+                                {addr.city}
+                                {addr.city && addr.country && ', '}
+                                {addr.country}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    {selectedShipToCompany?.company_contacts?.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-medium">Contact:</div>
+                        {selectedShipToCompany.company_contacts.map((contact, idx) => (
+                          <div key={idx}>
+                            <div>{contact.contact_name}</div>
+                            {contact.phone && <div>Phone: {contact.phone}</div>}
+                            {contact.email && <div>Email: {contact.email}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="font-medium text-amber-600">
+                    {TBD_DISPLAY}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Current Ship To Information Display */}
             {purchaseOrder && (purchaseOrder.ship_to_company_name || purchaseOrder.ship_to_address_details) && !selectedShipToCompany && (
