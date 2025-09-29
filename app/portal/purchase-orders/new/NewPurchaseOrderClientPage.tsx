@@ -20,7 +20,8 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
-import { fetchCountries } from '@/lib/external-apis'
+import { fetchCountries, getCountriesWithPriorityOrdering } from '@/lib/external-apis'
+import { extractVendorCompanyName, populateObtainedFromWithVendorName } from '@/lib/utils/purchase-order'
 import FileUpload from '@/components/ui/file-upload'
 import { type UnifiedCompany } from '@/lib/services/company-service'
 
@@ -148,7 +149,7 @@ export default function NewPurchaseOrderClientPage({
       // Load countries for origin country field in line items
       setLoadingCountries(true)
       try {
-        const countriesData = await fetchCountries()
+        const countriesData = await getCountriesWithPriorityOrdering()
         setCountries(countriesData)
       } catch (error) {
         console.error('Failed to load countries:', error)
@@ -454,7 +455,14 @@ export default function NewPurchaseOrderClientPage({
                 <Label htmlFor="vendor_company_id">Vendor</Label>
                 <Select
                   value={form.watch('vendor_company_id')}
-                  onValueChange={(value) => form.setValue('vendor_company_id', value)}
+                  onValueChange={(value) => {
+                    form.setValue('vendor_company_id', value)
+                    const selectedVendor = externalCompanies.find(c => c.company_id === value)
+                    if (selectedVendor) {
+                      const vendorName = extractVendorCompanyName(selectedVendor)
+                      populateObtainedFromWithVendorName(form, vendorName)
+                    }
+                  }}
                 >
                   <SelectTrigger id="vendor_company_id" className={form.formState.errors.vendor_company_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select vendor" />

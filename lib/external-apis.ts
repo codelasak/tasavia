@@ -267,6 +267,55 @@ export async function fetchCountries(): Promise<{ name: string; code: string; re
 }
 
 /**
+ * Fetch countries with priority ordering for Purchase Order Origin Country field
+ * Shows ALL countries with priority countries (USA, UK, Germany, France) at the top
+ * for easy selection, followed by all other countries alphabetically
+ */
+export async function getCountriesWithPriorityOrdering(): Promise<{ name: string; code: string; region: string }[]> {
+  try {
+    const allCountries = await fetchCountries()
+    const priorityCountries = ['United States', 'United Kingdom', 'Germany', 'France']
+
+    // Separate priority countries from others
+    const priorityList = allCountries.filter(country => priorityCountries.includes(country.name))
+    const otherCountries = allCountries.filter(country => !priorityCountries.includes(country.name))
+
+    // Sort priority countries in desired order
+    const sortedPriority = priorityList.sort((a, b) => {
+      const order = ['United States', 'United Kingdom', 'Germany', 'France']
+      return order.indexOf(a.name) - order.indexOf(b.name)
+    })
+
+    // Sort other countries alphabetically
+    const sortedOthers = otherCountries.sort((a, b) => a.name.localeCompare(b.name))
+
+    // Combine: priority countries first, then all others
+    return [...sortedPriority, ...sortedOthers]
+  } catch (error) {
+    console.error('Error fetching purchase order origin countries:', error)
+    // Fallback to mock data with priority countries first
+    const priorityFallback = [
+      { name: 'United States', code: 'US', region: 'Americas' },
+      { name: 'United Kingdom', code: 'GB', region: 'Europe' },
+      { name: 'Germany', code: 'DE', region: 'Europe' },
+      { name: 'France', code: 'FR', region: 'Europe' }
+    ]
+
+    // Add some common fallback countries
+    const otherFallback = [
+      { name: 'Canada', code: 'CA', region: 'Americas' },
+      { name: 'Italy', code: 'IT', region: 'Europe' },
+      { name: 'Spain', code: 'ES', region: 'Europe' },
+      { name: 'Netherlands', code: 'NL', region: 'Europe' },
+      { name: 'Japan', code: 'JP', region: 'Asia' },
+      { name: 'Australia', code: 'AU', region: 'Oceania' }
+    ]
+
+    return [...priorityFallback, ...otherFallback.sort((a, b) => a.name.localeCompare(b.name))]
+  }
+}
+
+/**
  * Enhanced MSN validation with multiple API sources
  * Validates both format and existence in aviation databases
  */

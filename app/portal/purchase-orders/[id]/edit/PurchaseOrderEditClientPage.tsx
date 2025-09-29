@@ -21,7 +21,8 @@ import { cn } from '@/lib/utils'
 import POCompletionModal from '@/components/purchase-orders/POCompletionModal'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { usePurchaseOrdersContext } from '@/hooks/usePurchaseOrdersContext'
-import { fetchCountries } from '@/lib/external-apis'
+import { fetchCountries, getCountriesWithPriorityOrdering } from '@/lib/external-apis'
+import { extractVendorCompanyName, populateObtainedFromWithVendorName } from '@/lib/utils/purchase-order'
 import FileUpload from '@/components/ui/file-upload'
 
 // Simplified interfaces to match database structure directly
@@ -432,7 +433,7 @@ export default function PurchaseOrderEditClientPage({
       console.log('🌍 Loading countries data...')
       setLoadingCountries(true)
       try {
-        const countriesData = await fetchCountries()
+        const countriesData = await getCountriesWithPriorityOrdering()
         setCountries(countriesData)
         console.log('✅ Countries loaded:', countriesData?.length || 0)
       } catch (error) {
@@ -1051,6 +1052,12 @@ export default function PurchaseOrderEditClientPage({
                   onValueChange={(value) => {
                     console.log('🏪 Vendor Company Select onChange triggered:', value)
                     safeFormSetValue('vendor_company_id', value, validExternalCompanies)
+
+                    const selectedVendor = validExternalCompanies.find(c => c.company_id === value)
+                    if (selectedVendor) {
+                      const vendorName = extractVendorCompanyName(selectedVendor)
+                      populateObtainedFromWithVendorName(form, vendorName)
+                    }
                   }}
                   disabled={isInitializingForm}
                 >
