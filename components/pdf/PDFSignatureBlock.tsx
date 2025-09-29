@@ -1,8 +1,10 @@
+import Image from 'next/image'
+
 interface SignatureField {
   label: string
   value?: string
   height?: 'small' | 'medium' | 'large'
-  type?: 'signature' | 'text' | 'date'
+  type?: 'signature' | 'text' | 'date' | 'signature-image'
 }
 
 interface SignatureSection {
@@ -21,8 +23,14 @@ interface PDFSignatureBlockProps {
 
 const heightClasses = {
   small: 'h-6',
-  medium: 'h-8', 
+  medium: 'h-8',
   large: 'h-20'
+}
+
+const signatureImageSizes = {
+  small: { width: 85, height: 46 },    // ~1.85:1 aspect ratio from 914x494 - smaller
+  medium: { width: 110, height: 60 },  // Scaled appropriately - smaller
+  large: { width: 140, height: 76 }   // Scaled appropriately - smaller
 }
 
 const gapClasses = {
@@ -55,6 +63,16 @@ export default function PDFSignatureBlock({
                 <div className="font-semibold mb-1">{field.label}:</div>
                 {field.value ? (
                   <div className="font-medium">{field.value}</div>
+                ) : field.type === 'signature-image' ? (
+                  <div className="mb-2">
+                    <Image
+                      src="/signature.png"
+                      alt="Signature"
+                      width={signatureImageSizes[field.height || 'medium'].width}
+                      height={signatureImageSizes[field.height || 'medium'].height}
+                      className="object-contain"
+                    />
+                  </div>
                 ) : (
                   <div className={`border-b border-slate-400 ${heightClasses[field.height || 'medium']} mb-2`}></div>
                 )}

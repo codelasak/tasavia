@@ -1,8 +1,10 @@
+import Image from 'next/image'
+
 interface SignatureFieldCompact {
   label: string
   value?: string
   height?: 'small' | 'medium' | 'large'
-  type?: 'signature' | 'text' | 'date'
+  type?: 'signature' | 'text' | 'date' | 'signature-image'
 }
 
 interface SignatureSectionCompact {
@@ -23,6 +25,12 @@ const heightClassesCompact = {
   small: 'h-4',      // Reduced from h-6
   medium: 'h-5',     // Reduced from h-8
   large: 'h-12'      // Reduced from h-20
+}
+
+const signatureImageSizesCompact = {
+  small: { width: 65, height: 35 },    // ~1.85:1 aspect ratio, smaller for compact
+  medium: { width: 85, height: 46 },   // Scaled appropriately - smaller
+  large: { width: 105, height: 57 }   // Scaled appropriately - smaller
 }
 
 const gapClassesCompact = {
@@ -55,6 +63,16 @@ export default function PDFSignatureBlockCompact({
                 <div className="font-semibold mb-0.5 text-xs">{field.label}:</div>
                 {field.value ? (
                   <div className="font-medium text-xs">{field.value}</div>
+                ) : field.type === 'signature-image' ? (
+                  <div className="mb-1">
+                    <Image
+                      src="/signature.png"
+                      alt="Signature"
+                      width={signatureImageSizesCompact[field.height || 'medium'].width}
+                      height={signatureImageSizesCompact[field.height || 'medium'].height}
+                      className="object-contain"
+                    />
+                  </div>
                 ) : (
                   <div className={`border-b border-slate-400 ${heightClassesCompact[field.height || 'medium']} mb-1`}></div>
                 )}

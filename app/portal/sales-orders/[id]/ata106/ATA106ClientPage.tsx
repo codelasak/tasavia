@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { format } from 'date-fns'
@@ -464,7 +465,15 @@ export default function ATA106ClientPage({ salesOrder }: ATA106ClientPageProps) 
                 <div className="space-y-3 text-sm">
                   <div>
                     <div className="font-semibold mb-1">AUTHORIZED SIGNATURE:</div>
-                    <div className="border-b border-slate-400 h-8 mb-2"></div>
+                    <div className="mb-2">
+                      <Image
+                        src="/signature.png"
+                        alt="Signature"
+                        width={110}
+                        height={60}
+                        className="object-contain"
+                      />
+                    </div>
                   </div>
                   <div>
                     <div className="font-semibold mb-1">PRINT NAME:</div>
@@ -484,7 +493,15 @@ export default function ATA106ClientPage({ salesOrder }: ATA106ClientPageProps) 
                 <div className="space-y-3 text-sm">
                   <div>
                     <div className="font-semibold mb-1">AUTHORIZED SIGNATURE:</div>
-                    <div className="border-b border-slate-400 h-8 mb-2"></div>
+                    <div className="mb-2">
+                      <Image
+                        src="/signature.png"
+                        alt="Signature"
+                        width={110}
+                        height={60}
+                        className="object-contain"
+                      />
+                    </div>
                   </div>
                   <div>
                     <div className="font-semibold mb-1">PRINT NAME:</div>

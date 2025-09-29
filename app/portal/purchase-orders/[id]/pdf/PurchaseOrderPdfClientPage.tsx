@@ -267,12 +267,12 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
               All material must be traced to a certificated operator. Any material not traced to an operator must be pre-approved prior to shipment.
             </div>
             
-            <PDFSignatureBlock 
+            <PDFSignatureBlock
               sections={[
                 {
                   title: "AUTHORIZED SIGNATURE",
                   fields: [
-                    { label: "Authorized Sign", type: "signature", height: "large" }
+                    { label: "Authorized Sign", type: "signature-image", height: "large" }
                   ]
                 }
               ]}

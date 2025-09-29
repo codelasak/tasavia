@@ -22,7 +22,7 @@ export default function PDFHeader({
     <div className="flex items-center justify-between mb-8">
       <div className="flex items-center">
         <Image
-          src="/logo.png"
+          src="/tasavia-logo-black.png"
           alt="TASAVIA"
           width={150}
           height={50}

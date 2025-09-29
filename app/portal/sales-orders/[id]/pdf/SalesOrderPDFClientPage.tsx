@@ -283,13 +283,13 @@ export default function InvoicePDFClientPage({ salesOrder }: InvoicePDFClientPag
         </div>
       </div>
 
-      <PDFSignatureBlock 
+      <PDFSignatureBlock
         sections={[
           {
             title: "AUTHORIZED SIGNATURE",
             titleClassName: "border-b pb-1",
             fields: [
-              { label: "Signature", type: "signature", height: "large" },
+              { label: "Signature", type: "signature-image", height: "large" },
               { label: "Name", type: "text" },
               { label: "Date", type: "date" }
             ]
