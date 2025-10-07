@@ -17,7 +17,8 @@ export default function PDFFooterCompact({
 }: PDFFooterCompactProps) {
   return (
     <div className={`flex justify-between items-center text-xs text-slate-500 mt-6 pt-2 border-t border-slate-200 ${className}`}>
-      <div className="leading-tight">
+      {/* Meta info visible on portal screen but hidden when printing */}
+      <div className="leading-tight no-print">
         <div>{documentType} generated on {format(new Date(), 'MMM dd, yyyy HH:mm')}</div>
         <div className="mt-0.5">{documentType} Number: {documentNumber}</div>
         {status && <div className="mt-0.5">Status: {status}</div>}

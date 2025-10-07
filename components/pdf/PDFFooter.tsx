@@ -17,7 +17,8 @@ export default function PDFFooter({
 }: PDFFooterProps) {
   return (
     <div className={`flex justify-between items-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-200 ${className}`}>
-      <div>
+      {/* Meta info should not appear on printed/PDF output */}
+      <div className="no-print">
         <div>{documentType} generated on {format(new Date(), 'MMMM dd, yyyy HH:mm')}</div>
         <div className="mt-1">{documentType} Number: {documentNumber}</div>
         {status && <div className="mt-1">Status: {status}</div>}
