@@ -14,7 +14,7 @@ interface InventoryItem {
   remarks: string | null
   status: string | null
   physical_status: 'depot' | 'in_repair' | 'in_transit'
-  business_status: 'available' | 'reserved' | 'sold'
+  business_status: 'available' | 'reserved' | 'sold' | 'cancelled'
   status_updated_at: string | null
   status_updated_by: string | null
   po_id_original: string | null
@@ -80,7 +80,7 @@ async function getInventory() {
           const joinedData = inventoryData.map(item => ({
             ...item,
             physical_status: item.physical_status as 'depot' | 'in_repair' | 'in_transit',
-            business_status: item.business_status as 'available' | 'reserved' | 'sold',
+            business_status: item.business_status as 'available' | 'reserved' | 'sold' | 'cancelled' | 'cancelled',
             pn_master_table: partNumbers?.find(pn => pn.pn_id === item.pn_id) || { pn: '', description: null }
           }))
           console.log('✅ Manual join successful:', joinedData.length, 'items')
@@ -92,7 +92,7 @@ async function getInventory() {
       const castData = inventoryData?.map(item => ({
         ...item,
         physical_status: item.physical_status as 'depot' | 'in_repair' | 'in_transit',
-        business_status: item.business_status as 'available' | 'reserved' | 'sold'
+        business_status: item.business_status as 'available' | 'reserved' | 'sold' | 'cancelled'
       })) || []
 
       console.log('✅ Direct query successful:', castData.length, 'items')
@@ -103,7 +103,7 @@ async function getInventory() {
     const castData = data?.map(item => ({
       ...item,
       physical_status: item.physical_status as 'depot' | 'in_repair' | 'in_transit',
-      business_status: item.business_status as 'available' | 'reserved' | 'sold'
+      business_status: item.business_status as 'available' | 'reserved' | 'sold' | 'cancelled'
     })) || []
 
     console.log('✅ RPC query successful:', castData.length, 'items')

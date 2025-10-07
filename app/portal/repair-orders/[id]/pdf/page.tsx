@@ -1,16 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import PDFLayout from '@/components/pdf/PDFLayout'
-import PDFHeader from '@/components/pdf/PDFHeader'
-import PDFCompanyGrid from '@/components/pdf/PDFCompanyGrid'
 import PDFFooter from '@/components/pdf/PDFFooter'
-import PDFSignatureBlock from '@/components/pdf/PDFSignatureBlock'
-import PDFFinancialSummary from '@/components/pdf/PDFFinancialSummary'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
 import { useAuth } from '@/components/auth/AuthProvider'
+import Image from 'next/image'
 
 interface RepairOrderPDFData {
   repair_order_id: string
@@ -73,6 +69,7 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
   const [repairOrder, setRepairOrder] = useState<RepairOrderPDFData | null>(null)
   const [loading, setLoading] = useState(true)
   const { user, loading: authLoading } = useAuth()
+  const [overrides, setOverrides] = useState<any | null>(null)
 
   const fetchRepairOrder = useCallback(async () => {
     try {
@@ -123,26 +120,40 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
     }
   }, [authLoading, user, fetchRepairOrder])
 
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(`ro_pdf_overrides_${params.id}`) : null
+      if (raw) setOverrides(JSON.parse(raw))
+    } catch {}
+  }, [params.id])
+
   const handleDownload = () => {
     window.print()
   }
 
+  // legacy util kept for compatibility (unused in new template)
   const formatAddress = (company: any) => {
-    if (!company.company_addresses || company.company_addresses.length === 0) {
-      return ''
-    }
-
-    const address = company.company_addresses[0] // Use primary address
-    const parts = [
-      address.address_line1,
-      address.address_line2,
-      address.city,
-      address.zip_code,
-      address.country
-    ].filter(Boolean)
-
-    return parts.join(', ')
+    if (!company.company_addresses || company.company_addresses.length === 0) return ''
+    const a = company.company_addresses[0]
+    return [a.address_line1, a.address_line2, a.city, a.zip_code, a.country].filter(Boolean).join(', ')
   }
+
+  // Precompute recipient blocks safely for hook rules
+  const toBlock = useMemo(() => {
+    if (!repairOrder) return { company_name: null as any, address: undefined as any }
+    const addr = (repairOrder.companies.company_addresses?.[0] || null) as any
+    return {
+      company_name: repairOrder.companies.company_name,
+      address: addr ? {
+        line1: addr.address_line1 || undefined,
+        line2: addr.address_line2 || undefined,
+        city: addr.city || undefined,
+        postal_code: addr.zip_code || undefined,
+        country: addr.country || undefined
+      } : undefined
+    }
+  }, [repairOrder])
+  const shipToBlock = toBlock
 
   if (loading || authLoading) {
     return (
@@ -160,45 +171,22 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
     )
   }
 
-  // Create TASAVIA company info for the FROM section
-  const tasaviaCompany = {
-    company_name: 'TASAVIA',
-    my_company_name: 'TASAVIA',
-    my_company_code: 'TASAVIA',
-    company_code: 'TASAVIA',
-    company_addresses: [{
-      address_line1: 'Aircraft Parts & Services',
-      address_line2: null,
-      city: null,
-      country: null
-    }],
-    company_contacts: []
-  }
+  // Derive recipient blocks for new RO template
+  // Moved above to satisfy React hook rules
 
-  // Format vendor company for consistent structure
-  const vendorCompany = {
-    company_name: repairOrder.companies.company_name,
-    company_code: repairOrder.companies.company_code,
-    company_addresses: repairOrder.companies.company_addresses || [],
-    company_contacts: repairOrder.companies.company_contacts || []
-  }
+  // Map items to RO table shape and pull basic packing slip info
+  const items = repairOrder.repair_order_items
+    .sort((a, b) => a.line_number - b.line_number)
+    .map((it) => ({
+      line_number: it.line_number,
+      description: it.inventory.pn_master_table.description || undefined,
+      pn: it.inventory.pn_master_table.pn,
+      sn: (it.inventory as any).sn || undefined,
+      workscope: it.workscope,
+      price: it.estimated_cost ?? 'TBD'
+    }))
 
-  const companySections = [
-    {
-      title: 'FROM',
-      company: tasaviaCompany
-    },
-    {
-      title: 'REPAIR VENDOR',
-      company: vendorCompany
-    }
-  ]
-
-  // Prepare additional header info
-  const additionalHeaderInfo = [
-    { label: 'Status', value: repairOrder.status },
-    { label: 'Ship Invoice', value: repairOrder.repair_order_number }
-  ]
+  const firstOrigin = repairOrder.repair_order_items.find(i => i.inventory.country_of_origin)?.inventory.country_of_origin || null
 
   return (
     <PDFLayout 
@@ -206,215 +194,176 @@ export default function RepairOrderPDFPage({ params }: RepairOrderPDFPageProps) 
       documentNumber={repairOrder.repair_order_number}
       onDownload={handleDownload}
     >
-      <PDFHeader
-        documentType="REPAIR ORDER"
-        documentNumber={repairOrder.repair_order_number}
-        documentDate={repairOrder.created_at}
-        additionalInfo={additionalHeaderInfo}
-      />
-
-      <PDFCompanyGrid sections={companySections} />
-
-      {/* Dates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {repairOrder.expected_return_date && (
-          <div className="bg-blue-50 p-4 rounded">
-            <div className="font-semibold text-blue-900">Expected Return Date</div>
-            <div className="text-blue-800 font-medium">
-              {format(new Date(repairOrder.expected_return_date), 'MMMM dd, yyyy')}
+      {/* Header: Logo + TASAVIA info (left), RO meta (right) */}
+      <div className="grid grid-cols-2 gap-4 border border-slate-300 mb-4">
+        <div className="p-4">
+          <div className="mb-2">
+            <Image src="/tasavia-logo-black.png" alt="TASAVIA" width={220} height={80} className="w-auto h-16" />
+          </div>
+          <div className="text-sm">
+            <div className="font-bold text-slate-900">TASAVIA LLC</div>
+            <div className="text-slate-900">18815 LANTERN COVE LN TOMBALL TX 77375 USA</div>
+            <div className="text-slate-900">sales@tasavia.com</div>
+          </div>
+        </div>
+        <div className="p-4 border-l border-slate-300">
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">REPAIR ORDER NO:</span>
+              <span className="font-extrabold text-slate-900 text-lg">{repairOrder.repair_order_number}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">DATE</span>
+              <span className="font-extrabold text-slate-900">{new Date(repairOrder.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">SHIP INVOICE</span>
+              <span className="font-extrabold text-slate-900">{overrides?.shipInvoiceNumber || `RO${repairOrder.repair_order_number.replace(/^[^0-9]*/, '')}`}</span>
             </div>
           </div>
-        )}
-        {repairOrder.actual_return_date && (
-          <div className="bg-green-50 p-4 rounded">
-            <div className="font-semibold text-green-900">Actual Return Date</div>
-            <div className="text-green-800 font-medium">
-              {format(new Date(repairOrder.actual_return_date), 'MMMM dd, yyyy')}
-            </div>
+        </div>
+      </div>
+
+      {/* Recipients: TO and SHIP TO/CONSIGNEE */}
+      <div className="grid grid-cols-2 gap-4 border border-slate-300 mb-4">
+        <div className="p-3">
+          <div className="border-b border-slate-300 pb-1 mb-2 text-sm">
+            <span className="font-semibold">TO :</span>
+            <span className="font-bold text-slate-900"> {toBlock.company_name || '—'}</span>
           </div>
-        )}
+          <div className="text-sm text-slate-900 whitespace-pre-line leading-5">
+            {toBlock.address?.line1 || ''}
+            {toBlock.address?.line2 ? `\n${toBlock.address.line2}` : ''}
+            {(toBlock.address?.city || toBlock.address?.postal_code || toBlock.address?.country) ? `\n${[toBlock.address?.city, toBlock.address?.postal_code].filter(Boolean).join(' ')}` : ''}
+            {toBlock.address?.country ? ` ${toBlock.address.country}` : ''}
+          </div>
+        </div>
+        <div className="p-3 border-l border-slate-300">
+          <div className="border-b border-slate-300 pb-1 mb-2 text-sm">
+            <span className="font-semibold">SHIP TO/ CONSIGNEE:</span>
+            <span className="font-bold text-slate-900"> {shipToBlock.company_name || '—'}</span>
+          </div>
+          <div className="text-sm text-slate-900 whitespace-pre-line leading-5">
+            {shipToBlock.address?.line1 || ''}
+            {shipToBlock.address?.line2 ? `\n${shipToBlock.address.line2}` : ''}
+            {(shipToBlock.address?.city || shipToBlock.address?.postal_code || shipToBlock.address?.country) ? `\n${[shipToBlock.address?.city, shipToBlock.address?.postal_code].filter(Boolean).join(' ')}` : ''}
+            {shipToBlock.address?.country ? ` ${shipToBlock.address.country}` : ''}
+          </div>
+        </div>
       </div>
 
       {/* Items Table */}
-      <div className="mb-8">
-        <h3 className="font-bold text-slate-900 mb-4">Items for Repair</h3>
-        <table className="w-full border-collapse border border-slate-300">
+      <div className="border border-slate-300 mb-4">
+        <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-slate-100">
-              <th className="border border-slate-300 p-3 text-left font-semibold">Line</th>
-              <th className="border border-slate-300 p-3 text-left font-semibold">Part Number</th>
-              <th className="border border-slate-300 p-3 text-left font-semibold">Description</th>
-              <th className="border border-slate-300 p-3 text-left font-semibold">S/N</th>
-              <th className="border border-slate-300 p-3 text-center font-semibold">Qty</th>
-              <th className="border border-slate-300 p-3 text-left font-semibold">Workscope</th>
-              <th className="border border-slate-300 p-3 text-right font-semibold">Est. Cost</th>
+            <tr className="bg-slate-200 text-slate-900">
+              <th className="border border-slate-300 p-2 text-left w-12">ITEM</th>
+              <th className="border border-slate-300 p-2 text-left">DESCRIPTION</th>
+              <th className="border border-slate-300 p-2 text-left w-40">P/N</th>
+              <th className="border border-slate-300 p-2 text-left w-32">S/N</th>
+              <th className="border border-slate-300 p-2 text-left w-32">WORKSCOPE</th>
+              <th className="border border-slate-300 p-2 text-right w-32">PRICE</th>
             </tr>
           </thead>
           <tbody>
-            {repairOrder.repair_order_items
-              .sort((a, b) => a.line_number - b.line_number)
-              .map((item) => (
-              <tr key={item.line_number}>
-                <td className="border border-slate-300 p-3">{item.line_number}</td>
-                <td className="border border-slate-300 p-3 font-mono font-bold">
-                  {item.inventory.pn_master_table.pn}
-                </td>
-                <td className="border border-slate-300 p-3">
-                  {item.inventory.pn_master_table.description || 'N/A'}
-                  {item.inventory.physical_status && (
-                    <div className="text-sm text-slate-600">Status: {item.inventory.physical_status}</div>
-                  )}
-                </td>
-                <td className="border border-slate-300 p-3 font-mono">
-                  {item.inventory.sn || 'N/A'}
-                </td>
-                <td className="border border-slate-300 p-3 text-center">
-                  1
-                </td>
-                <td className="border border-slate-300 p-3 font-medium">
-                  {item.workscope}
-                </td>
-                <td className="border border-slate-300 p-3 text-right">
-                  {item.estimated_cost ? `$${item.estimated_cost.toFixed(2)}` : 'TBD'}
-                </td>
-              </tr>
-            ))}
+            {items.map((row: any, idx: number) => {
+              const renderPrice = (v: any) => v === undefined || v === null || v === '' ? '—' : (typeof v === 'number' ? v.toFixed(2) : v)
+              return (
+                <tr key={idx}>
+                  <td className="border border-slate-300 p-2 font-semibold">{row.line_number || idx + 1}</td>
+                  <td className="border border-slate-300 p-2 text-sm">{row.description ? <span className="text-slate-900 font-semibold">{row.description}</span> : ''}</td>
+                  <td className="border border-slate-300 p-2 font-mono text-sm font-bold text-slate-900">{row.pn || ''}</td>
+                  <td className="border border-slate-300 p-2 font-mono text-sm text-slate-900">{row.sn || ''}</td>
+                  <td className="border border-slate-300 p-2 text-sm text-slate-900">{row.workscope || ''}</td>
+                  <td className="border border-slate-300 p-2 text-right text-sm">{renderPrice(row.price)}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Traceability Information */}
-      <div className="mb-8">
-        <h3 className="font-bold text-slate-900 mb-4">Traceability Information</h3>
-        {repairOrder.repair_order_items.map((item) => (
-          <div key={item.line_number} className="mb-4">
-            {(item.inventory.traceability_source || 
-              item.inventory.traceable_to || 
-              item.inventory.last_certified_agency || 
-              item.inventory.part_status_certification) ? (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
-                <div className="font-semibold text-yellow-900 mb-2">
-                  Line {item.line_number}: {item.inventory.pn_master_table.pn}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {item.inventory.traceability_source && (
-                    <div>
-                      <span className="font-medium">Source:</span> {item.inventory.traceability_source}
-                    </div>
-                  )}
-                  {item.inventory.traceable_to && (
-                    <div>
-                      <span className="font-medium">Traceable to:</span> {item.inventory.traceable_to}
-                    </div>
-                  )}
-                  {item.inventory.last_certified_agency && (
-                    <div>
-                      <span className="font-medium">Last Certified:</span> {item.inventory.last_certified_agency}
-                    </div>
-                  )}
-                  {item.inventory.part_status_certification && (
-                    <div>
-                      <span className="font-medium">Status:</span> {item.inventory.part_status_certification}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded">
-                <div className="text-slate-600 text-sm">
-                  Line {item.line_number}: {item.inventory.pn_master_table.pn} - No traceability information available
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Certification and Origin */}
-      <div className="mb-8">
-        <h3 className="font-bold text-slate-900 mb-4">Certification and Origin</h3>
-        {repairOrder.repair_order_items.map((item) => (
-          <div key={item.line_number} className="mb-4">
-            {item.inventory.country_of_origin ? (
-              <div className="bg-green-50 border border-green-200 p-4 rounded">
-                <div className="font-semibold text-green-900 mb-2">
-                  Line {item.line_number}: {item.inventory.pn_master_table.pn}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Country of Origin:</span> {item.inventory.country_of_origin}
-                  </div>
-                  <div>
-                    <span className="font-medium">Certification Requirements:</span> TCCA RELEASE
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded">
-                <div className="text-slate-600 text-sm">
-                  Line {item.line_number}: {item.inventory.pn_master_table.pn} - No country of origin information available
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <PDFFinancialSummary
-        subtotal={repairOrder.total_cost}
-        freight_charge={null}
-        misc_charge={null}
-        vat_percentage={null}
-        vat_amount={null}
-        total_net={repairOrder.total_cost}
-        currency={repairOrder.currency}
-      />
-
-      {/* Work Instructions */}
-      <div className="mb-8">
-        <h3 className="font-bold text-slate-900 mb-4">Work Instructions</h3>
-        <div className="bg-slate-50 p-4 rounded">
-          <div className="text-sm text-slate-700 space-y-2">
-            <div>• All work must be performed in accordance with applicable aviation regulations and manufacturer specifications.</div>
-            <div>• Parts must be returned with appropriate certification and documentation.</div>
-            <div>• Any deviations from the specified workscope must be approved in writing before proceeding.</div>
-            <div>• Upon completion, provide detailed work performed documentation and updated traceability records.</div>
-          </div>
+      {/* Certification Requirements */}
+      <div className="border border-slate-300 mb-4">
+        <div className="bg-slate-200 font-bold text-slate-900 text-sm p-2 text-center">CERTIFICATION REQUIREMENTS: TCCA RELEASE</div>
+        <div className="p-3 text-xs leading-relaxed">
+          PART OR MATERIAL DECLARATION: NONE OF THE ABOVE PARTS HAVE BEEN SUBJECTED TO SEVERE STRESS OR HEAT (AS IN A MAJOR ENGINE FAILURE, ACCIDENT, INCIDENT OR FIRE). WE CERTIFY THAT EACH ARTICLE ORDERED IS NOT OF U.S. GOVERNMENT OR MILITARY SURPLUS ORIGIN.
         </div>
       </div>
 
-      {/* Remarks */}
-      {repairOrder.remarks && (
-        <div className="mb-8">
-          <h3 className="font-semibold text-slate-900 mb-2">Special Instructions</h3>
-          <div className="text-sm text-slate-600 whitespace-pre-line bg-slate-50 p-3 rounded border">
-            {repairOrder.remarks}
-          </div>
-        </div>
-      )}
+      {/* Packing Slip */}
+      <div className="border border-slate-300 mb-4">
+        <div className="bg-slate-200 font-bold text-slate-900 text-sm p-2 text-center">PACKING SLIP</div>
+        <table className="w-full text-sm">
+          <tbody>
+            <tr>
+              <td className="border border-slate-300 p-2 w-1/2">End-Use / Buyer Country</td>
+              <td className="border border-slate-300 p-2 text-slate-900 font-semibold">{overrides?.endUseCountry || '—'}</td>
+            </tr>
+            <tr>
+              <td className="border border-slate-300 p-2">Country of Origin</td>
+              <td className="border border-slate-300 p-2 text-slate-900 font-semibold">{overrides?.countryOfOrigin || firstOrigin || '—'}</td>
+            </tr>
+            <tr>
+              <td className="border border-slate-300 p-2">Freighter AWB #</td>
+              <td className="border border-slate-300 p-2">{overrides?.freighterAwb || ''}</td>
+            </tr>
+            <tr>
+              <td className="border border-slate-300 p-2">Dimensions || L W H || Gr.wgt/ Kgs</td>
+              <td className="border border-slate-300 p-2 whitespace-pre-line">{overrides?.dimensionsNote || ''}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <PDFSignatureBlock 
-        sections={[
-          {
-            title: "CUSTOMER AUTHORIZATION",
-            fields: [
-              { label: "Authorized by (Customer)", type: "signature" },
-              { label: "Print Name", type: "text" },
-              { label: "Date", type: "date" }
-            ]
-          },
-          {
-            title: "VENDOR ACCEPTANCE",
-            fields: [
-              { label: "Accepted by (Vendor)", type: "signature" },
-              { label: "Print Name", type: "text" },
-              { label: "Date", type: "date" }
-            ]
-          }
-        ]}
-        columns={2}
-        className="mb-8"
-      />
+      {/* Remarks + Financial Summary */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="text-sm">
+          <div className="font-bold text-slate-900 mb-1">REMARKS:</div>
+          <div className="whitespace-pre-line text-slate-700 min-h-[4rem]">{repairOrder.remarks || '—'}</div>
+        </div>
+        <div className="text-sm">
+          <table className="w-full">
+            <tbody>
+              <tr>
+                <td className="py-1">Sub Total</td>
+                <td className="py-1 text-right">: {(overrides?.subtotal ?? repairOrder.total_cost)?.toFixed ? (overrides?.subtotal ?? repairOrder.total_cost).toFixed(2) : '-'} {(overrides?.currency ?? repairOrder.currency) || 'USD'}</td>
+              </tr>
+              <tr>
+                <td className="py-1">Misc Charge</td>
+                <td className="py-1 text-right">: {overrides?.miscCharge?.toFixed ? overrides.miscCharge.toFixed(2) : '-'} {(overrides?.currency ?? repairOrder.currency) || 'USD'}</td>
+              </tr>
+              <tr>
+                <td className="py-1">Freight/ Forwarding</td>
+                <td className="py-1 text-right">: {overrides?.freightCharge?.toFixed ? overrides.freightCharge.toFixed(2) : '-'} {(overrides?.currency ?? repairOrder.currency) || 'USD'}</td>
+              </tr>
+              <tr>
+                <td className="py-1">VAT ({overrides?.vatPercentage ?? 0}%)</td>
+                <td className="py-1 text-right">: {overrides?.vatAmount?.toFixed ? overrides.vatAmount.toFixed(2) : '-'} {(overrides?.currency ?? repairOrder.currency) || 'USD'}</td>
+              </tr>
+              <tr className="border-top border-slate-300">
+                <td className="py-2 font-bold">Total NET</td>
+                <td className="py-2 text-right font-bold">: {(overrides?.totalNet ?? repairOrder.total_cost)?.toFixed ? (overrides?.totalNet ?? repairOrder.total_cost).toFixed(2) : '-'} {(overrides?.currency ?? repairOrder.currency) || 'USD'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Signature row */}
+      <div className="grid grid-cols-2 gap-4 border border-slate-300 p-3 mb-4">
+        <div>
+          <div className="text-sm">Authorized Sign:</div>
+          <div className="mt-2">
+            <Image src="/signature.png" alt="Authorized Signature" width={180} height={80} className="w-auto h-16 object-contain" />
+          </div>
+          <div className="mt-2 border-t border-slate-300 w-64" />
+        </div>
+        <div className="text-right">
+          <div className="text-sm italic text-slate-600">Confirmation:</div>
+          <div className="mt-8 border-t border-slate-300 ml-auto w-64" />
+        </div>
+      </div>
 
       <PDFFooter
         documentType="Repair Order"

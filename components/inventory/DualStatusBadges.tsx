@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 
 interface DualStatus {
   physical_status: 'depot' | 'in_repair' | 'in_transit'
-  business_status: 'available' | 'reserved' | 'sold'
+  business_status: 'available' | 'reserved' | 'sold' | 'cancelled'
   status_updated_at: string | null
   status_updated_by: string | null
 }
@@ -47,7 +47,8 @@ const PHYSICAL_STATUS_CONFIG = {
 const BUSINESS_STATUS_CONFIG = {
   available: { label: 'Available', color: 'bg-green-100 text-green-800 border-green-200' },
   reserved: { label: 'Reserved', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-  sold: { label: 'Sold', color: 'bg-slate-100 text-slate-800 border-slate-200' }
+  sold: { label: 'Sold', color: 'bg-slate-100 text-slate-800 border-slate-200' },
+  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' }
 }
 
 const STATUS_UPDATE_REASONS = [
@@ -214,27 +215,29 @@ export default function DualStatusBadges({
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1">
-        {/* Physical Status Badge */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              className={`${physicalConfig.color} border ${sizeClasses[size]} flex items-center gap-1`}
-              variant="outline"
-            >
-              <physicalConfig.icon className="h-3 w-3" />
-              {physicalConfig.label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Physical Status: {physicalConfig.label}</p>
-            {status_updated_at && <p className="text-xs">Updated: {formatDate(status_updated_at)}</p>}
-          </TooltipContent>
-        </Tooltip>
+        {/* Physical Status Badge - Hidden for cancelled items */}
+        {business_status !== 'cancelled' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                className={`${physicalConfig.color} border ${sizeClasses[size]} flex items-center gap-1`}
+                variant="outline"
+              >
+                <physicalConfig.icon className="h-3 w-3" />
+                {physicalConfig.label}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Physical Status: {physicalConfig.label}</p>
+              {status_updated_at && <p className="text-xs">Updated: {formatDate(status_updated_at)}</p>}
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         {/* Business Status Badge */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge 
+            <Badge
               className={`${businessConfig.color} border ${sizeClasses[size]}`}
               variant="outline"
             >

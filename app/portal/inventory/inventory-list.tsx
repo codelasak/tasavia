@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Edit, Trash2, MapPin, Eye, Wifi, WifiOff, RefreshCw, Activity } from 'lucide-react'
+import { Search, Edit, Trash2, MapPin, Eye, Wifi, WifiOff, RefreshCw, Activity, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { RealtimeStatusSyncManager, ConnectionStatus } from '@/lib/realtime-status-sync'
 import { toast } from 'sonner'
 import { InventoryDialog } from '@/components/inventory/InventoryDialog'
 import DualStatusBadges from '@/components/inventory/DualStatusBadges'
+import { canCancelInventoryItem, canDeleteInventoryItem } from '@/lib/types/inventory'
 
 interface InventoryItem {
   inventory_id: string
@@ -23,7 +24,7 @@ interface InventoryItem {
   remarks: string | null
   status: string | null
   physical_status: 'depot' | 'in_repair' | 'in_transit'
-  business_status: 'available' | 'reserved' | 'sold'
+  business_status: 'available' | 'reserved' | 'sold' | 'cancelled'
   status_updated_at: string | null
   status_updated_by: string | null
   po_id_original: string | null
@@ -57,6 +58,7 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   const [businessStatusFilter, setBusinessStatusFilter] = useState<string>('all')
   const [loading, setLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Real-time state
@@ -419,15 +421,30 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
   }
 
   const handleDelete = async (item: InventoryItem) => {
+    // Check if item can be deleted using the new deletion validation function
+    if (!canDeleteInventoryItem(item.physical_status, item.business_status, item.status || undefined)) {
+      toast.error('This item cannot be deleted', {
+        description: 'Only cancelled items can be deleted'
+      })
+      return
+    }
+
     // Enhanced confirmation based on business status
-    let confirmMessage = `Are you sure you want to delete this inventory item?`
-    
-    if (item.business_status === 'reserved') {
+    let confirmMessage = ''
+
+    if (item.business_status === 'cancelled') {
+      confirmMessage = `Are you sure you want to delete this cancelled inventory item?`
+    } else if (item.business_status === 'available') {
+      // This case should not be reached due to validation, but keep for safety
+      confirmMessage = `This available item cannot be deleted. Only cancelled items can be deleted.`
+    } else if (item.business_status === 'reserved') {
       confirmMessage = `This inventory item is RESERVED for a sales order. Deleting it may cause issues. Are you sure you want to proceed?`
     } else if (item.business_status === 'sold') {
       confirmMessage = `This inventory item has been SOLD. Deleting it may cause data integrity issues. Are you sure you want to proceed?`
+    } else {
+      confirmMessage = `Are you sure you want to delete this inventory item?`
     }
-    
+
     if (!confirm(confirmMessage)) return
 
     try {
@@ -459,6 +476,88 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
     fetchInventory()
   }
 
+  const handleCancel = async (item: InventoryItem) => {
+    // Check if item can be cancelled using our validation function
+    if (!canCancelInventoryItem(item.physical_status, item.business_status, item.status || undefined)) {
+      toast.error('This item cannot be cancelled', {
+        description: 'Only available items at depot (In Stock) can be cancelled'
+      })
+      return
+    }
+
+    const cancelReason = prompt('Please provide a reason for cancellation:')
+    if (!cancelReason) {
+      return // User cancelled the operation
+    }
+
+    try {
+      setCancelLoading(item.inventory_id)
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Get current PO information before cancelling
+      const { data: currentItem } = await supabase
+        .from('inventory')
+        .select('po_id_original, po_number_original')
+        .eq('inventory_id', item.inventory_id)
+        .single()
+
+      // Update inventory status to cancelled using direct SQL
+      // We need to update both business_status and status to work around the trigger
+      const { error } = await supabase
+        .from('inventory')
+        .update({
+          business_status: 'cancelled' as any,  // Update this first so trigger maps to 'Cancelled'
+          status: 'Cancelled',
+          status_updated_at: new Date().toISOString(),
+          status_updated_by: user?.id,
+          remarks: `Cancelled: ${cancelReason}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('inventory_id', item.inventory_id)
+
+      if (error) {
+        console.error('Cancel inventory error:', error)
+        throw new Error(error.message || 'Failed to cancel inventory item')
+      }
+
+      // Check if we need to update the PO status
+      if (currentItem?.po_id_original) {
+        const { data: remainingItems } = await supabase
+          .from('inventory')
+          .select('inventory_id')
+          .eq('po_id_original', currentItem.po_id_original)
+          .neq('status', 'Cancelled')
+
+        // If all items from PO are cancelled, update PO status
+        if (!remainingItems || remainingItems.length === 0) {
+          await supabase
+            .from('purchase_orders')
+            .update({
+              status: 'Cancelled',
+              updated_at: new Date().toISOString()
+            })
+            .eq('po_id', currentItem.po_id_original)
+
+          toast.success('Inventory item cancelled successfully. All items from PO are now cancelled, so PO status has been updated to Cancelled.')
+        } else {
+          toast.success('Inventory item cancelled successfully')
+        }
+      } else {
+        toast.success('Inventory item cancelled successfully')
+      }
+
+      // Refresh the inventory list
+      fetchInventory()
+    } catch (error: any) {
+      console.error('Error cancelling inventory item:', error)
+      toast.error(error.message || 'Failed to cancel inventory item')
+    } finally {
+      setCancelLoading(null)
+    }
+  }
+
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -466,7 +565,8 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
       'Reserved': 'bg-yellow-100 text-yellow-800 border-yellow-200',
       'Sold': 'bg-blue-100 text-blue-800 border-blue-200',
       'Damaged': 'bg-red-100 text-red-800 border-red-200',
-      'Under Repair': 'bg-purple-100 text-purple-800 border-purple-200'
+      'Under Repair': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Cancelled': 'bg-red-200 text-red-900 border-red-300'
     }
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
@@ -659,28 +759,49 @@ export default function InventoryList({ initialInventory }: InventoryListProps) 
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleEdit(item)}
-                          disabled={deleteLoading === item.inventory_id}
+                          disabled={deleteLoading === item.inventory_id || cancelLoading === item.inventory_id}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(item)}
-                          disabled={deleteLoading === item.inventory_id}
-                        >
-                          {deleteLoading === item.inventory_id ? (
-                            <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
+                        {/* Cancel button - only show for items that can be cancelled (not already cancelled) */}
+                        {canCancelInventoryItem(item.physical_status, item.business_status, item.status || undefined) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            onClick={() => handleCancel(item)}
+                            disabled={cancelLoading === item.inventory_id || deleteLoading === item.inventory_id}
+                            title="Cancel item"
+                          >
+                            {cancelLoading === item.inventory_id ? (
+                              <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                            ) : (
+                              <XCircle className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        {/* Delete button - only show for items that can be deleted (cancelled items) */}
+                        {canDeleteInventoryItem(item.physical_status, item.business_status, item.status || undefined) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDelete(item)}
+                            disabled={deleteLoading === item.inventory_id || cancelLoading === item.inventory_id}
+                            title="Delete item"
+                          >
+                            {deleteLoading === item.inventory_id ? (
+                              <div className="h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>

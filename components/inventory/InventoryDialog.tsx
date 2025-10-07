@@ -23,7 +23,7 @@ interface InventoryItem {
   remarks: string | null
   status: string | null
   physical_status: 'depot' | 'in_repair' | 'in_transit'
-  business_status: 'available' | 'reserved' | 'sold'
+  business_status: 'available' | 'reserved' | 'sold' | 'cancelled'
   status_updated_at: string | null
   status_updated_by: string | null
   po_id_original: string | null

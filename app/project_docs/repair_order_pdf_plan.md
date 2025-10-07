@@ -1,5 +1,11 @@
 # Repair Order PDF & Packaging Slip Enhancement Plan
 
+## 0. Implementation Status (Oct 2025)
+- New RO PDF template implemented directly inside the page using existing shared building blocks (no new shared components introduced).
+- Existing route `app/portal/repair-orders/[id]/pdf/page.tsx` now renders the new layout and reads optional client-side overrides from `localStorage` key `ro_pdf_overrides_<RO_ID>`.
+- Added an edit UI at `app/portal/repair-orders/[id]/pdf/edit` to input PDF overrides (ship invoice number, packing slip fields, financial breakdown) and to prefill Country of Origin by selecting a Part Number.
+- Database migration for persistent fields is still pending (see section 3). The edit page persists overrides locally until migrations are applied.
+
 ## 1. Current State Assessment
 - The repair order PDF page (`app/portal/repair-orders/[id]/pdf/page.tsx`) renders a generic layout with TASAVIA header via `PDFHeader`, company grid, items table, traceability blocks, certification summary, and default `PDFFinancialSummary` and `PDFFooter` components. The layout does not match the specific RO template shared (two-column header, packing slip section, certification declaration, etc.).
 - Data is fetched client-side from Supabase using the authenticated browser client. The query joins `companies`, `company_addresses`, `company_contacts`, and `repair_order_items -> inventory -> pn_master_table`. Totals rely on `repair_orders.total_cost`; there are no dedicated fields for packing slip metadata or certification statements.

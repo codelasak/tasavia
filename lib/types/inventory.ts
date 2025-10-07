@@ -1,10 +1,10 @@
 // Enhanced inventory types for dual status system
 
 export type PhysicalStatus = 'depot' | 'in_repair' | 'in_transit'
-export type BusinessStatus = 'available' | 'reserved' | 'sold'
+export type BusinessStatus = 'available' | 'reserved' | 'sold' | 'cancelled'
 
 // Legacy status values for backward compatibility
-export type LegacyStatus = 'Available' | 'Reserved' | 'Sold' | 'Damaged' | 'Under Repair'
+export type LegacyStatus = 'Available' | 'Reserved' | 'Sold' | 'Damaged' | 'Under Repair' | 'Cancelled'
 
 export interface InventoryItemBase {
   inventory_id: string
@@ -292,5 +292,69 @@ export function isValidStatusTransition(
     }
   }
 
+  // Business rule: Can't transition from cancelled to other statuses (requires manual intervention)
+  if (currentBusiness === 'cancelled' && newBusiness !== 'cancelled') {
+    return {
+      valid: false,
+      reason: 'Cannot change status of cancelled items (requires manual intervention)'
+    }
+  }
+
+  // Business rule: Can't cancel items that are sold or in transit
+  if (newBusiness === 'cancelled' && (currentBusiness === 'sold' || currentPhysical === 'in_transit')) {
+    return {
+      valid: false,
+      reason: 'Cannot cancel items that are sold or in transit'
+    }
+  }
+
+  // Business rule: Can't cancel reserved items directly (must be unreserved first)
+  if (newBusiness === 'cancelled' && currentBusiness === 'reserved') {
+    return {
+      valid: false,
+      reason: 'Cannot cancel reserved items (must unreserve first)'
+    }
+  }
+
   return { valid: true }
+}
+
+// Helper function to check if an item can be cancelled
+export function canCancelInventoryItem(
+  physicalStatus: PhysicalStatus,
+  businessStatus: BusinessStatus,
+  legacyStatus?: string
+): boolean {
+  // Can cancel if: available + depot, or legacy status is 'Available'
+  const isInStock = (businessStatus === 'available' && physicalStatus === 'depot') ||
+                    legacyStatus === 'Available';
+
+  // Cannot cancel if sold, reserved, in transit, or already cancelled
+  const cannotCancel = businessStatus === 'sold' ||
+                       businessStatus === 'reserved' ||
+                       businessStatus === 'cancelled' ||
+                       physicalStatus === 'in_transit' ||
+                       legacyStatus === 'Cancelled';
+
+  return isInStock && !cannotCancel;
+}
+
+// Helper function to check if an item can be deleted
+export function canDeleteInventoryItem(
+  physicalStatus: PhysicalStatus,
+  businessStatus: BusinessStatus,
+  legacyStatus?: string
+): boolean {
+  // Can delete ONLY if item is cancelled
+  const canDelete = businessStatus === 'cancelled' ||
+                    legacyStatus === 'Cancelled';
+
+  // Cannot delete if sold, reserved, available, or in transit
+  const cannotDelete = businessStatus === 'sold' ||
+                      businessStatus === 'reserved' ||
+                      businessStatus === 'available' ||
+                      physicalStatus === 'in_transit' ||
+                      legacyStatus === 'Available';
+
+  return canDelete && !cannotDelete;
 }

@@ -1,15 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, Download, Printer } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
-import { toast } from 'sonner'
 import { format } from 'date-fns'
 import PDFLayout from '@/components/pdf/PDFLayout'
-import PDFHeader from '@/components/pdf/PDFHeader'
-import PDFCompanyGrid from '@/components/pdf/PDFCompanyGrid'
+import Image from 'next/image'
 import PDFSignatureBlock from '@/components/pdf/PDFSignatureBlock'
 import PDFFinancialSummary from '@/components/pdf/PDFFinancialSummary'
 import PDFFooter from '@/components/pdf/PDFFooter'
@@ -93,7 +87,6 @@ interface PurchaseOrderPdfClientPageProps {
 }
 
 export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder }: PurchaseOrderPdfClientPageProps) {
-  const router = useRouter()
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetails | null>(initialPurchaseOrder)
 
   useEffect(() => {
@@ -105,10 +98,6 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
       document.documentElement.classList.remove('pdf-print-mode')
     }
   }, [])
-
-  const handlePrint = () => {
-    window.print()
-  }
 
   const handleDownload = () => {
     // For now, just trigger print dialog
@@ -124,64 +113,7 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
     )
   }
 
-
   const vatAmount = (purchaseOrder.subtotal || 0) * ((purchaseOrder.vat_percentage || 0) / 100)
-  const TBD_DISPLAY = "TBD - To Be Determined"
-  const hasShipToInfo = !!(purchaseOrder.ship_to_company_name?.trim() || purchaseOrder.ship_to_address_details?.trim())
-
-  // Prepare company sections for PDFCompanyGrid
-  const companySections = [
-    {
-      title: 'FROM',
-      company: {
-        company_name: purchaseOrder.my_companies.my_company_name,
-        company_code: purchaseOrder.my_companies.my_company_code,
-        company_addresses: purchaseOrder.my_companies.company_addresses,
-        company_contacts: purchaseOrder.my_companies.company_contacts
-      }
-    },
-    {
-      title: 'TO',
-      company: {
-        company_name: purchaseOrder.companies.company_name,
-        company_code: purchaseOrder.companies.company_code,
-        company_addresses: purchaseOrder.companies.company_addresses,
-        company_contacts: purchaseOrder.companies.company_contacts
-      }
-    },
-    {
-      title: 'SHIP TO',
-      company: hasShipToInfo ? {
-        company_name: purchaseOrder.ship_to_company_name || '',
-        company_code: '',
-        company_addresses: [{
-          address_line1: purchaseOrder.ship_to_address_details || '',
-          address_line2: null,
-          city: null,
-          country: null
-        }],
-        company_contacts: [{
-          contact_name: purchaseOrder.ship_to_contact_name || '',
-          phone: purchaseOrder.ship_to_contact_phone,
-          email: purchaseOrder.ship_to_contact_email
-        }]
-      } : {
-        company_name: TBD_DISPLAY,
-        company_code: '',
-        company_addresses: [{
-          address_line1: 'Ship to company will be determined',
-          address_line2: null,
-          city: null,
-          country: null
-        }],
-        company_contacts: [{
-          contact_name: 'Contact information will be provided',
-          phone: null,
-          email: null
-        }]
-      }
-    }
-  ]
 
   return (
     <PDFLayout
@@ -189,38 +121,123 @@ export default function PurchaseOrderPdfClientPage({ poId, initialPurchaseOrder 
       documentNumber={purchaseOrder.po_number}
       onDownload={handleDownload}
     >
-        <PDFHeader
-          documentType="PURCHASE ORDER"
-          documentNumber={purchaseOrder.po_number}
-          documentDate={purchaseOrder.po_date}
-          additionalInfo={[]}
-        />
+        {/* Top Header Section */}
+        <div className="flex items-start justify-between mb-6">
+          {/* Left: Logo with FROM company info (no title) */}
+          <div className="text-left flex flex-col items-start">
+            <Image
+              src="/tasavia-logo-black.png"
+              alt="TASAVIA"
+              width={220}
+              height={80}
+              className="h-16 w-auto"
+            />
+            <div className="mt-2 text-sm text-slate-700">
+              <div className="font-bold">{purchaseOrder.my_companies.my_company_name}</div>
+              {/* Addresses */}
+              {purchaseOrder.my_companies.company_addresses?.map((addr, idx) => (
+                <div key={idx} className="text-left">
+                  <div>{addr.address_line1}</div>
+                  {addr.address_line2 && <div>{addr.address_line2}</div>}
+                  {(addr.city || addr.country) && (
+                    <div>
+                      {[addr.city].filter(Boolean).join(', ')}
+                      {addr.city && addr.country ? ', ' : ''}
+                      {addr.country}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {/* Contacts */}
+              {purchaseOrder.my_companies.company_contacts?.map((c, idx) => (
+                <div key={idx}>
+                  {c.phone && <div>Tel: {c.phone}</div>}
+                  {c.email && <div>Email: {c.email}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
 
-        <PDFCompanyGrid sections={companySections} />
+          {/* Right: Document title and meta */}
+          <div className="text-right">
+            <div className="text-3xl font-bold text-slate-900">PURCHASE ORDER</div>
+            <div className="text-lg font-semibold text-slate-800 mt-1">No: {purchaseOrder.po_number}</div>
+            <div className="text-sm text-slate-600 mt-1">Date: {format(new Date(purchaseOrder.po_date), 'MMMM dd, yyyy')}</div>
+            <div className="text-sm text-slate-600">Prepared By: {purchaseOrder.prepared_by_name || 'N/A'}</div>
+          </div>
+        </div>
 
-        {/* Additional Details */}
-        <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
+        {/* Center Section: align TO and SHIP TO to right */}
+        <div className="mb-6">
+          <div className="w-full">
+            <div className="grid grid-cols-2 gap-6">
+              {/* TO (left column) */}
+              <div>
+                <h3 className="font-bold text-slate-900 mb-2 border-b pb-1">TO:</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="font-bold">{purchaseOrder.companies.company_name}</div>
+                  {purchaseOrder.companies.company_addresses?.map((addr, idx) => (
+                    <div key={idx}>
+                      <div>{addr.address_line1}</div>
+                      {addr.address_line2 && <div>{addr.address_line2}</div>}
+                      {(addr.city || addr.country) && (
+                        <div>
+                          {[addr.city].filter(Boolean).join(', ')}
+                          {addr.city && addr.country ? ', ' : ''}
+                          {addr.country}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {purchaseOrder.companies.company_contacts?.map((c, idx) => (
+                    <div key={idx}>
+                      {c.phone && <div>Tel: {c.phone}</div>}
+                      {c.email && <div>Email: {c.email}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* SHIP TO (right column) */}
+              <div>
+                <h3 className="font-bold text-slate-900 mb-2 border-b pb-1">SHIP TO:</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="font-bold">{purchaseOrder.ship_to_company_name || 'TBD - To Be Determined'}</div>
+                  {purchaseOrder.ship_to_address_details && (
+                    <div className="whitespace-pre-line">{purchaseOrder.ship_to_address_details}</div>
+                  )}
+                  {purchaseOrder.ship_to_contact_name && (
+                    <div>Contact: {purchaseOrder.ship_to_contact_name}</div>
+                  )}
+                  {purchaseOrder.ship_to_contact_phone && (
+                    <div>Tel: {purchaseOrder.ship_to_contact_phone}</div>
+                  )}
+                  {purchaseOrder.ship_to_contact_email && (
+                    <div>Email: {purchaseOrder.ship_to_contact_email}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment + Ship Via (one row) */}
+        <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
           <div>
-            <span className="font-semibold">Prepared By:</span> {purchaseOrder.prepared_by_name || 'N/A'}
+            <span className="font-semibold">Payment Term:</span> {purchaseOrder.payment_term || 'N/A'}
           </div>
           <div>
-            <span className="font-semibold">Currency:</span> {purchaseOrder.currency}
+            {purchaseOrder.company_ship_via && (
+              <div>
+                <span className="font-semibold">Ship Via:</span>{' '}
+                {purchaseOrder.company_ship_via.predefined_company === 'CUSTOM' && purchaseOrder.company_ship_via.custom_company_name
+                  ? purchaseOrder.company_ship_via.custom_company_name
+                  : purchaseOrder.company_ship_via.ship_company_name}
+                {' '}# {purchaseOrder.company_ship_via.account_no}
+                {purchaseOrder.company_ship_via.owner && ` (Owner: ${purchaseOrder.company_ship_via.owner})`}
+                {purchaseOrder.company_ship_via.ship_model && ` - ${purchaseOrder.company_ship_via.ship_model}`}
+              </div>
+            )}
           </div>
-          {purchaseOrder.company_ship_via && (
-            <div>
-              <span className="font-semibold">Ship Via:</span> 
-              {purchaseOrder.company_ship_via.predefined_company === 'CUSTOM' && purchaseOrder.company_ship_via.custom_company_name 
-                ? purchaseOrder.company_ship_via.custom_company_name 
-                : purchaseOrder.company_ship_via.ship_company_name} # {purchaseOrder.company_ship_via.account_no}
-              {purchaseOrder.company_ship_via.owner && ` (Owner: ${purchaseOrder.company_ship_via.owner})`}
-              {purchaseOrder.company_ship_via.ship_model && ` - ${purchaseOrder.company_ship_via.ship_model}`}
-            </div>
-          )}
-          {purchaseOrder.payment_term && (
-            <div>
-              <span className="font-semibold">Payment Term:</span> {purchaseOrder.payment_term}
-            </div>
-          )}
         </div>
 
         {/* Line Items Table */}

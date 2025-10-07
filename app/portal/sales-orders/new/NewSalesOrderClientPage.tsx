@@ -17,6 +17,7 @@ import { CalendarIcon, Plus, Trash2, ArrowLeft, Loader2, Package, Search } from 
 import * as dateFns from 'date-fns'
 import { cn } from '@/lib/utils'
 import { PAYMENT_TERMS, CURRENCY_OPTIONS } from '@/lib/constants/sales-order-constants'
+import { canCancelInventoryItem } from '@/lib/types/inventory'
 import { useCreateSalesOrder } from '@/lib/hooks/usePurchaseOrders'
 import {
   validateAWBNumber,
@@ -937,7 +938,11 @@ export default function NewSalesOrderClientPage({
                           </SelectTrigger>
                           <SelectContent>
                             {inventoryItems
-                              .filter(item => item.status === 'Available')
+                              .filter(item =>
+                                // Only show available items and exclude cancelled items
+                                item.status === 'Available' &&
+                                item.business_status !== 'cancelled'
+                              )
                               .map((item) => (
                               <SelectItem key={item.inventory_id} value={item.inventory_id}>
                                 <div className="flex flex-col">

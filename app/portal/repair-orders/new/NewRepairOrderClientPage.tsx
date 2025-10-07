@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Plus, Trash2, ArrowLeft, Search, Package } from 'lucide-react'
+import { CalendarIcon, Plus, Trash2, ArrowLeft } from 'lucide-react'
 import * as dateFns from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { canCancelInventoryItem } from '@/lib/types/inventory'
 
 interface Vendor {
   company_id: string
@@ -35,6 +36,8 @@ interface InventoryItem {
   quantity: number | null
   unit_cost: number | null
   status: string | null
+  physical_status: 'depot' | 'in_repair' | 'in_transit'
+  business_status: 'available' | 'reserved' | 'sold' | 'cancelled'
   traceability_source: string | null
   traceable_to: string | null
   last_certified_agency: string | null
@@ -45,32 +48,6 @@ interface InventoryItem {
   }
 }
 
-interface AvailablePurchaseOrder {
-  po_id: string
-  po_number: string
-  po_date: string
-  vendor_company_id: string
-  vendor_company_name: string
-  currency: string
-  status: string
-  total_amount: number | null
-  remarks_1: string | null
-  remarks_2: string | null
-  aviation_compliance_notes: string | null
-  origin_country_code: string | null
-  end_use_country_code: string | null
-  traceable_to_airline: string | null
-  traceable_to_msn: string | null
-  last_certificate: string | null
-  certificate_expiry_date: string | null
-  companies: {
-    company_id: string
-    company_name: string
-    company_code: string | null
-    company_type: string | null
-  }
-}
-
 const repairOrderItemSchema = z.object({
   inventory_id: z.string().min(1, 'Part is required'),
   workscope: z.string().min(1, 'Workscope is required'),
@@ -78,11 +55,24 @@ const repairOrderItemSchema = z.object({
 })
 
 const repairOrderSchema = z.object({
-  source_po_id: z.string().optional(),
   vendor_company_id: z.string().min(1, 'Vendor is required'),
   expected_return_date: z.date().optional(),
   currency: z.string().default('USD'),
   remarks: z.string().optional(),
+  // PDF Header & Meta
+  ship_invoice_number: z.string().optional(),
+  // Packing Slip
+  end_use_country: z.string().optional(),
+  country_of_origin: z.string().optional(),
+  freighter_awb: z.string().optional(),
+  dimensions_note: z.string().optional(),
+  // Financial Summary
+  subtotal: z.number().nullable().optional(),
+  misc_charge: z.number().nullable().optional(),
+  freight_charge: z.number().nullable().optional(),
+  vat_percentage: z.number().nullable().optional(),
+  vat_amount: z.number().nullable().optional(),
+  total_net: z.number().nullable().optional(),
   items: z.array(repairOrderItemSchema).min(1, 'At least one item is required'),
 })
 
@@ -91,74 +81,39 @@ type RepairOrderFormValues = z.infer<typeof repairOrderSchema>
 interface NewRepairOrderClientPageProps {
   vendors: Vendor[]
   inventoryItems: InventoryItem[]
-  availablePOs: AvailablePurchaseOrder[]
 }
 
 export default function NewRepairOrderClientPage({
   vendors,
-  inventoryItems,
-  availablePOs
+  inventoryItems
 }: NewRepairOrderClientPageProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filteredPOs, setFilteredPOs] = useState<AvailablePurchaseOrder[]>(availablePOs)
-  const [selectedPO, setSelectedPO] = useState<AvailablePurchaseOrder | null>(null)
-  const [inheritFromPO, setInheritFromPO] = useState(false)
 
   const form = useForm<RepairOrderFormValues>({
     resolver: zodResolver(repairOrderSchema),
     defaultValues: {
-      source_po_id: '',
       vendor_company_id: '',
       expected_return_date: undefined,
       currency: 'USD',
       remarks: '',
+      ship_invoice_number: '',
+      end_use_country: '',
+      country_of_origin: '',
+      freighter_awb: '',
+      dimensions_note: '',
+      subtotal: null,
+      misc_charge: null,
+      freight_charge: null,
+      vat_percentage: null,
+      vat_amount: null,
+      total_net: null,
       items: [],
     }
   })
 
   // Watch for PO selection changes
-  const watchSourcePOId = form.watch('source_po_id')
-
-  // Filter POs based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredPOs(availablePOs)
-    } else {
-      const filtered = availablePOs.filter(po =>
-        po.po_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        po.companies.company_name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      setFilteredPOs(filtered)
-    }
-  }, [searchQuery, availablePOs])
-
-  // Handle PO selection and inheritance
-  useEffect(() => {
-    if (watchSourcePOId && inheritFromPO) {
-      const po = availablePOs.find(p => p.po_id === watchSourcePOId)
-      if (po) {
-        setSelectedPO(po)
-        // Inherit basic fields
-        form.setValue('vendor_company_id', po.vendor_company_id)
-        form.setValue('currency', po.currency)
-        const joinedRemarks = [po.remarks_1, po.remarks_2, po.aviation_compliance_notes].filter(Boolean).join(' | ')
-        if (joinedRemarks) {
-          form.setValue('remarks', joinedRemarks)
-        }
-      }
-    } else if (!watchSourcePOId) {
-      setSelectedPO(null)
-    }
-  }, [watchSourcePOId, inheritFromPO, availablePOs, form.setValue])
-
-  useEffect(() => {
-    if (!inheritFromPO) {
-      setSelectedPO(null)
-      form.setValue('source_po_id', '')
-    }
-  }, [inheritFromPO, form.setValue])
+  
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -172,6 +127,48 @@ export default function NewRepairOrderClientPage({
     }, 0)
   }
 
+  // Part Number Assist (search + set Country of Origin)
+  const [pnQuery, setPnQuery] = useState('')
+  const [pnOptions, setPnOptions] = useState<{ pn_id: string; pn: string; description: string | null }[]>([])
+  const [isSearchingPN, setIsSearchingPN] = useState(false)
+
+  const searchPNs = async () => {
+    if (!pnQuery || pnQuery.length < 2) return
+    setIsSearchingPN(true)
+    try {
+      const { data, error } = await supabase
+        .from('pn_master_table')
+        .select('pn_id, pn, description')
+        .or(`pn.ilike.%${pnQuery}%,description.ilike.%${pnQuery}%`)
+        .limit(20)
+        .order('pn')
+      if (error) throw error
+      setPnOptions(data || [])
+    } finally {
+      setIsSearchingPN(false)
+    }
+  }
+
+  const pickPNForOrigin = async (pn_id: string) => {
+    try {
+      const { data } = await supabase
+        .from('inventory')
+        .select('country_of_origin')
+        .eq('pn_id', pn_id)
+        .not('country_of_origin', 'is', null)
+        .limit(1)
+        .maybeSingle()
+      if (data?.country_of_origin) {
+        form.setValue('country_of_origin', data.country_of_origin)
+        toast.success(`Country of Origin set: ${data.country_of_origin}`)
+      } else {
+        toast.message('No country of origin found for this PN')
+      }
+    } catch (e) {
+      toast.error('Lookup failed')
+    }
+  }
+
   const onSubmit = async (data: RepairOrderFormValues) => {
     setLoading(true)
     try {
@@ -181,7 +178,6 @@ export default function NewRepairOrderClientPage({
       const { data: repairOrderData, error: repairOrderError } = await supabase
         .from('repair_orders')
         .insert({
-          source_po_id: data.source_po_id || null,
           vendor_company_id: data.vendor_company_id,
           expected_return_date: data.expected_return_date ? dateFns.format(data.expected_return_date, 'yyyy-MM-dd') : null,
           currency: data.currency,
@@ -226,6 +222,32 @@ export default function NewRepairOrderClientPage({
       }
 
       toast.success('Repair order created successfully')
+      // Persist PDF overrides for the new RO so PDF can render the template
+      try {
+        const freight = data.freight_charge || 0
+        const misc = data.misc_charge || 0
+        const vatPct = data.vat_percentage || 0
+        const vatAmount = totalCost * (vatPct / 100)
+        const totalNet = totalCost + freight + misc + vatAmount
+        const overrides = {
+          shipInvoiceNumber: data.ship_invoice_number || undefined,
+          currency: data.currency || 'USD',
+          endUseCountry: data.end_use_country || null,
+          countryOfOrigin: data.country_of_origin || null,
+          freighterAwb: data.freighter_awb || null,
+          dimensionsNote: data.dimensions_note || null,
+          subtotal: totalCost,
+          miscCharge: misc,
+          freightCharge: freight,
+          vatPercentage: vatPct,
+          vatAmount,
+          totalNet,
+        }
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`ro_pdf_overrides_${repairOrderData.repair_order_id}`, JSON.stringify(overrides))
+        }
+      } catch {}
+
       router.push(`/portal/repair-orders/${repairOrderData.repair_order_id}`)
     } catch (error) {
       console.error('Error creating repair order:', error)
@@ -270,106 +292,6 @@ export default function NewRepairOrderClientPage({
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Purchase Order Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Purchase Order Reference
-            </CardTitle>
-            <CardDescription>
-              Optionally reference a purchase order to inherit data and maintain traceability
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="inheritFromPO"
-                checked={inheritFromPO}
-                onChange={(e) => setInheritFromPO(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="inheritFromPO" className="text-sm font-medium">
-                Create from Purchase Order (inherit data)
-              </Label>
-            </div>
-
-            {inheritFromPO && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="source_po_id">Select Purchase Order</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="po-search"
-                      placeholder="Search by PO number or vendor name..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Select
-                    value={form.watch('source_po_id')}
-                    onValueChange={(value) => {
-                      form.setValue('source_po_id', value)
-                      setInheritFromPO(true)
-                    }}
-                  >
-                    <SelectTrigger className={form.formState.errors.source_po_id ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Select a purchase order" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredPOs.map((po) => (
-                        <SelectItem key={po.po_id} value={po.po_id}>
-                          <div className="space-y-1">
-                            <div className="font-medium">{po.po_number}</div>
-                            <div className="text-sm text-gray-600">
-                              {po.companies.company_name} • {dateFns.format(new Date(po.po_date), 'MMM dd, yyyy')} • {po.currency} {po.total_amount || 0}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Completed PO
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedPO && (
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-blue-900">Selected Purchase Order: {selectedPO.po_number}</h4>
-                        <div className="text-sm text-blue-800">
-                          <div>Vendor: {selectedPO.companies.company_name}</div>
-                          <div>Date: {dateFns.format(new Date(selectedPO.po_date), 'MMM dd, yyyy')}</div>
-                          <div>Currency: {selectedPO.currency}</div>
-                          {selectedPO.origin_country_code && (
-                            <div>Origin Country: {selectedPO.origin_country_code}</div>
-                          )}
-                          {selectedPO.end_use_country_code && (
-                            <div>End Use Country: {selectedPO.end_use_country_code}</div>
-                          )}
-                          {selectedPO.traceable_to_airline && (
-                            <div>Traceable to Airline: {selectedPO.traceable_to_airline}</div>
-                          )}
-                          {selectedPO.traceable_to_msn && (
-                            <div>Traceable to MSN: {selectedPO.traceable_to_msn}</div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Header Information */}
         <Card>
@@ -380,18 +302,10 @@ export default function NewRepairOrderClientPage({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="vendor_company_id">
-                  Vendor
-                  {selectedPO && form.watch('vendor_company_id') === selectedPO.vendor_company_id && (
-                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                      Inherited from PO
-                    </span>
-                  )}
-                </Label>
+                <Label htmlFor="vendor_company_id">Vendor</Label>
                 <Select
                   value={form.watch('vendor_company_id')}
                   onValueChange={(value) => form.setValue('vendor_company_id', value)}
-                  disabled={selectedPO ? form.watch('vendor_company_id') === selectedPO.vendor_company_id : false}
                 >
                   <SelectTrigger id="vendor_company_id" className={form.formState.errors.vendor_company_id ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select vendor" />
@@ -407,18 +321,51 @@ export default function NewRepairOrderClientPage({
               </div>
 
               <div>
-                <Label htmlFor="currency">
-                  Currency
-                  {selectedPO && form.watch('currency') === selectedPO.currency && (
-                    <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                      Inherited from PO
-                    </span>
-                  )}
-                </Label>
+                <Label>Expected Return Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !form.watch('expected_return_date') && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.watch('expected_return_date') ? dateFns.format(form.watch('expected_return_date')!, "PPP") : <span>Pick a date (optional)</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={form.watch('expected_return_date')}
+                      onSelect={(date) => form.setValue('expected_return_date', date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+          </CardContent>
+        </Card>
+
+        {/* Additional Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Additional Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="ship_invoice_number">Ship Invoice Number</Label>
+                <Input id="ship_invoice_number" {...form.register('ship_invoice_number')} placeholder="e.g., RO25510" />
+              </div>
+              <div>
+                <Label htmlFor="currency">Currency</Label>
                 <Select
                   value={form.watch('currency')}
                   onValueChange={(value) => form.setValue('currency', value)}
-                  disabled={selectedPO ? form.watch('currency') === selectedPO.currency : false}
                 >
                   <SelectTrigger id="currency">
                     <SelectValue />
@@ -430,43 +377,64 @@ export default function NewRepairOrderClientPage({
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="remarks">Remarks</Label>
+                <Textarea id="remarks" {...form.register('remarks')} rows={3} placeholder="Additional notes" />
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
+        {/* Packing Slip */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Packing Slip</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Expected Return Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !form.watch('expected_return_date') && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.watch('expected_return_date') ? dateFns.format(form.watch('expected_return_date')!, "PPP") : <span>Pick a date (optional)</span>}
+              <Label htmlFor="end_use_country">End-Use / Buyer Country</Label>
+              <Input id="end_use_country" {...form.register('end_use_country')} />
+            </div>
+            <div>
+              <Label htmlFor="country_of_origin">Country of Origin</Label>
+              <Input id="country_of_origin" {...form.register('country_of_origin')} />
+            </div>
+            <div>
+              <Label htmlFor="freighter_awb">Freighter AWB #</Label>
+              <Input id="freighter_awb" {...form.register('freighter_awb')} />
+            </div>
+            <div>
+              <Label htmlFor="dimensions_note">Dimensions || L W H || Gr.wgt/ Kgs</Label>
+              <Input id="dimensions_note" {...form.register('dimensions_note')} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Part Number Assist */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Part Number Assist</CardTitle>
+            <CardDescription>Search part number and auto-fill Country of Origin</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex gap-2">
+              <Input placeholder="Search Part Number" value={pnQuery} onChange={(e) => setPnQuery(e.target.value)} />
+              <Button type="button" variant="outline" onClick={searchPNs} disabled={isSearchingPN}>
+                {isSearchingPN ? 'Searching…' : 'Search'}
+              </Button>
+            </div>
+            {pnOptions.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                {pnOptions.map((pn) => (
+                  <Button key={pn.pn_id} type="button" variant="outline" className="justify-start" onClick={() => pickPNForOrigin(pn.pn_id)}>
+                    <div>
+                      <div className="font-mono font-bold">{pn.pn}</div>
+                      <div className="text-xs text-slate-600">{pn.description || '—'}</div>
+                    </div>
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={form.watch('expected_return_date')}
-                    onSelect={(date) => form.setValue('expected_return_date', date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <Label htmlFor="remarks">Remarks</Label>
-              <Textarea
-                id="remarks"
-                {...form.register('remarks')}
-                rows={3}
-                placeholder="Additional notes or special instructions"
-              />
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -523,7 +491,15 @@ export default function NewRepairOrderClientPage({
                           <SelectValue placeholder="Select inventory item" />
                         </SelectTrigger>
                         <SelectContent>
-                          {inventoryItems.map((item) => (
+                          {inventoryItems
+                            .filter(item =>
+                              // Filter out cancelled items
+                              item.status !== 'Cancelled' &&
+                              item.business_status !== 'cancelled' &&
+                              // Additional filter: only show items that make sense for repair orders
+                              (item.physical_status !== 'in_transit' && item.business_status !== 'sold')
+                            )
+                            .map((item) => (
                             <SelectItem key={item.inventory_id} value={item.inventory_id}>
                               <div>
                                 <div className="font-mono font-medium">{item.pn_master_table.pn}</div>
@@ -579,10 +555,62 @@ export default function NewRepairOrderClientPage({
             <CardTitle>Cost Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total Estimated Cost:</span>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
+              <div>
+                <Label htmlFor="freight_charge">Freight/Forwarding Charge ($)</Label>
+                <Input
+                  id="freight_charge"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...form.register('freight_charge', { valueAsNumber: true })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="misc_charge">Misc Charge ($)</Label>
+                <Input
+                  id="misc_charge"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...form.register('misc_charge', { valueAsNumber: true })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="vat_percentage">VAT (%)</Label>
+                <Input
+                  id="vat_percentage"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...form.register('vat_percentage', { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
                 <span>${calculateTotalCost().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Freight/Forwarding:</span>
+                <span>${(form.watch('freight_charge') || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Misc Charge:</span>
+                <span>${(form.watch('misc_charge') || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>VAT ({form.watch('vat_percentage') || 0}%):</span>
+                <span>${(calculateTotalCost() * ((form.watch('vat_percentage') || 0) / 100)).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg border-t pt-2">
+                <span>Total NET:</span>
+                <span>${(calculateTotalCost() + (form.watch('freight_charge') || 0) + (form.watch('misc_charge') || 0) + (calculateTotalCost() * ((form.watch('vat_percentage') || 0) / 100))).toFixed(2)}</span>
               </div>
             </div>
           </CardContent>

@@ -1,5 +1,4 @@
 import { createSupabaseServer } from '@/lib/supabase/server'
-import { getAvailablePurchaseOrdersForRO } from '@/lib/services/repair-order-service.server'
 import NewRepairOrderClientPage from './NewRepairOrderClientPage'
 
 export const dynamic = 'force-dynamic'
@@ -7,7 +6,7 @@ export const dynamic = 'force-dynamic'
 async function getFormData() {
   const supabase = createSupabaseServer()
 
-  const [vendorsResult, inventoryResult, availablePOsResult] = await Promise.all([
+  const [vendorsResult, inventoryResult] = await Promise.all([
     supabase.from('companies').select('*').in('company_type', ['vendor', 'both']).order('company_name'),
     supabase.from('inventory')
       .select(`
@@ -15,8 +14,7 @@ async function getFormData() {
         pn_master_table(pn, description)
       `)
       .in('status', ['Available', 'Reserved'])
-      .order('pn_master_table(pn)'),
-    getAvailablePurchaseOrdersForRO()
+      .order('pn_master_table(pn)')
   ])
 
   if (vendorsResult.error) {
@@ -28,16 +26,9 @@ async function getFormData() {
     throw inventoryResult.error
   }
 
-  // Transform PO data to include vendor_company_name
-  const transformedPOs = availablePOsResult.map(po => ({
-    ...po,
-    vendor_company_name: po.companies?.company_name || ''
-  }))
-
   return {
     vendors: vendorsResult.data || [],
-    inventoryItems: inventoryResult.data || [],
-    availablePOs: transformedPOs
+    inventoryItems: inventoryResult.data || []
   }
 }
 
@@ -48,7 +39,6 @@ export default async function NewRepairOrderPage() {
     <NewRepairOrderClientPage
       vendors={formData.vendors}
       inventoryItems={formData.inventoryItems as any}
-      availablePOs={formData.availablePOs}
     />
   )
 }
