@@ -241,21 +241,32 @@ export async function validateAirline(code: string): Promise<AirlineData | null>
 }
 
 /**
+ * Country name overrides for official names and corrections
+ */
+function applyCountryNameOverrides(countryName: string): string {
+  const overrides: { [key: string]: string } = {
+    'Turkey': 'Türkiye',
+    // Add other country name overrides as needed
+  }
+  return overrides[countryName] || countryName
+}
+
+/**
  * Fetch countries from REST Countries API
  */
 export async function fetchCountries(): Promise<{ name: string; code: string; region: string }[]> {
   try {
     const response = await fetch(`${COUNTRIES_BASE_URL}/all?fields=name,cca2,region`)
-    
+
     if (!response.ok) {
       throw new Error(`REST Countries API error: ${response.status}`)
     }
 
     const data: CountryData[] = await response.json()
-    
+
     return data
       .map(country => ({
-        name: country.name.common,
+        name: applyCountryNameOverrides(country.name.common),
         code: country.cca2,
         region: country.region
       }))
@@ -573,7 +584,7 @@ function getMockAirlines(searchTerm?: string): AirlineData[] {
       iata_code: 'TK',
       icao_code: 'THY',
       callsign: 'TURKAIR',
-      country_name: 'Turkey',
+      country_name: 'Türkiye',
       country_iso2: 'TR',  
       status: 'active',
       type: 'scheduled'
@@ -603,7 +614,7 @@ function getMockCountries(): { name: string; code: string; region: string }[] {
     { name: 'Canada', code: 'CA', region: 'Americas' },
     { name: 'Australia', code: 'AU', region: 'Oceania' },
     { name: 'Japan', code: 'JP', region: 'Asia' },
-    { name: 'Turkey', code: 'TR', region: 'Asia' },
+    { name: 'Türkiye', code: 'TR', region: 'Asia' },
     { name: 'Brazil', code: 'BR', region: 'Americas' },
     { name: 'India', code: 'IN', region: 'Asia' },
     { name: 'China', code: 'CN', region: 'Asia' },
